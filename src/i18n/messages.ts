@@ -5,7 +5,6 @@ export type Language = 'ko' | 'en';
 
 // Titles ("Stage 01", "Stage Clear!") and difficulty tags stay in English in both languages.
 const ko = {
-  sound: '게임 소리',
   settings: '설정',
   language: '언어',
   soundSection: '소리',
@@ -15,6 +14,7 @@ const ko = {
   modeTimedHint: '빨리 클리어할수록 별을 더 받아요. 시간이 지나도 계속할 수 있어요.',
   modeRelaxedHint: '시간 제한과 별 없이 플레이해요. 트레이 비우기는 매 판 1번 무료예요.',
   cleared: '클리어',
+  modeLocked: '게임 중에는 모드를 바꿀 수 없어요.',
   sfxVolume: '효과음',
   musicVolume: '배경음악',
   muteChannel: (label: string) => `${label} 음소거`,
@@ -98,7 +98,6 @@ const enItemNames: Record<DonutType, string> = {
 };
 
 const en: Messages = {
-  sound: 'Game sound',
   settings: 'Settings',
   language: 'Language',
   soundSection: 'Sound',
@@ -108,6 +107,7 @@ const en: Messages = {
   modeTimedHint: 'Clear faster for more stars. You can keep playing when time runs out.',
   modeRelaxedHint: 'No clock and no stars. One free tray clear every game.',
   cleared: 'Cleared',
+  modeLocked: "The mode can't be changed during a game.",
   sfxVolume: 'Effects',
   muteChannel: (label: string) => `Mute ${label.toLowerCase()}`,
   musicVolume: 'Music',

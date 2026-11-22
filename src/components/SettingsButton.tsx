@@ -11,17 +11,22 @@ export interface SettingsProps {
   mode: PlayMode; onMode: (mode: PlayMode) => void;
 }
 
-function Segmented<T extends string>({ label, value, options, onChange }: {
-  label: string; value: T; options: Array<[T, string, string?]>; onChange: (value: T) => void;
+function Segmented<T extends string>({ label, value, options, onChange, disabled }: {
+  label: string; value: T; options: Array<[T, string, string?]>; onChange: (value: T) => void; disabled?: boolean;
 }) {
   return <div className="settings-segmented" role="group" aria-label={label}>
     {options.map(([option, text, lang]) => <button key={option} type="button" lang={lang} aria-pressed={value === option}
-      onClick={() => onChange(option)}>{text}</button>)}
+      disabled={disabled} onClick={() => onChange(option)}>{text}</button>)}
   </div>;
 }
 
-/** One popup for language, game mode and sound, on the start and stage screens. */
-export function SettingsButton({ language, onLanguage, mode, onMode, ...sound }: SettingsProps) {
+/**
+ * One popup for language, game mode and sound. In a game the mode is locked (`inGame`),
+ * and onOpen/onClose let the game pause and resume around it.
+ */
+export function SettingsButton({ language, onLanguage, mode, onMode, inGame, onOpen, onClose, className = '', ...sound }: SettingsProps & {
+  inGame?: boolean; onOpen?: () => void; onClose?: () => void; className?: string;
+}) {
   const t = useMessages();
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
@@ -31,12 +36,13 @@ export function SettingsButton({ language, onLanguage, mode, onMode, ...sound }:
     if (open && !element.open) element.showModal();
     else if (!open && element.open) element.close();
   }, [open]);
+  const close = () => { if (!open) return; setOpen(false); onClose?.(); };
   return <>
-    <button type="button" className="icon-button" onClick={() => setOpen(true)} aria-label={t.settings} aria-haspopup="dialog">
+    <button type="button" data-sfx={inGame ? 'none' : undefined} className={`icon-button ${className}`} onClick={() => { onOpen?.(); setOpen(true); }} aria-label={t.settings} aria-haspopup="dialog">
       <Icon name="settings" />
     </button>
     <dialog ref={dialog} className="glass-popup tray-full-dialog sound-dialog settings-dialog" aria-labelledby="settings-heading"
-      onClose={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) setOpen(false); }}>
+      onClose={close} onClick={event => { if (event.target === event.currentTarget) close(); }}>
       <h2 id="settings-heading">{t.settings}</h2>
       <section className="settings-section">
         <h3>{t.language}</h3>
@@ -45,15 +51,15 @@ export function SettingsButton({ language, onLanguage, mode, onMode, ...sound }:
       </section>
       <section className="settings-section">
         <h3>{t.mode}</h3>
-        <Segmented label={t.mode} value={mode} onChange={onMode}
+        <Segmented label={t.mode} value={mode} onChange={onMode} disabled={inGame}
           options={[['timed', t.modeTimed], ['relaxed', t.modeRelaxed]]} />
-        <p className="settings-hint">{mode === 'timed' ? t.modeTimedHint : t.modeRelaxedHint}</p>
+        <p className="settings-hint">{inGame ? t.modeLocked : mode === 'timed' ? t.modeTimedHint : t.modeRelaxedHint}</p>
       </section>
       <section className="settings-section">
         <h3>{t.soundSection}</h3>
         <SoundControls {...sound} />
       </section>
-      <div className="result-actions"><button type="button" className="primary-button popup-primary-button" onClick={() => setOpen(false)}>{t.close}</button></div>
+      <div className="result-actions"><button type="button" className="primary-button popup-primary-button" onClick={close}>{t.close}</button></div>
     </dialog>
   </>;
 }

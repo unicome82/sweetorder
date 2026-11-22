@@ -22,7 +22,7 @@ import { playSound, setMusicMood } from '../effects/sound';
 import { haptic } from '../effects/haptics';
 import { useMessages } from '../i18n/language';
 import { createEffects } from '../effects/turnEffects';
-import { SoundControls } from '../components/SoundControls';
+import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
 
 // Keep the standard pickup cadence independent of visual effect duration.
 const TRAY_READY_DELAY = 235;
@@ -36,12 +36,16 @@ interface RewardPop { id: number; reward: RewardKind; x: number; y: number }
 const POP_MS = 1000;
 
 interface Props {
-  soundEnabled: boolean; onToggleSound: () => void; state: GameState; dispatch: (action: GameAction) => void; onStages: () => void; onNext: () => void;
+  settings: SettingsProps; state: GameState; dispatch: (action: GameAction) => void; onStages: () => void; onNext: () => void;
   /** Whether a heart is available for another attempt; when not, onOutOfHearts runs instead of the restart. */
   canRestart: () => boolean; onOutOfHearts: () => void;
 }
-export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onToggleSound, canRestart, onOutOfHearts }: Props) {
+export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts }: Props) {
   const t = useMessages();
+  const { soundEnabled } = settings;
+  // Settings opened mid-play pause the game behind them and resume it when closed.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const pausedForSettings = useRef(false);
   const root = useRef<HTMLElement>(null);
   const latest = useRef(state);
   const matchTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
@@ -287,9 +291,10 @@ export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onTo
     else if (status !== 'blocked' && dialog.open) dialog.close();
     const pause = pauseDialog.current;
     if (!pause) return;
-    if (status === 'paused' && !pause.open) pause.showModal();
-    else if (status !== 'paused' && pause.open) pause.close();
-  }, [status]);
+    const showPause = status === 'paused' && !settingsOpen;
+    if (showPause && !pause.open) pause.showModal();
+    else if (!showPause && pause.open) pause.close();
+  }, [status, settingsOpen]);
   const showGoodbye = status === 'clear';
   const resultTitles = {
     ready: t.tryAgain,
@@ -383,7 +388,18 @@ export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onTo
   }, [showResult, status, urgent]);
   useEffect(() => () => setMusicMood('normal'), []);
   return <main className={`game-page game-status--${waitingForGoodbye || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root}>
-    {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro} soundEnabled={soundEnabled} onToggleSound={onToggleSound} />}
+    {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro}
+      settings={<SettingsButton {...settings} mode={state.relaxed ? 'relaxed' : 'timed'} inGame className="header-settings-button"
+        onOpen={() => {
+          setSettingsOpen(true);
+          pausedForSettings.current = latest.current.status === 'playing';
+          if (pausedForSettings.current) act({ type: 'PAUSE' });
+        }}
+        onClose={() => {
+          setSettingsOpen(false);
+          if (pausedForSettings.current) act({ type: 'RESUME' });
+          pausedForSettings.current = false;
+        }} />} />}
     {(showClock || (timeLimit > 0 && waitingForGoodbye)) && <div className="stage-clock-wrap">
       <StageClock limitMs={timeLimit} remainingMs={pausedTimeMs ?? remainingTimeMs} />
       {timeBonusPops.map(id => <span key={id} className="time-bonus-pop" role="status">+5s<span className="sr-only">{t.timeBonus}</span></span>)}
@@ -443,7 +459,6 @@ export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onTo
         <button type="button" className="secondary-button" onClick={() => act({ type: 'RESTART' })}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={onStages}><Icon name="grid" />{t.stageSelect}</button>
       </div>
-      <SoundControls soundEnabled={soundEnabled} onToggleSound={onToggleSound} />
     </dialog>
     <dialog className="glass-popup tray-full-dialog" ref={trayDialog} aria-labelledby="tray-full-heading" onCancel={event => event.preventDefault()}>
       <img className="popup-cat" src={popupCat} alt="" draggable={false} />

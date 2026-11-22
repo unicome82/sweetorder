@@ -82,9 +82,10 @@ export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, unlockA
             const score = stars[stage.id] ?? 0;
             const cleared = stars[stage.id] !== undefined;
             const current = stage.id === currentStage;
-            // Relaxed mode shows a check for any clear; timed mode shows the best stars from timed play.
+            // Relaxed mode shows only the stage number on open stages; timed mode shows the best stars from timed play.
+            const plain = relaxed && unlocked && !practice;
             const description = !unlocked ? t.locked : relaxed ? (cleared ? t.cleared : t.available) : score ? t.starsCount(score) : t.available;
-            return <button type="button" key={stage.id} className={`stage-option${current ? ' stage-option--next' : ''}`}
+            return <button type="button" key={stage.id} className={`stage-option${current ? ' stage-option--next' : ''}${plain ? ' stage-option--plain' : ''}`}
               aria-current={current ? 'step' : undefined} aria-label={practice ? (BONUS_AT_STAGE_00_FOR_TESTING ? t.bonusTestLabel : t.practiceLabel) : t.stageLabel(stage.id, stage.difficulty ?? '', description)}
               onClick={() => onGame(stage.id)} disabled={!unlocked}>
               <span className="stage-index" lang="en">
@@ -93,7 +94,7 @@ export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, unlockA
               </span>
               <StageDifficultyRibbon difficulty={stage.difficulty} />
               {practice ? <span className="stage-practice-label">{BONUS_AT_STAGE_00_FOR_TESTING ? t.bonusTest : t.practice}</span>
-                : unlocked && relaxed ? <span className={`stage-check${cleared ? '' : ' stage-check--open'}`} aria-hidden="true"><Icon name="check" /></span>
+                : plain ? null
                 : unlocked ? <span className="stage-stars" aria-hidden="true">
                 {[0, 1, 2].map(index => <span key={index} className={index < score ? undefined : 'star--unearned'}><img src={rewardStar} alt="" draggable={false} /></span>)}
               </span> : <span className="stage-lock"><Icon name="lock" /></span>}
