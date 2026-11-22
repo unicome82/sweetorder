@@ -1,6 +1,7 @@
 import { ORDER_SLOTS } from './constants';
 import { DONUT_TYPES, type ActiveOrder, type DonutToken, type GameState, type RewardKind, type StageDefinition } from './types';
 import { validateStage } from './validation';
+import { rollVipOrders } from './stages/extras';
 
 export type GameEvent =
   | { type: 'moved'; donutId: string; queueIndex: number }
@@ -12,18 +13,22 @@ export type GameEvent =
   | { type: 'stageCleared' };
 export interface TransitionResult { state: GameState; events: GameEvent[] }
 
-function orderFrom(stage: StageDefinition, index: number): ActiveOrder | null {
+function orderFrom(stage: StageDefinition, index: number, vipOrderIds: readonly string[] = []): ActiveOrder | null {
   const order = stage.orders[index];
   if (!order) return null;
-  return { definitionId: order.id, sequence: order.sequence, remaining: { ...order.items }, ...(order.vip ? { vip: true } : {}) };
+  const vip = order.vip || vipOrderIds.includes(order.id);
+  return { definitionId: order.id, sequence: order.sequence, remaining: { ...order.items }, ...(vip ? { vip: true } : {}) };
 }
 
-export function createGame(stage: StageDefinition): GameState {
+/** Starts an attempt; `random` picks this attempt's VIP customers. */
+export function createGame(stage: StageDefinition, random?: () => number): GameState {
   const errors = validateStage(stage);
   if (errors.length) throw new Error(errors.join('\n'));
+  const vipOrderIds = rollVipOrders(stage, random);
   return {
     stageId: stage.id, stageRevision: stage.revision, status: 'playing',
-    orders: Array.from({ length: ORDER_SLOTS }, (_, i) => orderFrom(stage, i)),
+    orders: Array.from({ length: ORDER_SLOTS }, (_, i) => orderFrom(stage, i, vipOrderIds)),
+    ...(vipOrderIds.length ? { vipOrderIds } : {}),
     nextOrderIndex: Math.min(ORDER_SLOTS, stage.targetOrders),
     queues: stage.queues.map(queue => queue.map(token => ({ ...token }))),
     tray: [], trayCapacity: stage.trayCapacity, completedOrders: 0,
@@ -59,7 +64,7 @@ function settle(state: GameState, stage: StageDefinition, events: GameEvent[]): 
     });
     for (let slot = 0; slot < ORDER_SLOTS; slot += 1) {
       if (state.orders[slot] || state.nextOrderIndex >= stage.targetOrders) continue;
-      const order = orderFrom(stage, state.nextOrderIndex);
+      const order = orderFrom(stage, state.nextOrderIndex, state.vipOrderIds);
       if (!order) throw new Error('주문 데이터가 부족합니다.');
       state.orders[slot] = order;
       state.nextOrderIndex += 1;

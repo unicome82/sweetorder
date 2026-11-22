@@ -22,6 +22,8 @@ export interface GameState {
   pendingMatchIds?: string[];
   timeExpired?: boolean;
   clearStars?: number;
+  /** Customers who are VIPs on this attempt; rolled afresh each time the stage starts. */
+  vipOrderIds?: string[];
   // Why play stopped while blocked or lost: the tray filled, or no reachable dessert can be picked up.
   blockedReason?: 'full' | 'stuck';
   completedOrders: number; trayClearsLeft: number; transitionId: number;
