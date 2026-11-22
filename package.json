@@ -11,14 +11,19 @@
     "lint": "eslint .",
     "test": "vitest run",
     "stages:generate": "node scripts/generate-stages.mjs",
-    "stages:verify": "STAGES_FULL=1 vitest run src/game/engine.test.ts"
+    "stages:verify": "STAGES_FULL=1 vitest run src/game/engine.test.ts",
+    "android:sync": "npm run build && cap sync android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/core": "^7.6.10",
     "@fontsource/jua": "^5.3.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.10",
     "@eslint/js": "^9.39.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
