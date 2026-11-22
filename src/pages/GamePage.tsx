@@ -308,6 +308,19 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const [presentedResult, setPresentedResult] = useState<GameState | null>(null);
   const waitingForGoodbye = showGoodbye && presentedResult !== state;
   const showResult = !boardVisible && !waitingForGoodbye;
+  // Leaving the app (home screen, another tab, screen lock) pauses a timed game so the clock can't run out unseen.
+  const pauseWhenHidden = useEffectEvent(() => {
+    if (document.visibilityState === 'hidden' && timeLimit > 0 && latest.current.status === 'playing') act({ type: 'PAUSE' });
+  });
+  useEffect(() => {
+    const onHide = () => pauseWhenHidden();
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+    };
+  }, []);
   const playTrayFullSound = useEffectEvent(() => {
     haptic('blocked');
     if (soundEnabled) playSound('blocked');
