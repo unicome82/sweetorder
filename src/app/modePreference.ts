@@ -11,6 +11,15 @@ export function readModePreference(): PlayMode {
   }
 }
 
+/** Whether the player has picked a mode yet; the first visit asks. */
+export function hasModePreference(): boolean {
+  try {
+    return localStorage.getItem(preferenceKey) !== null;
+  } catch {
+    return true;
+  }
+}
+
 export function saveModePreference(mode: PlayMode) {
   try {
     localStorage.setItem(preferenceKey, mode);

@@ -740,6 +740,17 @@
 .popup-cat { width: min(54%, 174px); }
 .popup-ribbon { width: min(40%, 126px); translate: -50% -45%; }
 .pause-dialog { padding-top: 28px; }
+// First-visit mode choice: two tappable cards with a short description each.
+.mode-choice-list { display: grid; gap: 10px; margin-top: 16px; }
+.mode-choice {
+  display: grid; gap: 6px; padding: 14px 16px; border: 1px solid #f3cdbb; border-radius: 18px;
+  background: #fffaf5; color: var(--secondary-text); font: inherit; text-align: left; cursor: pointer;
+  box-shadow: inset 0 1px #fff, 0 2px #e6bfa8, 0 4px 8px #9e665720;
+}
+.mode-choice:active { translate: 0 1px; box-shadow: inset 0 1px #fff, 0 1px #e6bfa8; }
+.mode-choice-title { display: flex; align-items: center; gap: 8px; color: #743c27; font-size: 17px; font-weight: 900; }
+.mode-choice-hint { color: #9a6a52; font-size: 13px; line-height: 1.45; }
+.mode-choice-note { margin-top: 12px; text-align: center; }
 .pause-dialog .result-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; }
 .pause-dialog .popup-primary-button { grid-column: 1 / -1; }
 .pause-dialog .secondary-button { gap: 5px; padding-inline: 6px; }

@@ -10,7 +10,8 @@ import { BONUS_AT_STAGE_00_FOR_TESTING } from '../game/constants';
 import { NoHeartsDialog } from '../components/NoHeartsDialog';
 import { ChargeHeartsDialog } from '../components/ChargeHeartsDialog';
 import { useGame } from '../hooks/useGame';
-import { readModePreference, saveModePreference, type PlayMode } from './modePreference';
+import { hasModePreference, readModePreference, saveModePreference, type PlayMode } from './modePreference';
+import { ModeChoiceDialog } from '../components/ModeChoiceDialog';
 import type { SettingsProps } from '../components/SettingsButton';
 import type { Language } from '../i18n/messages';
 import { StartPage } from '../pages/StartPage';
@@ -25,6 +26,7 @@ export function App() {
   const [soundEnabled, setSoundEnabled] = useState(readSoundPreference);
   const [language, setLanguage] = useState(readLanguagePreference);
   const [mode, setMode] = useState(readModePreference);
+  const [modeChosen, setModeChosen] = useState(hasModePreference);
   const relaxed = mode === 'relaxed';
   function changeLanguage(next: Language) {
     saveLanguagePreference(next);
@@ -33,6 +35,7 @@ export function App() {
   function changeMode(next: PlayMode) {
     saveModePreference(next);
     setMode(next);
+    setModeChosen(true);
   }
   function toggleSound() {
     const enabled = !soundEnabled;
@@ -93,6 +96,7 @@ export function App() {
         : <GamePage key={game.stageId} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
           canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => setOutOfHearts(true)} />
     }
+    {screen === 'start' && !modeChosen && <ModeChoiceDialog onChoose={changeMode} />}
     {outOfHearts && <NoHeartsDialog hearts={session.hearts} onClose={closeOutOfHearts} onCharge={openCharge} />}
     {chargeOpen && <ChargeHeartsDialog hearts={session.hearts} onClose={() => setChargeOpen(false)}
       onCharge={amount => { dispatch({ type: 'CHARGE_HEARTS', amount, now: Date.now() }); setChargeOpen(false); }} />}
