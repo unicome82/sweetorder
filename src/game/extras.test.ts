@@ -86,7 +86,7 @@ describe('대기열 보상', () => {
       }
       expect(session.game.collectedRewards).toEqual([kind]);
       expect(session.rewardedStages).toEqual([id]);
-      expect(session.hearts.count).toBe(kind === 'heart' ? 3 : 2);
+      expect(session.hearts).toMatchObject({ count: 2, bonus: kind === 'heart' ? 1 : 0 });
       expect(session.game.trayClearsLeft).toBe(kind === 'trayClear' ? clears + 1 : clears);
       expect(session.trayClears).toBe(session.game.trayClearsLeft);
 
@@ -97,17 +97,19 @@ describe('대기열 보상', () => {
     }
   });
 
-  it('하트가 가득하면 하트 보상은 보너스 하트로 간다', async () => {
+  it('하트 보상은 하트 총합이 4개 이하로 시작할 때만 나온다', async () => {
     let id = real(REWARDS_FROM_STAGE);
     while (isFeaturePreviewStage(id) || rewardSpot({ queues: (await loadStage(id)).queues } as GameState)?.reward !== 'heart') id += 1;
-    let session = reduceSession(createSession(true), { type: 'START', stageId: id, now: 0 });
-    session = { ...session, hearts: { count: 5, bonus: 0, refillFrom: 0 }, game: { ...session.game, trayCapacity: 99 } };
-    const { column, index } = rewardSpot(session.game)!;
-    for (let n = 0; n <= index; n += 1) {
-      const front = session.game.queues[column]![0]!;
-      session = reduceSession(session, { type: 'GAME', action: { type: 'SELECT_DONUT', queueIndex: column, expectedDonutId: front.id }, now: 0 });
-    }
-    expect(session.hearts).toMatchObject({ count: 5, bonus: 1 });
+    const startWith = (count: number, bonus: number) =>
+      reduceSession({ ...createSession(true), hearts: { count, bonus, refillFrom: 0 } }, { type: 'START', stageId: id, now: 0 });
+    expect(rewardSpot(startWith(4, 0).game)?.reward).toBe('heart');
+    expect(rewardSpot(startWith(3, 1).game)?.reward).toBe('heart');
+    expect(rewardSpot(startWith(5, 0).game)).toBeUndefined();
+    expect(rewardSpot(startWith(2, 3).game)).toBeUndefined();
+    const failed = startWith(5, 0);
+    const retried = reduceSession({ ...failed, hearts: { count: 3, bonus: 0, refillFrom: 0 }, game: { ...failed.game, status: 'gameover' } },
+      { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
+    expect(rewardSpot(retried.game)?.reward).toBe('heart');
   });
 });
 

@@ -1,7 +1,7 @@
 import { createGame, getStars } from './engine';
 import { getStage, isBonusStage, isStageId, practiceStage, prepareBonusStage, STAGE_COUNT } from './stages';
 import { reduceGame, type GameAction } from './reducer';
-import { addHeart, chargeFromBonus, fullHearts, MAX_HEARTS, refillHearts, spendHeart, type HeartSource, type Hearts } from './hearts';
+import { addHeart, canEarnHearts, chargeFromBonus, fullHearts, refillHearts, spendHeart, type HeartSource, type Hearts } from './hearts';
 import type { DonutType, GameState } from './types';
 import { isFeaturePreviewStage } from './constants';
 
@@ -51,18 +51,21 @@ function withMode(game: GameState, relaxed: boolean, trayClears: number): GameSt
   for (const order of next.orders) if (order) delete order.vip;
   return next;
 }
-function createSessionGame(stageId: number, trayClears: number, rewardedStages: readonly number[], relaxed: boolean): GameState {
-  return withMode(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), relaxed, trayClears);
+function createSessionGame(stageId: number, trayClears: number, rewardedStages: readonly number[], relaxed: boolean, heartReward: boolean): GameState {
+  return withMode(withoutHeartReward(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), heartReward), relaxed, trayClears);
+}
+/** A heart reward only stays in the queues while the player could still earn hearts (checked as the attempt starts). */
+function withoutHeartReward(game: GameState, keep: boolean): GameState {
+  return keep ? game : { ...game, queues: game.queues.map(queue => queue.filter(token => token.reward !== 'heart')) };
 }
 /** A stage whose reward was already collected comes back without it, so retries can't farm it. */
 function withoutSpentRewards(game: GameState, rewardedStages: readonly number[]): GameState {
   if (!rewardedStages.includes(game.stageId) || isFeaturePreviewStage(game.stageId)) return game;
   return { ...game, queues: game.queues.map(queue => queue.filter(token => !token.reward)) };
 }
-/** A heart reward fills the regular hearts first and spills into the bonus pool when they are full. */
+/** A heart picked up from the queues always goes to the bonus pool. */
 function grantHeart(hearts: Hearts, now: number): Hearts {
-  const current = refillHearts(hearts, now);
-  return addHeart(current, now, current.count < MAX_HEARTS ? 'regular' : 'bonus');
+  return addHeart(hearts, now, 'bonus');
 }
 /** Practice and bonus stages cost no heart. */
 export const isFreeStage = (id: number) => id === practiceStage.id || isBonusStage(id);
@@ -102,9 +105,11 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
     case 'STAGES': return { ...state, screen: 'stages', bonus: undefined };
     case 'START': {
       if (!isUnlocked(action.stageId, state.stars, state.unlockAllStages)) return state;
-      const payment = payForAttempt(state, action.stageId, action.now ?? Date.now());
+      const now = action.now ?? Date.now();
+      const payment = payForAttempt(state, action.stageId, now);
       if (!payment) return state;
-      return { ...state, ...payment, bonus: undefined, screen: 'game', game: createSessionGame(action.stageId, state.trayClears, state.rewardedStages, action.relaxed ?? false) };
+      const game = createSessionGame(action.stageId, state.trayClears, state.rewardedStages, action.relaxed ?? false, canEarnHearts(state.hearts, now));
+      return { ...state, ...payment, bonus: undefined, screen: 'game', game };
     }
     case 'CHARGE_HEARTS': return { ...state, hearts: chargeFromBonus(state.hearts, action.now ?? Date.now(), action.amount) };
     case 'START_BONUS': {
@@ -120,7 +125,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       let game = reduceGame(state.game, action.action, getStage(state.game.stageId));
       if (game === state.game) return state;
       const relaxed = state.game.relaxed ?? false;
-      if (restart) game = withMode(withoutSpentRewards(game, state.rewardedStages), relaxed, state.trayClears);
+      if (restart) game = withMode(withoutHeartReward(withoutSpentRewards(game, state.rewardedStages), canEarnHearts(state.hearts, now)), relaxed, state.trayClears);
       if (game.stageId === practiceStage.id) return { ...state, game };
       const earned = restart ? [] : (game.collectedRewards ?? []).slice(state.game.collectedRewards?.length ?? 0);
       let rewardedStages = state.rewardedStages;

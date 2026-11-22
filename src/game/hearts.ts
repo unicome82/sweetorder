@@ -43,6 +43,14 @@ export function chargeFromBonus(hearts: Hearts, now: number, requested = Infinit
   return amount ? { ...current, count: current.count + amount, bonus: current.bonus - amount } : current;
 }
 
+/** Heart rewards and bonus stages only turn up while regular plus bonus hearts are at most this many. */
+export const HEART_REWARD_MAX_TOTAL = 4;
+/** Whether more hearts can be handed out, so the total never climbs past five. */
+export function canEarnHearts(hearts: Hearts, now: number): boolean {
+  const current = refillHearts(hearts, now);
+  return current.count + current.bonus <= HEART_REWARD_MAX_TOTAL;
+}
+
 /** Gives a heart back to where it came from (a cleared attempt), or adds a bonus heart. */
 export function addHeart(hearts: Hearts, now: number, to: HeartSource): Hearts {
   const current = refillHearts(hearts, now);

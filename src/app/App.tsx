@@ -3,6 +3,7 @@ import { LanguageContext, readLanguagePreference, saveLanguagePreference } from 
 import type { MouseEvent } from 'react';
 import { playSound, readSoundPreference, saveSoundPreference, setMusicScene, unlockSound } from '../effects/sound';
 import { canAffordAttempt, getCurrentStage } from '../game/session';
+import { canEarnHearts } from '../game/hearts';
 import { isBonusStage, isStageId, isStageLoaded, loadStage, practiceStage, preloadStage } from '../game/stages';
 import { randomBonusDessert } from '../game/stages/bonus';
 import { BONUS_AT_STAGE_00_FOR_TESTING } from '../game/constants';
@@ -70,9 +71,11 @@ export function App() {
       .finally(() => setLoadingStage(previous => previous === stageId ? undefined : previous));
   }
   // After a campaign clear a bonus stage sometimes appears on the way to the next stage; it can't be picked from the list.
+  // Like heart rewards, it only turns up while the player holds four hearts or fewer in all.
   function next() {
     const target = isBonusStage(game.stageId) ? session.bonus?.nextStageId ?? currentStage : game.stageId + 1;
-    if (!isBonusStage(game.stageId) && isStageId(game.stageId) && game.stageId >= BONUS_FIRST_AFTER && Math.random() < BONUS_CHANCE) {
+    if (!isBonusStage(game.stageId) && isStageId(game.stageId) && game.stageId >= BONUS_FIRST_AFTER
+      && canEarnHearts(session.hearts, Date.now()) && Math.random() < BONUS_CHANCE) {
       dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: target, relaxed });
       return;
     }

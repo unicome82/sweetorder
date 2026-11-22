@@ -41,7 +41,8 @@ describe('여유 모드', () => {
       expect(session.game.trayClearsLeft).toBe(RELAXED_TRAY_CLEARS);
     }
     const heartStage = await stageWithReward('heart');
-    expect(start(heartStage.id, true).game.queues.flat().some(token => token.reward === 'heart')).toBe(true);
+    const lowHearts = { ...createSession(true), hearts: { count: 3, bonus: 0, refillFrom: 0 } };
+    expect(start(heartStage.id, true, lowHearts).game.queues.flat().some(token => token.reward === 'heart')).toBe(true);
   });
 
   it('트레이 비우기를 써도 보유 개수는 그대로이고, 다시 하기도 여유 모드로 시작한다', async () => {
