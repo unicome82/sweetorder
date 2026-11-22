@@ -601,7 +601,8 @@
   z-index: 4;
 }
 .tray-row .tray-section { min-width: 0; }
-.tray-section .stage-difficulty { top: -9px; left: 8px; z-index: 2; padding: 2px 8px; font-size: 11px; }
+// The tag sits under the desserts (z-index 1) so a full tray stays readable.
+.tray-section .stage-difficulty { top: -9px; left: 8px; z-index: 0; padding: 2px 8px; font-size: 11px; }
 .tray-clear-shortcut {
   position: relative;
   display: grid;
