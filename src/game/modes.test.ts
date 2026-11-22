@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createSession, reduceSession, RELAXED_TRAY_CLEARS, STARTING_TRAY_CLEARS, type SessionState } from './session';
+import { createSession, MAX_TRAY_CLEARS, reduceSession, RELAXED_TRAY_CLEARS, STARTING_TRAY_CLEARS, type SessionState } from './session';
 import { loadStage } from './stages';
 import { getGameTimeLimit } from './stageTime';
 import type { GameState, StageDefinition } from './types';
@@ -76,5 +76,23 @@ describe('타이머 모드', () => {
     const session = start(30, false, { ...createSession(true), trayClears: 5 });
     expect(session.game.relaxed).toBeUndefined();
     expect(session.game.trayClearsLeft).toBe(5);
+  });
+
+  it('트레이 비우기는 처음 클리어할 때만 +1이고 최대 5개까지 쌓인다', async () => {
+    const stage = await loadStage(1);
+    const first = finishing(start(1, false, createSession()), stage);
+    expect(first.trayClears).toBe(STARTING_TRAY_CLEARS + 1);
+    const again = finishing(start(1, false, { ...first, screen: 'stages' }), stage);
+    expect(again.trayClears).toBe(STARTING_TRAY_CLEARS + 1);
+    const capped = finishing(start(1, false, { ...createSession(), trayClears: MAX_TRAY_CLEARS }), stage);
+    expect(capped.trayClears).toBe(MAX_TRAY_CLEARS);
+  });
+
+  it('보유 트레이 비우기가 가득하면 트레이 비우기 보상이 나오지 않는다', async () => {
+    const stage = await stageWithReward('trayClear');
+    const has = (trayClears: number) => start(stage.id, false, { ...createSession(true), trayClears })
+      .game.queues.flat().some(token => token.reward === 'trayClear');
+    expect(has(MAX_TRAY_CLEARS - 1)).toBe(true);
+    expect(has(MAX_TRAY_CLEARS)).toBe(false);
   });
 });

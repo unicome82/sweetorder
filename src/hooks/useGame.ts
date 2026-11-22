@@ -1,5 +1,5 @@
 import { useEffect, useReducer } from 'react';
-import { createSession, reduceSession } from '../game/session';
+import { createSession, MAX_TRAY_CLEARS, reduceSession } from '../game/session';
 import { UNLOCK_ALL_STAGES_FOR_TESTING } from '../game/constants';
 import { isStageId } from '../game/stages';
 import { parseHearts } from '../game/hearts';
@@ -27,7 +27,7 @@ function loadSession() {
     const hearts = parseHearts(saved.hearts);
     if (hearts) session.hearts = hearts;
     if (Array.isArray(saved.rewardedStages)) session.rewardedStages = saved.rewardedStages.filter((id: unknown) => typeof id === 'number' && isStageId(id));
-    if (saved.clearsVersion === 2 && Number.isSafeInteger(saved.trayClears) && saved.trayClears >= 0) session.trayClears = saved.trayClears;
+    if (saved.clearsVersion === 2 && Number.isSafeInteger(saved.trayClears) && saved.trayClears >= 0) session.trayClears = Math.min(MAX_TRAY_CLEARS, saved.trayClears);
   } catch {
     return session;
   }
