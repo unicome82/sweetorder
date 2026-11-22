@@ -54,8 +54,7 @@ describe('하트', () => {
     const stage = await loadStage(1);
     const started = reduceSession(createSession(), { type: 'START', stageId: stage.id, now: 0 });
     expect(started.hearts.count).toBe(4);
-    const failed = reduceSession(started, { type: 'GAME', action: { type: 'TIME_EXPIRED' }, now: 0 });
-    expect(failed.game.status).toBe('gameover');
+    const failed = { ...started, game: { ...started.game, status: 'gameover' as const } };
     const retried = reduceSession(failed, { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
     expect(retried.hearts.count).toBe(3);
     const game = retried.game;

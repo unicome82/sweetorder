@@ -1,5 +1,5 @@
 import { BONUS_STAGE_ID } from './constants';
-import type { StageDefinition } from './types';
+import type { GameState, StageDefinition } from './types';
 
 // Seconds granted per dessert in the queues; harder stages need more thinking per tap.
 const secondsPerDessert = { easy: 1.0, normal: 1.1, hard: 1.2 } as const;
@@ -14,8 +14,14 @@ export function getStageTimeLimit(stage: StageDefinition): number {
   return Math.ceil(seconds / 5) * 5_000;
 }
 
+/** The clock this attempt runs on; relaxed attempts have none. */
+export function getGameTimeLimit(state: Pick<GameState, 'relaxed'>, stage: StageDefinition): number {
+  return state.relaxed ? 0 : getStageTimeLimit(stage);
+}
+
+// Time running out never ends a stage; a clear after it still earns one star.
 export function getTimeStars(remainingMs: number, limitMs: number): number {
-  if (remainingMs <= 0) return 0;
+  if (remainingMs <= 0) return 1;
   if (remainingMs * 2 >= limitMs) return 3;
   return remainingMs * 4 >= limitMs ? 2 : 1;
 }

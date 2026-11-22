@@ -5,8 +5,7 @@ import { Icon } from '../components/Icon';
 import { practiceStage, STAGE_COUNT, stageDifficulty } from '../game/stages';
 import { unlockedThrough } from '../game/session';
 import { useMessages } from '../i18n/language';
-import { LanguageButton } from '../components/LanguageButton';
-import { SoundButton } from '../components/SoundControls';
+import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
 import { HeartCounter } from '../components/HeartCounter';
 import { BONUS_AT_STAGE_00_FOR_TESTING, FEATURE_PREVIEW_FOR_TESTING, FEATURE_PREVIEW_STAGES, isFeaturePreviewStage } from '../game/constants';
 import type { Hearts } from '../game/hearts';
@@ -21,7 +20,8 @@ const JUMP_SIZE = 500;
 const blockStart = (block: number) => block * JUMP_SIZE + 1;
 const optionId = (index: number) => index === 0 ? practiceStage.id : index;
 
-export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, unlockAllStages, soundEnabled, onToggleSound, onToggleLanguage }: { onGame: (id: number) => void; onChargeHearts: () => void; stars: Record<number, number>; hearts: Hearts; unlockAllStages: boolean; soundEnabled: boolean; onToggleSound: () => void; onToggleLanguage: () => void }) {
+export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, unlockAllStages, settings }: { onGame: (id: number) => void; onChargeHearts: () => void; stars: Record<number, number>; hearts: Hearts; unlockAllStages: boolean; settings: SettingsProps }) {
+  const relaxed = settings.mode === 'relaxed';
   const t = useMessages();
   const openThrough = unlockedThrough(stars, unlockAllStages);
   const currentStage = unlockedThrough(stars);
@@ -66,8 +66,7 @@ export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, unlockA
   return <main className="stage-page">
     <nav className="stage-navigation" aria-label={t.stageMenu}>
       <HeartCounter hearts={hearts} onCharge={onChargeHearts} />
-      <LanguageButton onToggle={onToggleLanguage} />
-      <SoundButton soundEnabled={soundEnabled} onToggleSound={onToggleSound} />
+      <SettingsButton {...settings} />
     </nav>
     <div className="stage-hero" aria-hidden="true" />
     <div className="stage-list-frame" data-scrolled={viewport.top > 0}>
@@ -81,8 +80,10 @@ export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, unlockA
             const practice = id === practiceStage.id;
             const unlocked = practice || id <= openThrough || isFeaturePreviewStage(id);
             const score = stars[stage.id] ?? 0;
+            const cleared = stars[stage.id] !== undefined;
             const current = stage.id === currentStage;
-            const description = unlocked ? (score ? t.starsCount(score) : t.available) : t.locked;
+            // Relaxed mode shows a check for any clear; timed mode shows the best stars from timed play.
+            const description = !unlocked ? t.locked : relaxed ? (cleared ? t.cleared : t.available) : score ? t.starsCount(score) : t.available;
             return <button type="button" key={stage.id} className={`stage-option${current ? ' stage-option--next' : ''}`}
               aria-current={current ? 'step' : undefined} aria-label={practice ? (BONUS_AT_STAGE_00_FOR_TESTING ? t.bonusTestLabel : t.practiceLabel) : t.stageLabel(stage.id, stage.difficulty ?? '', description)}
               onClick={() => onGame(stage.id)} disabled={!unlocked}>
@@ -91,7 +92,9 @@ export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, unlockA
                 <span className="stage-index-number">{String(stage.id).padStart(2, '0')}</span>
               </span>
               <StageDifficultyRibbon difficulty={stage.difficulty} />
-              {practice ? <span className="stage-practice-label">{BONUS_AT_STAGE_00_FOR_TESTING ? t.bonusTest : t.practice}</span> : unlocked ? <span className="stage-stars" aria-hidden="true">
+              {practice ? <span className="stage-practice-label">{BONUS_AT_STAGE_00_FOR_TESTING ? t.bonusTest : t.practice}</span>
+                : unlocked && relaxed ? <span className={`stage-check${cleared ? '' : ' stage-check--open'}`} aria-hidden="true"><Icon name="check" /></span>
+                : unlocked ? <span className="stage-stars" aria-hidden="true">
                 {[0, 1, 2].map(index => <span key={index} className={index < score ? undefined : 'star--unearned'}><img src={rewardStar} alt="" draggable={false} /></span>)}
               </span> : <span className="stage-lock"><Icon name="lock" /></span>}
             </button>;

@@ -16,7 +16,7 @@ import { getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, 
 import type { DonutType, GameState, RewardKind } from '../game/types';
 import { VIP_BONUS_MS } from '../game/stages/extras';
 import type { GameAction } from '../game/reducer';
-import { getStageTimeLimit, getTimeStars } from '../game/stageTime';
+import { getGameTimeLimit, getTimeStars } from '../game/stageTime';
 import { StageClock } from '../components/StageClock';
 import { playSound, setMusicMood } from '../effects/sound';
 import { haptic } from '../effects/haptics';
@@ -51,7 +51,7 @@ export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onTo
   const mounted = useRef(true);
   const [readyOrders, setReadyOrders] = useState<string[]>([]);
   const [round, setRound] = useState(0);
-  const timeLimit = getStageTimeLimit(getStage(state.stageId));
+  const timeLimit = getGameTimeLimit(state, getStage(state.stageId));
   const hasIntro = state.stageId !== practiceStage.id;
   const introMs = hasIntro ? INTRO_MS : 0;
   const [introRound, setIntroRound] = useState<number | null>(hasIntro ? 0 : null);
@@ -61,13 +61,13 @@ export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onTo
   const [remainingTimeMs, setRemainingTimeMs] = useState(timeLimit);
   const timerRunning = timeLimit > 0 && state.status === 'playing';
   const showClock = timerRunning || (timeLimit > 0 && (state.status === 'blocked' || state.status === 'paused'));
-  const expireStage = useEffectEvent(() => dispatch({ type: 'TIME_EXPIRED' }));
+  // The clock stops at 0:00 and play goes on; a clear from then on earns one star.
   useLayoutEffect(() => {
     if (!timerRunning) return;
     const updateClock = () => {
       const remaining = Math.min(timeLimit, Math.max(0, deadline - performance.now()));
       setRemainingTimeMs(remaining);
-      if (remaining === 0) expireStage();
+      if (remaining === 0) clearInterval(interval);
     };
     const interval = setInterval(updateClock, 100);
     const deadlineTimer = setTimeout(updateClock, Math.max(0, Math.ceil(deadline - performance.now())));
@@ -143,10 +143,6 @@ export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onTo
     let remaining = timeLimit > 0
       ? (current.status === 'blocked' || current.status === 'paused' ? pausedTimeMs : undefined) ?? Math.min(timeLimit, Math.max(0, deadline - now))
       : undefined;
-    if (action.type !== 'RESTART' && remaining === 0) {
-      dispatch({ type: 'TIME_EXPIRED' });
-      return;
-    }
     if (action.type === 'TRAY_READY' && current.status === 'paused') {
       deferredMatches.current.push(action.donutId);
       return;
@@ -300,7 +296,7 @@ export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onTo
     paused: t.tryAgain,
     clear: 'Stage Clear!',
     blocked: state.blockedReason === 'stuck' ? t.noMoves : t.trayFull,
-    gameover: state.timeExpired ? t.timeUp : state.trayClearsLeft > 0 ? t.tryAgain : state.blockedReason === 'stuck' ? t.noMoves : t.trayFull,
+    gameover: state.trayClearsLeft > 0 ? t.tryAgain : state.blockedReason === 'stuck' ? t.noMoves : t.trayFull,
   };
   const failed = status === 'gameover';
   const boardVisible = playing || status === 'blocked' || status === 'paused';
@@ -361,7 +357,7 @@ export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onTo
   // Red edge from one star left; in the last 10 seconds it shows and pulses whatever the stars.
   const timed = playing && !waitingForGoodbye && timeLimit > 0;
   const danger = timed && getTimeStars(remainingTimeMs, timeLimit) === 1;
-  const urgent = timed && remainingTimeMs <= 10_000;
+  const urgent = timed && remainingTimeMs > 0 && remainingTimeMs <= 10_000;
   // Tension cues: a falling chime when a star is lost, clock ticks through the last ten seconds.
   const timeStars = timeLimit > 0 ? getTimeStars(remainingTimeMs, timeLimit) : 0;
   const previousTimeStars = useRef(timeStars);
@@ -408,7 +404,7 @@ export function GamePage({ state, dispatch, onStages, onNext, soundEnabled, onTo
       {status === 'clear' && bonus && <div className="result-heart" role="img" aria-label={t.heartGained}>
         <HeartIcon /><span lang="en">+1</span>
       </div>}
-      {status === 'clear' && !bonus && <div className="result-stars" role="img" aria-label={t.starsCount(stars)}>
+      {status === 'clear' && !bonus && !state.relaxed && <div className="result-stars" role="img" aria-label={t.starsCount(stars)}>
         {[0, 1, 2].map(index => <span key={index} className={index < stars ? 'result-star--earned' : 'star--unearned'}><img src={rewardStar} alt="" draggable={false} /></span>)}
       </div>}
       <h2 id="result-heading" ref={resultHeading} tabIndex={-1} className={status === 'clear' ? 'result-display-title' : undefined}>

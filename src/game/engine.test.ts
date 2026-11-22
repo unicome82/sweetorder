@@ -53,13 +53,13 @@ describe('스테이지 공용 시간', () => {
     expect(getStageTimeLimit(stages[0]!)).toBe(140_000);
   });
 
-  it.each([[60_000, 3], [59_999, 2], [30_000, 2], [29_999, 1], [1, 1], [0, 0]])(
+  it.each([[60_000, 3], [59_999, 2], [30_000, 2], [29_999, 1], [1, 1], [0, 1]])(
     '120초 중 %i밀리초가 남으면 별 %i개 기준이다', (remaining, count) => {
       expect(getTimeStars(remaining, 120_000)).toBe(count);
     },
   );
 
-  it('마지막 픽업의 남은 시간으로 별을 저장하고 0초에는 픽업 전에 실패한다', () => {
+  it('마지막 픽업의 남은 시간으로 별을 저장하고, 시간이 다 돼도 계속해서 별 1개로 클리어한다', () => {
     const stage = stages[0]!;
     const session = reduceSession(createSession(), { type: 'START', stageId: stage.id });
     const game = session.game;
@@ -73,12 +73,9 @@ describe('스테이지 공용 시간', () => {
     const cleared = reduceSession(session, { type: 'GAME', action: { ...action, remainingTimeMs: 35_000 } });
     expect(cleared.game.status).toBe('clear');
     expect(cleared.stars[stage.id]).toBe(2);
-    const failed = reduceSession(session, { type: 'GAME', action: { ...action, remainingTimeMs: 0 } });
-    expect(failed.game.status).toBe('gameover');
-    expect(failed.game.timeExpired).toBe(true);
-    expect(failed.game.tray).toEqual(game.tray);
-    expect(failed.stars[stage.id]).toBeUndefined();
-    expect(reduceGame(failed.game, { type: 'RESTART' }, stage).timeExpired).toBeUndefined();
+    const late = reduceSession(session, { type: 'GAME', action: { ...action, remainingTimeMs: 0 } });
+    expect(late.game.status).toBe('clear');
+    expect(late.stars[stage.id]).toBe(1);
   });
 });
 
@@ -245,7 +242,6 @@ describe('자동 매칭과 상태 전이', () => {
     expect(select(state, stage, 0).state).toBe(state);
 
     const full = state;
-    expect(reduceGame(full, { type: 'TIME_EXPIRED' }, stage)).toBe(full);
     expect(reduceGame(full, { type: 'GIVE_UP' }, stage)).toMatchObject({ status: 'gameover', trayClearsLeft: 1 });
     const returned = clearTray(full, stage);
     expect(returned.events.map(event => event.type === 'returned' ? event.queueIndex : null)).toEqual(columns);
@@ -514,7 +510,9 @@ describe('세션 진행', () => {
     expect(isUnlocked(41, stars)).toBe(true);
     expect(isUnlocked(42, stars)).toBe(false);
     expect(getCurrentStage({ [STAGE_COUNT]: 1 })).toBe(STAGE_COUNT);
-    expect(encodeStars(stars)).toBe('31' + '0'.repeat(37) + '2');
+    expect(encodeStars(stars)).toBe('31' + '-'.repeat(37) + '2');
+    expect(encodeStars({ 1: 3, 2: 0 })).toBe('30');
+    expect(getCurrentStage({ 1: 3, 2: 0 })).toBe(3);
     expect(encodeStars({})).toBe('');
   });
   it('테스트 모드에서 모든 등록된 스테이지에 진입할 수 있다', () => {

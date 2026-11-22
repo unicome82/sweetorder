@@ -9,6 +9,9 @@ import { BONUS_AT_STAGE_00_FOR_TESTING } from '../game/constants';
 import { NoHeartsDialog } from '../components/NoHeartsDialog';
 import { ChargeHeartsDialog } from '../components/ChargeHeartsDialog';
 import { useGame } from '../hooks/useGame';
+import { readModePreference, saveModePreference, type PlayMode } from './modePreference';
+import type { SettingsProps } from '../components/SettingsButton';
+import type { Language } from '../i18n/messages';
 import { StartPage } from '../pages/StartPage';
 import { GamePage } from '../pages/GamePage';
 import { StageSelectPage } from '../pages/StageSelectPage';
@@ -20,10 +23,15 @@ export function App() {
   const { session, dispatch } = useGame();
   const [soundEnabled, setSoundEnabled] = useState(readSoundPreference);
   const [language, setLanguage] = useState(readLanguagePreference);
-  function toggleLanguage() {
-    const next = language === 'ko' ? 'en' : 'ko';
+  const [mode, setMode] = useState(readModePreference);
+  const relaxed = mode === 'relaxed';
+  function changeLanguage(next: Language) {
     saveLanguagePreference(next);
     setLanguage(next);
+  }
+  function changeMode(next: PlayMode) {
+    saveModePreference(next);
+    setMode(next);
   }
   function toggleSound() {
     const enabled = !soundEnabled;
@@ -52,32 +60,33 @@ export function App() {
   // Stage data arrives in 100-stage chunks; fetch the one a START needs before entering it.
   function start(stageId: number) {
     if (BONUS_AT_STAGE_00_FOR_TESTING && stageId === practiceStage.id) {
-      dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: currentStage });
+      dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: currentStage, relaxed });
       return;
     }
     if (!canAffordAttempt(session, stageId)) { setOutOfHearts(true); return; }
-    if (isStageLoaded(stageId)) { dispatch({ type: 'START', stageId }); return; }
+    if (isStageLoaded(stageId)) { dispatch({ type: 'START', stageId, relaxed }); return; }
     setLoadingStage(stageId);
-    loadStage(stageId).then(() => dispatch({ type: 'START', stageId }), () => undefined)
+    loadStage(stageId).then(() => dispatch({ type: 'START', stageId, relaxed }), () => undefined)
       .finally(() => setLoadingStage(previous => previous === stageId ? undefined : previous));
   }
   // After a campaign clear a bonus stage sometimes appears on the way to the next stage; it can't be picked from the list.
   function next() {
     const target = isBonusStage(game.stageId) ? session.bonus?.nextStageId ?? currentStage : game.stageId + 1;
     if (!isBonusStage(game.stageId) && isStageId(game.stageId) && game.stageId >= BONUS_FIRST_AFTER && Math.random() < BONUS_CHANCE) {
-      dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: target });
+      dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: target, relaxed });
       return;
     }
     start(target);
   }
+  const settings: SettingsProps = { soundEnabled, onToggleSound: toggleSound, language, onLanguage: changeLanguage, mode, onMode: changeMode };
   // Warm the chunks the player is likely to open next.
   useEffect(() => preloadStage(currentStage), [currentStage]);
   useEffect(() => { if (screen === 'game') preloadStage(game.stageId + 1); }, [screen, game.stageId]);
   return <LanguageContext value={language}><div className="app-shell" lang={language} onPointerUpCapture={soundEnabled ? unlockSound : undefined} onClickCapture={onClickCapture}>
     {screen === 'start'
-      ? <StartPage stage={currentStage} onToggleLanguage={toggleLanguage} soundEnabled={soundEnabled} onToggleSound={toggleSound} onGame={() => start(currentStage)} onStages={() => dispatch({ type: 'STAGES' })} />
+      ? <StartPage stage={currentStage} settings={settings} onGame={() => start(currentStage)} onStages={() => dispatch({ type: 'STAGES' })} />
       : screen === 'stages'
-        ? <StageSelectPage stars={stars} hearts={session.hearts} onChargeHearts={openCharge} onToggleLanguage={toggleLanguage} soundEnabled={soundEnabled} onToggleSound={toggleSound} unlockAllStages={session.unlockAllStages} onGame={start} />
+        ? <StageSelectPage stars={stars} hearts={session.hearts} onChargeHearts={openCharge} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} />
         : <GamePage key={game.stageId} soundEnabled={soundEnabled} onToggleSound={toggleSound} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
           canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => setOutOfHearts(true)} />
     }

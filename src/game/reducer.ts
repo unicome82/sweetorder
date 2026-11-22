@@ -1,5 +1,5 @@
 import { createGame, clearTray, selectDonut, matchTray, pickupTray } from './engine';
-import { getStageTimeLimit, getTimeStars } from './stageTime';
+import { getGameTimeLimit, getTimeStars } from './stageTime';
 import type { GameState, StageDefinition } from './types';
 
 export type GameAction = (
@@ -13,24 +13,18 @@ export type GameAction = (
   | { type: 'PAUSE' }
   | { type: 'RESUME' }
   | { type: 'RESTART' }
-  | { type: 'TIME_EXPIRED' }
 ) & { remainingTimeMs?: number };
 
 export function reduceGame(state: GameState, action: GameAction, stage: StageDefinition): GameState {
   const { remainingTimeMs } = action;
-  const timeLimit = getStageTimeLimit(stage);
-  if (action.type === 'TIME_EXPIRED' || (timeLimit > 0 && remainingTimeMs !== undefined && remainingTimeMs <= 0 && action.type !== 'RESTART')) {
-    return timeLimit > 0 && state.status === 'playing'
-      ? { ...state, status: 'gameover', timeExpired: true, transitionId: state.transitionId + 1 }
-      : state;
-  }
+  const timeLimit = getGameTimeLimit(state, stage);
   const next = applyGameAction(state, action, stage);
   return next !== state && next.status === 'clear' && timeLimit > 0 && remainingTimeMs !== undefined
     ? { ...next, clearStars: getTimeStars(remainingTimeMs, timeLimit) }
     : next;
 }
 
-function applyGameAction(state: GameState, action: Exclude<GameAction, { type: 'TIME_EXPIRED' }>, stage: StageDefinition): GameState {
+function applyGameAction(state: GameState, action: GameAction, stage: StageDefinition): GameState {
   switch (action.type) {
     case 'SELECT_DONUT': return selectDonut(state, stage, action.queueIndex, action.expectedDonutId).state;
     case 'QUEUE_DONUT': return selectDonut(state, stage, action.queueIndex, action.expectedDonutId, true).state;

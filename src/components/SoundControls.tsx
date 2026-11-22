@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Icon } from './Icon';
 import { useMessages } from '../i18n/language';
 import { MUSIC_CREDIT, playSound, readVolumes, setVolume, toggleVolumeMute, type VolumeKind } from '../effects/sound';
@@ -38,28 +38,4 @@ export function SoundControls({ soundEnabled, onToggleSound }: Props) {
     </div>)}
     <p className="sound-credit" lang="en">{t.musicCredit} {MUSIC_CREDIT}</p>
   </div>;
-}
-
-/** Sound settings popup for the start and stage screens. */
-export function SoundButton(props: Props) {
-  const t = useMessages();
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    if (open && !element.open) element.showModal();
-    else if (!open && element.open) element.close();
-  }, [open]);
-  return <>
-    <button type="button" className="icon-button" onClick={() => setOpen(true)} aria-label={t.soundSettings} aria-haspopup="dialog">
-      <Icon name={props.soundEnabled ? 'sound' : 'sound-off'} />
-    </button>
-    <dialog ref={dialog} className="glass-popup tray-full-dialog sound-dialog" aria-labelledby="sound-heading"
-      onClose={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) setOpen(false); }}>
-      <h2 id="sound-heading">{t.soundSettings}</h2>
-      <SoundControls {...props} />
-      <div className="result-actions"><button type="button" className="primary-button popup-primary-button" onClick={() => setOpen(false)}>{t.close}</button></div>
-    </dialog>
-  </>;
 }

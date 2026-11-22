@@ -13,10 +13,10 @@ export type GameEvent =
   | { type: 'stageCleared' };
 export interface TransitionResult { state: GameState; events: GameEvent[] }
 
-function orderFrom(stage: StageDefinition, index: number, vipOrderIds: readonly string[] = []): ActiveOrder | null {
+function orderFrom(stage: StageDefinition, index: number, vipOrderIds: readonly string[] = [], relaxed = false): ActiveOrder | null {
   const order = stage.orders[index];
   if (!order) return null;
-  const vip = order.vip || vipOrderIds.includes(order.id);
+  const vip = !relaxed && (order.vip || vipOrderIds.includes(order.id));
   return { definitionId: order.id, sequence: order.sequence, remaining: { ...order.items }, ...(vip ? { vip: true } : {}) };
 }
 
@@ -64,7 +64,7 @@ function settle(state: GameState, stage: StageDefinition, events: GameEvent[]): 
     });
     for (let slot = 0; slot < ORDER_SLOTS; slot += 1) {
       if (state.orders[slot] || state.nextOrderIndex >= stage.targetOrders) continue;
-      const order = orderFrom(stage, state.nextOrderIndex, state.vipOrderIds);
+      const order = orderFrom(stage, state.nextOrderIndex, state.vipOrderIds, state.relaxed);
       if (!order) throw new Error('주문 데이터가 부족합니다.');
       state.orders[slot] = order;
       state.nextOrderIndex += 1;

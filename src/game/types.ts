@@ -20,7 +20,8 @@ export interface GameState {
   orders: Array<ActiveOrder | null>; nextOrderIndex: number;
   queues: DonutToken[][]; tray: DonutToken[]; trayCapacity: number;
   pendingMatchIds?: string[];
-  timeExpired?: boolean;
+  /** Relaxed mode: no clock, stars or VIPs, and one free tray clear instead of the carried ones. */
+  relaxed?: boolean;
   clearStars?: number;
   /** Customers who are VIPs on this attempt; rolled afresh each time the stage starts. */
   vipOrderIds?: string[];

@@ -11,12 +11,14 @@ function loadSession() {
   try {
     const saved = JSON.parse(localStorage.getItem(progressKey) ?? 'null');
     if (!saved) return session;
-    // v2 stores stars as one digit per stage ("3102…" = stage 1 has 3 stars); v1 used an id → stars object.
+    // v2 stores stars as one character per stage ("3102…" = stage 1 has 3 stars); v1 used an id → stars object.
+    // From progressVersion 3, "-" is an unplayed stage and "0" one cleared only in relaxed mode; before that "0" was unplayed.
     const entries: Array<[number, unknown]> = typeof saved.stars === 'string'
-      ? Array.from(saved.stars as string, (digit, index) => [index + 1, Number(digit)])
+      ? Array.from(saved.stars as string, (digit, index) => [index + 1, digit === '-' ? NaN : Number(digit)])
       : saved.stars && typeof saved.stars === 'object' ? Object.entries(saved.stars).map(([key, value]) => [Number(key), value]) : [];
+    const lowest = saved.progressVersion === 3 ? 0 : 1;
     for (const [id, stars] of entries) {
-      if (isStageId(id) && typeof stars === 'number' && Number.isInteger(stars) && stars >= 1 && stars <= 3) {
+      if (isStageId(id) && typeof stars === 'number' && Number.isInteger(stars) && stars >= lowest && stars <= 3) {
         session.stars[id] = stars;
       }
     }
@@ -33,9 +35,9 @@ function loadSession() {
 }
 
 export function encodeStars(stars: Record<number, number>): string {
-  const ids = Object.keys(stars).map(Number).filter(id => isStageId(id) && stars[id]! > 0);
+  const ids = Object.keys(stars).map(Number).filter(id => isStageId(id) && stars[id]! >= 0);
   const length = ids.length ? Math.max(...ids) : 0;
-  return Array.from({ length }, (_, index) => String(stars[index + 1] ?? 0)).join('');
+  return Array.from({ length }, (_, index) => String(stars[index + 1] ?? '-')).join('');
 }
 
 export function useGame() {
@@ -43,7 +45,7 @@ export function useGame() {
   const { stars, score, trayClears, hearts, rewardedStages } = session;
   useEffect(() => {
     try {
-      localStorage.setItem(progressKey, JSON.stringify({ stars: encodeStars(stars), score, trayClears, hearts, rewardedStages, clearsVersion: 2 }));
+      localStorage.setItem(progressKey, JSON.stringify({ stars: encodeStars(stars), score, trayClears, hearts, rewardedStages, clearsVersion: 2, progressVersion: 3 }));
     } catch {
       // Play can continue when browser storage is unavailable.
     }
