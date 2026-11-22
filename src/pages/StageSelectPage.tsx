@@ -82,8 +82,9 @@ export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, unlockA
             const score = stars[stage.id] ?? 0;
             const cleared = stars[stage.id] !== undefined;
             const current = stage.id === currentStage;
-            // Relaxed mode shows only the stage number on open stages; timed mode shows the best stars from timed play.
-            const plain = relaxed && unlocked && !practice;
+            // Relaxed mode marks clears with a "Clear" label and leaves other open stages as just the number;
+            // timed mode shows the best stars from timed play.
+            const plain = relaxed && unlocked && !practice && !cleared;
             const description = !unlocked ? t.locked : relaxed ? (cleared ? t.cleared : t.available) : score ? t.starsCount(score) : t.available;
             return <button type="button" key={stage.id} className={`stage-option${current ? ' stage-option--next' : ''}${plain ? ' stage-option--plain' : ''}`}
               aria-current={current ? 'step' : undefined} aria-label={practice ? (BONUS_AT_STAGE_00_FOR_TESTING ? t.bonusTestLabel : t.practiceLabel) : t.stageLabel(stage.id, stage.difficulty ?? '', description)}
@@ -95,6 +96,7 @@ export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, unlockA
               <StageDifficultyRibbon difficulty={stage.difficulty} />
               {practice ? <span className="stage-practice-label">{BONUS_AT_STAGE_00_FOR_TESTING ? t.bonusTest : t.practice}</span>
                 : plain ? null
+                : unlocked && relaxed ? <span className="stage-clear-label" lang="en" aria-hidden="true">Clear</span>
                 : unlocked ? <span className="stage-stars" aria-hidden="true">
                 {[0, 1, 2].map(index => <span key={index} className={index < score ? undefined : 'star--unearned'}><img src={rewardStar} alt="" draggable={false} /></span>)}
               </span> : <span className="stage-lock"><Icon name="lock" /></span>}
