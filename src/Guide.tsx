@@ -11,6 +11,18 @@ const images = import.meta.glob<string>('./assets/{menu,menu-archive,customers,h
   query: '?url&no-inline',
 });
 
+const archivedMusic = import.meta.glob<string>('./assets/music-archive/*.mp3', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+});
+// Background music tried in the game and set aside; kept here to listen to and compare.
+const archivedTracks = [
+  { file: 'bgm-solve-the-riddle', label: 'Solve the Riddle', role: '대기화면 후보' },
+  { file: 'bgm-ready-steady-play', label: 'Ready Steady Play', role: '일반 플레이 후보' },
+  { file: 'bgm-little-steps', label: 'Little Steps', role: '보너스 플레이 후보' },
+];
+
 const scenes: Record<string, string> = {
   'home/sky': '스카이', 'home/shop': '상점', 'home/rose': '로즈', 'home/night': '밤',
   'home/lavender': '라벤더', 'home/honey': '허니', 'home/berry': '베리', 'home/bakery': '베이커리',
@@ -41,6 +53,14 @@ function ImagePreview({ url, label }: { url: string; label: string }) {
 }
 
 interface Entry { label: string; preview: ReactNode }
+function track({ file, label, role }: typeof archivedTracks[number]): Entry {
+  const url = archivedMusic[`./assets/music-archive/${file}.mp3`];
+  if (!url) throw new Error(`가이드 음악이 없습니다: ${file}`);
+  return {
+    label: `${label} · ${role}`,
+    preview: <span className="preview preview--audio"><audio controls preload="none" src={url} aria-label={`${label} 듣기`} /></span>,
+  };
+}
 function asset(label: string, path: string): Entry {
   const url = images[`./assets/${path}`];
   if (!url) throw new Error(`가이드 이미지가 없습니다: ${path}`);
@@ -64,6 +84,7 @@ const sections = [
     entries: Object.entries(scenes).map(([name, label]) =>
       asset(label, `${name}.webp`)),
   },
+  { id: 'music-archive', title: '보관 음악', entries: archivedTracks.map(track) },
   {
     id: 'icons', title: '아이콘',
     entries: [

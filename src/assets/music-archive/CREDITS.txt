@@ -1,0 +1,9 @@
+Background music by Geoff Harvey (https://pixabay.com/users/geoffharvey-9096471/)
+Licensed under the Pixabay Content License (https://pixabay.com/service/license-summary/):
+free for commercial use, attribution not required. The tracks are registered with
+YouTube Content ID; crediting "Geoff Harvey - Pixabay" in video descriptions avoids matches.
+Re-encoded (96 kbps, 44.1 kHz, loudness matched to about -21 LUFS) for the asset guide (kept as candidates, not used in the game).
+
+bgm-solve-the-riddle.mp3   "Solve the Riddle"   (candidate: start and stage select)  https://pixabay.com/music/fantasy-dreamy-childrens-solve-the-riddle-140001/
+bgm-ready-steady-play.mp3  "Ready Steady Play"  (candidate: game screen)          https://pixabay.com/music/happy-childrens-tunes-ready-steady-play-584926/
+bgm-little-steps.mp3       "Little Steps"       (candidate: bonus stages)         https://pixabay.com/music/happy-childrens-tunes-little-steps-246641/
