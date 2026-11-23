@@ -25,10 +25,6 @@ const archivedDesserts = {
   strawberryTart: '딸기 타르트',
   chocolateCookie: '초코칩 쿠키',
   lemonPosset: '레몬 포셋',
-  purpleRollCake: '보라 롤케이크',
-  whiteCookie: '화이트 초콜릿 쿠키',
-  matchaPudding: '말차 푸딩',
-  cinnamonCroffle: '시나몬 크러플',
 };
 const icons: Record<string, string> = {
   chevron_left: '뒤로', volume_up: '소리 켜기', volume_off: '소리 끄기', pause: '일시 정지',
