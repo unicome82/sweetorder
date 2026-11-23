@@ -89,10 +89,10 @@ const ko = {
 export type Messages = typeof ko;
 
 const enItemNames: Record<DonutType, string> = {
-  chocolateDonut: 'chocolate donut', strawberryDonut: 'strawberry donut', cinnamonCroffle: 'cinnamon croffle',
+  chocolateDonut: 'chocolate donut', strawberryDonut: 'strawberry donut', cinnamonCroffle: 'hotcakes',
   matchaCroffle: 'matcha croffle', strawberryCake: 'strawberry cake', chocolateCake: 'chocolate cake', caramelPudding: 'caramel pudding',
   matchaPudding: 'matcha pudding', raspberryMacaron: 'raspberry macaron', lemonMacaron: 'lemon macaron',
-  blueberryCupcake: 'Shine Muscat whipped cream cupcake', chocolateCupcake: 'orange cupcake', strawberryTart: 'egg tart',
+  blueberryCupcake: 'raspberry cupcake', chocolateCupcake: 'orange cupcake', strawberryTart: 'egg tart',
   blueberryTart: 'blueberry tart', croissant: 'plain croissant', chocolateCroissant: 'chocolate croissant',
   chocolateCookie: 'chocolate cookie', whiteCookie: 'white chocolate cookie', berryScone: 'berry scone',
   matchaScone: 'matcha scone', vanillaIceCream: 'vanilla ice cream', chocolateIceCream: 'chocolate ice cream',

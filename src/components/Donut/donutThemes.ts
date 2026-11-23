@@ -4,7 +4,7 @@ import type { DonutType } from '../../game/types';
 export const itemNames: Record<DonutType, string> = {
   chocolateDonut: '초코 도넛',
   strawberryDonut: '딸기 도넛',
-  cinnamonCroffle: '시나몬 크러플',
+  cinnamonCroffle: '핫케이크',
   matchaCroffle: '말차 크러플',
   strawberryCake: '딸기 케이크',
   chocolateCake: '초코 케이크',
@@ -12,7 +12,7 @@ export const itemNames: Record<DonutType, string> = {
   matchaPudding: '말차 푸딩',
   raspberryMacaron: '라즈베리 마카롱',
   lemonMacaron: '레몬 마카롱',
-  blueberryCupcake: '샤인머스캣 생크림 컵케이크',
+  blueberryCupcake: '라즈베리 컵케이크',
   chocolateCupcake: '오렌지 컵케이크',
   strawberryTart: '에그타르트',
   blueberryTart: '블루베리 타르트',
