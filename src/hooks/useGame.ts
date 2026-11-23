@@ -1,13 +1,13 @@
 import { useEffect, useReducer } from 'react';
 import { createSession, MAX_TRAY_CLEARS, reduceSession } from '../game/session';
-import { UNLOCK_ALL_STAGES_FOR_TESTING } from '../game/constants';
+import { UNLIMITED_HEARTS_FOR_TESTING, UNLOCK_ALL_STAGES_FOR_TESTING } from '../game/constants';
 import { isStageId } from '../game/stages';
 import { parseHearts } from '../game/hearts';
 
 const progressKey = 'sweet-order-progress-v1';
 
 function loadSession() {
-  const session = createSession(UNLOCK_ALL_STAGES_FOR_TESTING);
+  const session = createSession(UNLOCK_ALL_STAGES_FOR_TESTING, UNLIMITED_HEARTS_FOR_TESTING);
   try {
     const saved = JSON.parse(localStorage.getItem(progressKey) ?? 'null');
     if (!saved) return session;

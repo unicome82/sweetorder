@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addHeart, chargeAmount, chargeFromBonus, describeHearts, fullHearts, HEART_REFILL_MS, MAX_HEARTS, parseHearts, refillHearts, spendHeart, type Hearts } from './hearts';
-import { createSession, reduceSession } from './session';
+import { canAffordAttempt, createSession, reduceSession } from './session';
 import { BONUS_STAGE_ID } from './constants';
 import { getStage, loadStage } from './stages';
 import { createBonusStage } from './stages/bonus';
@@ -67,6 +67,23 @@ describe('하트', () => {
     const cleared = reduceSession(retried, { type: 'GAME', action: { type: 'PICKUP_TRAY', readyOrders: [order.definitionId], parallel: true }, now: 0 });
     expect(cleared.game.status).toBe('clear');
     expect(cleared.hearts.count).toBe(4);
+  });
+
+  it('테스트 모드에서는 하트가 없어도 시작과 재도전에 저장된 하트를 쓰지 않는다', async () => {
+    await loadStage(1);
+    const hearts = { count: 0, bonus: 3, refillFrom: 0 };
+    const session = { ...createSession(false, true), hearts };
+    expect(canAffordAttempt(session, 1, 0)).toBe(true);
+
+    const started = reduceSession(session, { type: 'START', stageId: 1, now: 0 });
+    expect(started.screen).toBe('game');
+    expect(started.hearts).toBe(hearts);
+
+    const failed = { ...started, game: { ...started.game, status: 'gameover' as const } };
+    const retried = reduceSession(failed, { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
+    expect(retried.game.status).toBe(started.game.status);
+    expect(retried.hearts).toBe(hearts);
+    expect(retried.heartPaidFrom).toBeUndefined();
   });
 
   it('하트가 없으면 캠페인 스테이지를 시작하거나 다시 할 수 없다', async () => {

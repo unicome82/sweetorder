@@ -14,6 +14,7 @@ export interface SessionState {
   stars: Record<number, number>;
   score: number;
   unlockAllStages: boolean;
+  unlimitedHearts: boolean;
   /** Tray clears carried between stages; each stage clear earns one more. */
   trayClears: number;
   hearts: Hearts;
@@ -32,8 +33,8 @@ export type SessionAction =
   | { type: 'GAME'; action: GameAction; now?: number }
   | { type: 'CHARGE_HEARTS'; amount?: number; now?: number };
 
-export function createSession(unlockAllStages = false): SessionState {
-  return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [] };
+export function createSession(unlockAllStages = false, unlimitedHearts = false): SessionState {
+  return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, unlimitedHearts, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [] };
 }
 // Tray clears are a single pool: three at the very start, +1 for each stage's first clear, never refilled otherwise.
 export const STARTING_TRAY_CLEARS = 3;
@@ -80,11 +81,11 @@ function grantHeart(hearts: Hearts, now: number): Hearts {
 export const isFreeStage = (id: number) => id === practiceStage.id || isBonusStage(id);
 /** Whether a paid attempt can start now. */
 export function canAffordAttempt(state: SessionState, stageId: number, now = Date.now()): boolean {
-  return isFreeStage(stageId) || refillHearts(state.hearts, now).count >= 1;
+  return state.unlimitedHearts || isFreeStage(stageId) || refillHearts(state.hearts, now).count >= 1;
 }
 /** Pays one heart for an attempt at a campaign stage; null when no heart is left. */
 function payForAttempt(state: SessionState, stageId: number, now: number): Pick<SessionState, 'hearts' | 'heartPaidFrom'> | null {
-  if (isFreeStage(stageId)) return { hearts: state.hearts, heartPaidFrom: undefined };
+  if (state.unlimitedHearts || isFreeStage(stageId)) return { hearts: state.hearts, heartPaidFrom: undefined };
   const paid = spendHeart(state.hearts, now);
   return paid ? { hearts: paid.hearts, heartPaidFrom: paid.from } : null;
 }
