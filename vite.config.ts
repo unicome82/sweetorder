@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -11,4 +12,15 @@ const woff2Only: Plugin = {
   },
 };
 
-export default defineConfig({ base: './', plugins: [woff2Only, react()] });
+export default defineConfig({
+  base: './',
+  plugins: [woff2Only, react()],
+  build: {
+    rollupOptions: {
+      input: {
+        game: resolve(import.meta.dirname, 'index.html'),
+        guide: resolve(import.meta.dirname, 'guide/index.html'),
+      },
+    },
+  },
+});
