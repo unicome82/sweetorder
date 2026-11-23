@@ -19,7 +19,7 @@ const { DONUT_TYPES } = await import('../src/game/types.ts');
 const { difficultyForStage, campaignProgress, hiddenDessertCount, STAGE_COUNT, CHUNK_SIZE } = await import('../src/game/stages/schedule.ts');
 
 // Bump a difficulty's revision to regenerate its stored layouts with the current rules.
-const layoutRevisions = { easy: 20, normal: 20, hard: 22 };
+const layoutRevisions = { easy: 20, normal: 21, hard: 23 };
 // Usage: stages:generate -- <chunks, e.g. 1-100 or 7> [--seed N] [--jobs N] [--force]
 const args = process.argv.slice(2);
 const option = name => { const index = args.indexOf(name); return index < 0 ? undefined : args[index + 1]; };
@@ -32,10 +32,12 @@ if (!(chunkFrom >= 1 && chunkTo >= chunkFrom && chunkTo <= lastChunk) || !Number
 }
 
 // Layout knobs are sampled from these ranges; bot success bands decide which candidate is kept.
+// Menus stay small (10/12/14 kinds) so players are not juggling too many desserts; the lost
+// difficulty comes from wider batches, which put desserts for later customers in front.
 const profiles = {
   easy: { variety: 10, orders: 9, kinds: [2, 2], batch: [2, 5], runSize: [3, 7], dessertTotal: [126, 140], bonus: 2 },
-  normal: { variety: 15, orders: 12, kinds: [2, 3], batch: [3, 8], runSize: [2, 6], dessertTotal: [160, 176], bonus: 0 },
-  hard: { variety: 20, orders: 15, kinds: [3, 3], batch: [4, 9], runSize: [2, 5], dessertTotal: [200, 216], bonus: 0 },
+  normal: { variety: 12, orders: 12, kinds: [2, 3], batch: [4, 9], runSize: [2, 6], dessertTotal: [160, 176], bonus: 0 },
+  hard: { variety: 14, orders: 15, kinds: [3, 3], batch: [6, 11], runSize: [3, 5], dessertTotal: [200, 216], bonus: 0 },
 };
 const lerp = (from, to, progress) => from + (to - from) * progress;
 // Success-rate targets (percent) for a skilled bot (nearest needed dessert first) and a

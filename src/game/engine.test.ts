@@ -370,7 +370,7 @@ describe('스테이지 해법과 게임 불변식', () => {
   }
   for (const stage of authoredStages) {
     it('스테이지 ' + stage.id + '는 난이도에 맞는 종류 수와 트레이를 사용한다', () => {
-      const variety = { easy: 10, normal: 15, hard: 20 };
+      const variety = { easy: 10, normal: 12, hard: 14 };
       expect(stage.donutTypes).toHaveLength(variety[stage.difficulty ?? 'easy']);
       expect(stage.trayCapacity).toBe(TRAY_CAPACITY_BY_DIFFICULTY[stage.difficulty ?? 'easy']);
       expect(stage.queues).toHaveLength(QUEUE_COUNT);

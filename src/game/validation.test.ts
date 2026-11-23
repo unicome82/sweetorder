@@ -7,7 +7,7 @@ import { clearTray, createGame } from './engine';
 
 const stages = await loadAllStages();
 describe('고정 스테이지 데이터 계약', () => {
-  it.each([['easy', 10, 12, 126, 140], ['normal', 15, 10, 160, 176], ['hard', 20, 8, 200, 216]] as const)(
+  it.each([['easy', 10, 12, 126, 140], ['normal', 12, 10, 160, 176], ['hard', 14, 8, 200, 216]] as const)(
     '%s는 종류별 준비량과 주문량이 같고 지정된 트레이를 사용한다', (difficulty, variety, capacity, minDesserts, maxDesserts) => {
       for (const stage of stages.filter(stage => stage.difficulty === difficulty)) {
         expect(validateStage(stage)).toEqual([]);
