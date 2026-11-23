@@ -89,16 +89,16 @@ const ko = {
 export type Messages = typeof ko;
 
 const enItemNames: Record<DonutType, string> = {
-  chocolateDonut: 'chocolate donut', strawberryDonut: 'strawberry donut', cinnamonCroffle: 'cinnamon croffle',
+  chocolateDonut: 'chocolate donut', strawberryDonut: 'strawberry donut', cinnamonCroffle: 'hotcakes',
   matchaCroffle: 'matcha croffle', strawberryCake: 'strawberry cake', chocolateCake: 'chocolate cake', caramelPudding: 'caramel pudding',
-  matchaPudding: 'matcha pudding', raspberryMacaron: 'raspberry macaron', lemonMacaron: 'lemon macaron',
-  blueberryCupcake: 'blueberry cupcake', chocolateCupcake: 'chocolate cupcake', strawberryTart: 'strawberry tart',
+  matchaPudding: 'checkerboard cookie', raspberryMacaron: 'raspberry macaron', lemonMacaron: 'lemon macaron',
+  blueberryCupcake: 'raspberry cupcake', chocolateCupcake: 'orange cupcake', strawberryTart: 'egg tart',
   blueberryTart: 'blueberry tart', croissant: 'plain croissant', chocolateCroissant: 'chocolate croissant',
-  chocolateCookie: 'chocolate chip cookie', whiteCookie: 'white chocolate cookie', berryScone: 'berry scone',
+  chocolateCookie: 'chocolate cookie', whiteCookie: 'white chocolate cookie', berryScone: 'berry scone',
   matchaScone: 'matcha scone', vanillaIceCream: 'vanilla ice cream', chocolateIceCream: 'chocolate ice cream',
   vanillaDonut: 'vanilla donut', raspberryCroffle: 'raspberry croffle', lemonCake: 'lemon cake', tiramisu: 'tiramisu cake',
-  purpleRollCake: 'purple roll cake', lemonPosset: 'lemon posset', mintBrownie: 'mint chocolate brownie', pretzel: 'pretzel',
-  cherryPie: 'cherry lattice pie', greenRollCake: 'green roll cake', hamSandwich: 'ham and cheese sandwich', canele: 'canelé',
+  purpleRollCake: 'purple roll cake', lemonPosset: 'crème brûlée', mintBrownie: 'mint chocolate brownie', pretzel: 'pretzel',
+  cherryPie: 'cherry lattice pie', greenRollCake: 'green roll cake', hamSandwich: 'mint macaron', canele: 'canelé',
 };
 
 const en: Messages = {

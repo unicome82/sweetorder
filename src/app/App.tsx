@@ -3,7 +3,7 @@ import { LanguageContext, readLanguagePreference, saveLanguagePreference } from 
 import type { MouseEvent } from 'react';
 import { playSound, readSoundPreference, saveSoundPreference, setMusicScene, unlockSound } from '../effects/sound';
 import { canAffordAttempt, getCurrentStage } from '../game/session';
-import { canEarnHearts } from '../game/hearts';
+import { canEarnHearts, MAX_HEARTS } from '../game/hearts';
 import { isBonusStage, isStageId, isStageLoaded, loadStage, practiceStage, preloadStage } from '../game/stages';
 import { randomBonusDessert } from '../game/stages/bonus';
 import { BONUS_AT_STAGE_00_FOR_TESTING } from '../game/constants';
@@ -52,6 +52,7 @@ export function App() {
     if (button && !button.disabled && button.dataset.sfx !== 'none') playSound('tap');
   }
   const { screen, game, stars } = session;
+  const displayedHearts = session.unlimitedHearts ? { ...session.hearts, count: MAX_HEARTS } : session.hearts;
   // Bonus stages have their own track.
   const musicScene = screen !== 'game' ? 'menu' : isBonusStage(game.stageId) ? 'bonus' : 'game';
   useEffect(() => setMusicScene(musicScene), [musicScene]);
@@ -92,13 +93,13 @@ export function App() {
     {screen === 'start'
       ? <StartPage stage={currentStage} settings={settings} onGame={() => start(currentStage)} onStages={() => dispatch({ type: 'STAGES' })} />
       : screen === 'stages'
-        ? <StageSelectPage stars={stars} hearts={session.hearts} onChargeHearts={openCharge} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} />
+        ? <StageSelectPage stars={stars} hearts={displayedHearts} onChargeHearts={openCharge} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} />
         : <GamePage key={game.stageId} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
           canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => setOutOfHearts(true)} />
     }
     {screen === 'start' && !modeChosen && <ModeChoiceDialog onChoose={changeMode} />}
-    {outOfHearts && <NoHeartsDialog hearts={session.hearts} onClose={closeOutOfHearts} onCharge={openCharge} />}
-    {chargeOpen && <ChargeHeartsDialog hearts={session.hearts} onClose={() => setChargeOpen(false)}
+    {outOfHearts && <NoHeartsDialog hearts={displayedHearts} onClose={closeOutOfHearts} onCharge={openCharge} />}
+    {chargeOpen && <ChargeHeartsDialog hearts={displayedHearts} onClose={() => setChargeOpen(false)}
       onCharge={amount => { dispatch({ type: 'CHARGE_HEARTS', amount, now: Date.now() }); setChargeOpen(false); }} />}
     {loadingStage !== undefined && <p className="stage-loading" role="status">Loading…</p>}
   </div></LanguageContext>;
