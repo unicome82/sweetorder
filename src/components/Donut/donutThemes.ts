@@ -9,7 +9,7 @@ export const itemNames: Record<DonutType, string> = {
   strawberryCake: '딸기 케이크',
   chocolateCake: '초코 케이크',
   caramelPudding: '캐러멜 푸딩',
-  matchaPudding: '말차 푸딩',
+  matchaPudding: '체크 쿠키',
   raspberryMacaron: '라즈베리 마카롱',
   lemonMacaron: '레몬 마카롱',
   blueberryCupcake: '라즈베리 컵케이크',

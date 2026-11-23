@@ -2,7 +2,7 @@
 export const UNLOCK_ALL_STAGES_FOR_TESTING = false;
 
 // Set to false to restore normal heart costs and counter display after playtesting.
-export const UNLIMITED_HEARTS_FOR_TESTING = true;
+export const UNLIMITED_HEARTS_FOR_TESTING = false;
 
 export const QUEUE_COUNT = 8;
 export const ORDER_SLOTS = 4;

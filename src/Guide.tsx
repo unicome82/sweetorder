@@ -19,6 +19,7 @@ const scenes: Record<string, string> = {
   'game/clear-desserts': '클리어 디저트', 'game/popup-ribbon': '팝업 리본',
 };
 const archivedDesserts = {
+  matchaPudding: '말차 푸딩',
   cinnamonCroffle: '시나몬 크러플',
   hamSandwich: '햄치즈 샌드위치',
   blueberryCupcake: '블루베리 컵케이크',
