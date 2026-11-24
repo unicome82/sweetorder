@@ -3,7 +3,7 @@ import popupRibbon from '../assets/game/popup-ribbon.webp';
 import popupCat from '../assets/game/popup-cat.webp';
 import clearDesserts from '../assets/game/clear-desserts.webp';
 import rewardStar from '../assets/game/reward-star.webp';
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { CUSTOMER_GOODBYE_MS } from '../effects/customerTiming';
 import { GameHeader } from '../components/GameHeader';
@@ -12,7 +12,7 @@ import { DonutTray } from '../components/DonutTray';
 import { DonutQueue } from '../components/DonutQueue';
 import { getStage, isBonusStage, practiceStage, STAGE_COUNT } from '../game/stages';
 import { HeartIcon } from '../components/HeartIcon';
-import { getQueueHint, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray } from '../game/engine';
+import { getQueueHintColumns, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray } from '../game/engine';
 import type { DonutType, GameState, RewardKind } from '../game/types';
 import { VIP_BONUS_MS } from '../game/stages/extras';
 import type { GameAction } from '../game/reducer';
@@ -343,9 +343,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const stage = getStage(state.stageId);
   const trayFull = state.tray.length >= state.trayCapacity;
   const queueDisabled = !playing || waitingForGoodbye || returning.size > 0 || showIntro;
-  const hintColumn = !queueDisabled && !trayFull && inFlight.size === 0 && pendingDeliveries.length === 0
-    ? getQueueHint(state, readyOrders)
-    : -1;
+  const canShowHint = !queueDisabled && !trayFull && inFlight.size === 0 && pendingDeliveries.length === 0;
+  const hintColumns = useMemo(() => canShowHint ? getQueueHintColumns(state, readyOrders) : [],
+    [canShowHint, state, readyOrders]);
   function rejectSelection(element: HTMLElement) {
     haptic('denied');
     if (soundEnabled) playSound('denied');
@@ -467,7 +467,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft}
       canClear={playing && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
       onClear={() => act({ type: 'CLEAR_TRAY' })} />
-    <DonutQueue key={round} queues={state.queues} returning={returning} disabled={queueDisabled} hintColumn={hintColumn} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
+    <DonutQueue key={round} queues={state.queues} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}
     <dialog className="glass-popup tray-full-dialog pause-dialog" ref={pauseDialog} aria-labelledby="pause-heading" onCancel={event => { event.preventDefault(); act({ type: 'RESUME' }); }}>
       <h2 id="pause-heading">{t.pause}</h2>

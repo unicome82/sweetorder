@@ -699,10 +699,10 @@
 .queue-front .donut { width: min(100%, 40px); }
 .queue-back .donut { width: min(92%, 36px); }
 
-[data-hint-visible] .queue-front--hint img.donut { filter: url(#queue-dessert-glow); }
+[data-hint-target] .queue-front img.donut { filter: url(#queue-dessert-glow); }
 .queue-dessert-glow-color { flood-opacity: .8; }
 @media (prefers-reduced-motion: no-preference) {
-  [data-hint-visible] .queue-dessert-glow-color { animation: queue-dessert-glow 850ms ease-in-out infinite alternate; }
+  [data-hint-visible] .queue-dessert-glow-color { animation: queue-dessert-glow var(--hint-half-duration) ease-in-out var(--hint-iterations) alternate; }
 }
 @keyframes queue-dessert-glow {
   from { flood-opacity: 0; }

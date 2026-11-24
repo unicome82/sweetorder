@@ -99,12 +99,13 @@ export function getReadyTrayPickupOrders(state: GameState, readyOrders: readonly
     .map(({ order }) => order.definitionId);
 }
 
-export function getQueueHint(state: GameState, readyOrders: readonly string[]): number {
-  return state.queues.findIndex(([front]) => {
-    if (!front || front.reward) return false;
+export function getQueueHintColumns(state: GameState, readyOrders: readonly string[]): number[] {
+  return state.queues.flatMap(([front], column) => {
+    if (!front || front.reward) return [];
     const withFront = { ...state, tray: [...state.tray, front] };
-    return Array.from(trayPickups(withFront)).some(({ token, order }) =>
+    const canDeliver = Array.from(trayPickups(withFront)).some(({ token, order }) =>
       token.id === front.id && readyOrders.includes(order.definitionId));
+    return canDeliver ? [column] : [];
   });
 }
 

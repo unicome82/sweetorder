@@ -4,8 +4,8 @@ import { Donut } from './Donut/Donut';
 import { useMessages } from '../i18n/language';
 import { RewardHeart } from './RewardHeart';
 import { Icon } from './Icon';
-export function DonutQueue({ queues, disabled, locked = false, returning, hintColumn, onSelect, onReject }: {
-  queues: DonutToken[][]; disabled: boolean; locked?: boolean; returning: ReadonlySet<string>; hintColumn: number;
+export function DonutQueue({ queues, disabled, locked = false, returning, hintColumns, onSelect, onReject }: {
+  queues: DonutToken[][]; disabled: boolean; locked?: boolean; returning: ReadonlySet<string>; hintColumns: readonly number[];
   onSelect: (queueIndex: number, expectedDonutId: string) => void;
   /** Called when a tap cannot pick anything: the tray is full or the column is empty. */
   onReject?: (queueIndex: number, element: HTMLElement) => void;
@@ -14,33 +14,52 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
   const presses = useRef(new Map<number, number>());
   const section = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (hintColumn < 0) return;
+    if (!hintColumns.length) return;
     const queue = section.current;
     const board = queue?.closest('.game-board');
     if (!queue || !board) return;
 
+    const pulseHalfMs = 850;
+    const pulseCount = 5;
+    const pulseDurationMs = pulseHalfMs * 2 * pulseCount;
+    queue.style.setProperty('--hint-half-duration', `${pulseHalfMs}ms`);
+    queue.style.setProperty('--hint-iterations', String(pulseCount * 2));
+
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let activeColumn: HTMLElement | undefined;
     const hideHint = () => {
-      clearTimeout(timer);
       delete queue.dataset.hintVisible;
+      if (activeColumn) delete activeColumn.dataset.hintTarget;
+    };
+    const showHint = (previousColumn?: number) => {
+      const choices = hintColumns.length > 1 ? hintColumns.filter(column => column !== previousColumn) : hintColumns;
+      const column = choices[Math.floor(Math.random() * choices.length)];
+      activeColumn = queue.querySelector<HTMLElement>(`[data-queue-index="${column}"]`) ?? undefined;
+      if (!activeColumn) return;
+      activeColumn.dataset.hintTarget = 'true';
+      queue.dataset.hintVisible = 'true';
+      timer = setTimeout(() => {
+        hideHint();
+        timer = setTimeout(() => showHint(column), 3000);
+      }, pulseDurationMs);
     };
     const restartHint = () => {
+      clearTimeout(timer);
       hideHint();
-      if (!document.hidden) {
-        timer = setTimeout(() => { queue.dataset.hintVisible = 'true'; }, 4000);
-      }
+      if (!document.hidden) timer = setTimeout(() => showHint(), 4000);
     };
     restartHint();
     board.addEventListener('pointerdown', restartHint);
     board.addEventListener('keydown', restartHint);
     document.addEventListener('visibilitychange', restartHint);
     return () => {
+      clearTimeout(timer);
       hideHint();
       board.removeEventListener('pointerdown', restartHint);
       board.removeEventListener('keydown', restartHint);
       document.removeEventListener('visibilitychange', restartHint);
     };
-  }, [hintColumn, queues]);
+  }, [hintColumns, queues]);
 
   function selectColumn(column: number, element: HTMLElement) {
     if (disabled) return;
@@ -53,7 +72,7 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
   const rewardName = (reward: 'heart' | 'trayClear') => reward === 'heart' ? t.rewardSlotHeart : t.rewardSlotTrayClear;
   const depth = Math.max(1, ...queues.map(queue => queue.length));
   return <section ref={section} className="queue-section" aria-label={t.queueSection}>
-    {hintColumn >= 0 && <svg className="sr-only" aria-hidden="true">
+    {hintColumns.length > 0 && <svg className="sr-only" aria-hidden="true">
       <filter id="queue-dessert-glow" x="-50%" y="-50%" width="200%" height="200%">
         <feMorphology in="SourceAlpha" operator="dilate" radius="2" result="expanded" />
         <feComposite in="expanded" in2="SourceAlpha" operator="out" result="outline" />
@@ -87,7 +106,7 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
       onClick={event => { if (event.detail === 0) selectColumn(i, event.currentTarget); }}
       aria-label={t.queueLabel(i + 1, queue[0] && (queue[0].reward ? rewardName(queue[0].reward) : t.items[queue[0].type]), queue.length)}>
       {queue.map((donut, position) => <span
-        className={position === 0 ? (i === hintColumn ? 'queue-front queue-front--hint' : 'queue-front') : 'queue-back'}
+        className={position === 0 ? 'queue-front' : 'queue-back'}
         key={donut.id}
         data-token-id={donut.id}
         style={{ zIndex: position, visibility: returning.has(donut.id) ? 'hidden' : undefined }}>
