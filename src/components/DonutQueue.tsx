@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
-import type { DonutToken } from '../game/types';
+import type { DonutToken, RewardKind } from '../game/types';
+import { QuickOrderIcon } from './ItemIcons';
 import { Donut } from './Donut/Donut';
 import { useMessages } from '../i18n/language';
 import { RewardHeart } from './RewardHeart';
 import { Icon } from './Icon';
-export function DonutQueue({ queues, disabled, locked = false, returning, hintColumns, onSelect, onReject }: {
-  queues: DonutToken[][]; disabled: boolean; locked?: boolean; returning: ReadonlySet<string>; hintColumns: readonly number[];
+export function DonutQueue({ queues, disabled, locked = false, revealed = false, returning, hintColumns, onSelect, onReject }: {
+  /** revealed: peek was used, so hidden desserts show as themselves. */
+  queues: DonutToken[][]; disabled: boolean; locked?: boolean; revealed?: boolean; returning: ReadonlySet<string>; hintColumns: readonly number[];
   onSelect: (queueIndex: number, expectedDonutId: string) => void;
   /** Called when a tap cannot pick anything: the tray is full or the column is empty. */
   onReject?: (queueIndex: number, element: HTMLElement) => void;
@@ -69,7 +71,7 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
     else onReject?.(column, element);
   }
 
-  const rewardName = (reward: 'heart' | 'trayClear') => reward === 'heart' ? t.rewardSlotHeart : t.rewardSlotTrayClear;
+  const rewardName = (reward: RewardKind) => reward === 'heart' ? t.rewardSlotHeart : reward === 'quickOrder' ? t.rewardSlotQuickOrder : t.rewardSlotTrayClear;
   const depth = Math.max(1, ...queues.map(queue => queue.length));
   return <section ref={section} className="queue-section" aria-label={t.queueSection}>
     {hintColumns.length > 0 && <svg className="sr-only" aria-hidden="true">
@@ -111,7 +113,8 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
         data-token-id={donut.id}
         style={{ zIndex: position, visibility: returning.has(donut.id) ? 'hidden' : undefined }}>
         {donut.reward === 'heart' ? <span className="donut reward-tile reward-tile--heart"><RewardHeart /></span>
-          : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><Icon name="basket" /></span> : donut.hidden && position > 0 ? <span className="donut donut--mystery">?</span> : <Donut type={donut.type} />}
+          : donut.reward === 'quickOrder' ? <span className="donut reward-tile reward-tile--quickOrder"><QuickOrderIcon /></span>
+          : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><Icon name="basket" /></span> : donut.hidden && !revealed && position > 0 ? <span className="donut donut--mystery">?</span> : <Donut type={donut.type} />}
       </span>)}
     </button>)}</div>
   </section>;

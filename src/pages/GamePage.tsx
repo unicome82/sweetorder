@@ -12,9 +12,9 @@ import { DonutTray } from '../components/DonutTray';
 import { DonutQueue } from '../components/DonutQueue';
 import { getStage, isBonusStage, practiceStage, STAGE_COUNT } from '../game/stages';
 import { HeartIcon } from '../components/HeartIcon';
-import { getQueueHintColumns, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray } from '../game/engine';
+import { canQuickOrder, getQueueHintColumns, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray, quickOrder } from '../game/engine';
+import { QuickOrderIcon } from '../components/ItemIcons';
 import type { DonutType, GameState, RewardKind } from '../game/types';
-import { VIP_BONUS_MS } from '../game/stages/extras';
 import type { GameAction } from '../game/reducer';
 import { getGameTimeLimit, getTimeStars } from '../game/stageTime';
 import { StageClock } from '../components/StageClock';
@@ -23,6 +23,8 @@ import { haptic } from '../effects/haptics';
 import { useMessages } from '../i18n/language';
 import { createEffects } from '../effects/turnEffects';
 import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
+import { ads, type RewardedPlacement } from '../monetization/ads';
+import { PASS_TIME_BONUS_MS } from '../monetization/pass';
 
 // Keep the standard pickup cadence independent of visual effect duration.
 const TRAY_READY_DELAY = 235;
@@ -39,13 +41,21 @@ interface Props {
   settings: SettingsProps; state: GameState; dispatch: (action: GameAction) => void; onStages: () => void; onNext: () => void;
   /** Whether a heart is available for another attempt; when not, onOutOfHearts runs instead of the restart. */
   canRestart: () => boolean; onOutOfHearts: () => void;
+  /** The player's owned tray clears, shown on the tray-clear badges. */
+  trayClearsOwned: number;
+  /** Pass holders clear the tray without an ad and without using owned clears. */
+  passActive: boolean;
+  /** A campaign retry starts the stage afresh through the app, so the pre-start item popup can come first. */
+  onRetry: () => void;
 }
-export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts }: Props) {
+export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, passActive, onRetry }: Props) {
   const t = useMessages();
   const { soundEnabled } = settings;
   // Settings opened mid-play pause the game behind them and resume it when closed.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const pausedForSettings = useRef(false);
+  // A rewarded ad on screen pauses a running clock like Settings does, without the pause popup.
+  const [adPlaying, setAdPlaying] = useState(false);
   const root = useRef<HTMLElement>(null);
   const latest = useRef(state);
   const matchTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
@@ -60,23 +70,27 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const introMs = hasIntro ? INTRO_MS : 0;
   const [introRound, setIntroRound] = useState<number | null>(hasIntro ? 0 : null);
   const showIntro = introRound === round;
-  const [deadline, setDeadline] = useState(() => performance.now() + timeLimit + introMs);
+  // +5 seconds may take the clock past the stage's limit, by those 5 seconds at most.
+  const clockMax = (game: GameState) => timeLimit + (game.timeBonusUsed ? PASS_TIME_BONUS_MS : 0);
+  const currentClockMax = clockMax(state);
+  // Chosen before the start, +5 seconds is on the clock from the first moment.
+  const [deadline, setDeadline] = useState(() => performance.now() + currentClockMax + introMs);
   const [pausedTimeMs, setPausedTimeMs] = useState<number>();
-  const [remainingTimeMs, setRemainingTimeMs] = useState(timeLimit);
+  const [remainingTimeMs, setRemainingTimeMs] = useState(currentClockMax);
   const timerRunning = timeLimit > 0 && state.status === 'playing';
   const showClock = timerRunning || (timeLimit > 0 && (state.status === 'blocked' || state.status === 'paused'));
   // The clock stops at 0:00 and play goes on; a clear from then on earns one star.
   useLayoutEffect(() => {
     if (!timerRunning) return;
     const updateClock = () => {
-      const remaining = Math.min(timeLimit, Math.max(0, deadline - performance.now()));
+      const remaining = Math.min(currentClockMax, Math.max(0, deadline - performance.now()));
       setRemainingTimeMs(remaining);
       if (remaining === 0) clearInterval(interval);
     };
     const interval = setInterval(updateClock, 100);
     const deadlineTimer = setTimeout(updateClock, Math.max(0, Math.ceil(deadline - performance.now())));
     return () => { clearInterval(interval); clearTimeout(deadlineTimer); };
-  }, [deadline, timerRunning]);
+  }, [deadline, timerRunning, currentClockMax]);
   const nextPickupAt = useRef(new Map<string, number>());
   const onOrderReady = useCallback((id: string) => {
     setReadyOrders(previous => previous.includes(id) ? previous : [...previous, id]);
@@ -105,7 +119,6 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   }, [state, readyOrders]);
   const [pendingDeliveries, setPendingDeliveries] = useState<Delivery[]>([]);
   const [rewardPops, setRewardPops] = useState<RewardPop[]>([]);
-  const [timeBonusPops, setTimeBonusPops] = useState<number[]>([]);
   const popId = useRef(0);
   function showPop(add: (id: number) => void, remove: (id: number) => void) {
     const id = popId.current += 1;
@@ -132,7 +145,6 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       setReturning(new Set());
       setPendingDeliveries([]);
       setRewardPops([]);
-      setTimeBonusPops([]);
       setReadyOrders([]);
       setRound(previous => previous + 1);
       setDeadline(performance.now() + timeLimit + introMs);
@@ -144,8 +156,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     }
     const current = latest.current;
     const now = performance.now();
-    let remaining = timeLimit > 0
-      ? (current.status === 'blocked' || current.status === 'paused' ? pausedTimeMs : undefined) ?? Math.min(timeLimit, Math.max(0, deadline - now))
+    const remaining = timeLimit > 0
+      ? (current.status === 'blocked' || current.status === 'paused' ? pausedTimeMs : undefined) ?? Math.min(clockMax(current), Math.max(0, deadline - now))
       : undefined;
     if (action.type === 'TRAY_READY' && current.status === 'paused') {
       deferredMatches.current.push(action.donutId);
@@ -178,12 +190,17 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       ? selectDonut(current, currentStage, action.queueIndex, action.expectedDonutId, true)
       : action.type === 'TRAY_READY' ? matchTray(current, currentStage, action.donutId, true)
       : action.type === 'PICKUP_TRAY' ? pickupTray(current, currentStage, action.readyOrders, action.parallel)
-      : action.type === 'CLEAR_TRAY' ? clearTray(current, currentStage) : null;
+      : action.type === 'CLEAR_TRAY' ? clearTray(current, currentStage)
+      : action.type === 'QUICK_ORDER' ? quickOrder(current, currentStage) : null;
     if (!result) { dispatch(action); return; }
     if (result.state === current || !root.current) return;
     if (action.type === 'CLEAR_TRAY') {
       haptic('select');
       if (soundEnabled) playSound('clearTray');
+    }
+    if (action.type === 'QUICK_ORDER') {
+      haptic('order');
+      if (soundEnabled) playSound('reward');
     }
     if (result.state.status === 'blocked' && current.status !== 'blocked') {
       setPausedTimeMs(remaining);
@@ -199,17 +216,6 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         if (event.type === 'orderCompleted') nextPickupAt.current.delete(event.orderId);
       }
     }
-    // Each VIP order finished in this step puts time back on the clock (up to the stage's limit).
-    const vipDone = result.events.filter(event => event.type === 'orderCompleted'
-      && current.orders.some(order => order?.definitionId === event.orderId && order.vip)).length;
-    const timeBonus = vipDone > 0 && remaining !== undefined && remaining > 0;
-    if (timeBonus) {
-      remaining = Math.min(timeLimit, remaining! + vipDone * VIP_BONUS_MS);
-      setDeadline(now + remaining);
-      setRemainingTimeMs(remaining);
-      if (soundEnabled) playSound('timeBonus');
-      showPop(id => setTimeBonusPops(previous => [...previous, id]), id => setTimeBonusPops(previous => previous.filter(pop => pop !== id)));
-    }
     for (const event of result.events) {
       if (event.type !== 'rewardCollected') continue;
       const column = root.current.querySelector(`[data-queue-index="${event.queueIndex}"]`)?.getBoundingClientRect();
@@ -224,7 +230,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     const moved = result.events.find(event => event.type === 'moved');
     const deliveries = result.events.flatMap(event => {
       if (event.type !== 'consumed') return [];
-      const token = current.tray.find(donut => donut.id === event.donutId);
+      // A quick order also serves desserts straight from the queues.
+      const token = current.tray.find(donut => donut.id === event.donutId)
+        ?? current.queues.flat().find(donut => donut.id === event.donutId);
       return token ? [{ orderId: event.orderId, type: token.type }] : [];
     });
     const animateDelivery = document.visibilityState === 'visible' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -243,7 +251,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       if (soundEnabled) playSound(orderDone ? 'order' : 'delivery');
     });
     flushSync(() => {
-      if (action.type === 'CLEAR_TRAY' && remaining !== undefined) {
+      if ((action.type === 'CLEAR_TRAY' || action.type === 'QUICK_ORDER') && remaining !== undefined) {
         setDeadline(now + remaining);
         setRemainingTimeMs(remaining);
         setPausedTimeMs(undefined);
@@ -291,10 +299,10 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     else if (status !== 'blocked' && dialog.open) dialog.close();
     const pause = pauseDialog.current;
     if (!pause) return;
-    const showPause = status === 'paused' && !settingsOpen;
+    const showPause = status === 'paused' && !settingsOpen && !adPlaying;
     if (showPause && !pause.open) pause.showModal();
     else if (!showPause && pause.open) pause.close();
-  }, [status, settingsOpen]);
+  }, [status, settingsOpen, adPlaying]);
   const showGoodbye = status === 'clear';
   const resultTitles = {
     ready: t.tryAgain,
@@ -304,6 +312,30 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     gameover: state.trayClearsLeft > 0 ? t.tryAgain : state.blockedReason === 'stuck' ? t.noMoves : t.trayFull,
   };
   const failed = status === 'gameover';
+  // Practice keeps its own single tray clear; elsewhere the badges show the owned pool.
+  const practice = state.stageId === practiceStage.id;
+  const clearsOwned = practice ? state.trayClearsLeft : trayClearsOwned;
+  // With no owned clears left (and no pass), each clear is paid for with a rewarded ad.
+  const clearNeedsAd = !practice && !passActive && trayClearsOwned <= 0;
+  const actAfterAd = useRef(act);
+  useLayoutEffect(() => { actAfterAd.current = act; });
+  /** Shows a rewarded ad with the clock paused, then applies the action if it was watched to the end. */
+  async function actAfterRewardedAd(placement: RewardedPlacement, action: GameAction) {
+    const pauseForAd = latest.current.status === 'playing' && timeLimit > 0;
+    setAdPlaying(true);
+    if (pauseForAd) act({ type: 'PAUSE' });
+    const watched = await ads.showRewarded(placement);
+    if (!mounted.current) return;
+    setAdPlaying(false);
+    if (pauseForAd) actAfterAd.current({ type: 'RESUME' });
+    if (watched) actAfterAd.current(action);
+  }
+  function requestTrayClear() {
+    if (clearNeedsAd) void actAfterRewardedAd('trayClear', { type: 'CLEAR_TRAY' });
+    else act({ type: 'CLEAR_TRAY' });
+  }
+  // Practice has no quick order; elsewhere the held one shows beside the tray clear.
+  const quickOrders = practice ? undefined : state.quickOrders ?? 0;
   const boardVisible = playing || status === 'blocked' || status === 'paused';
   const [presentedResult, setPresentedResult] = useState<GameState | null>(null);
   const waitingForGoodbye = showGoodbye && presentedResult !== state;
@@ -356,6 +388,11 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   }
   const lastStage = state.stageId === STAGE_COUNT;
   const bonus = isBonusStage(state.stageId);
+  // Practice and bonus stages restart in place; campaign retries go back through the start and its item popup.
+  function retry() {
+    if (practice || bonus) act({ type: 'RESTART' });
+    else onRetry();
+  }
   // Every stage opens with a chime (practice excepted); bonus stages get a grander one.
   const playStartSound = useEffectEvent(() => {
     if (!soundEnabled || !hasIntro) return;
@@ -419,7 +456,6 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         }} />} />}
     {(showClock || (timeLimit > 0 && waitingForGoodbye)) && <div className="stage-clock-wrap">
       <StageClock limitMs={timeLimit} remainingMs={pausedTimeMs ?? remainingTimeMs} />
-      {timeBonusPops.map(id => <span key={id} className="time-bonus-pop" role="status">+5s<span className="sr-only">{t.timeBonus}</span></span>)}
     </div>}
     {/* An even 2px white outline for masked icons, which can't carry a stroke or their own shadows. */}
     <svg className="sr-only" aria-hidden="true"><filter id="white-outline" x="-20%" y="-20%" width="140%" height="140%">
@@ -428,8 +464,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
     </filter></svg>
     {rewardPops.map(pop => <span key={pop.id} className={`reward-pop reward-pop--${pop.reward}`} role="status" style={{ left: pop.x, top: pop.y }}>
-      {pop.reward === 'heart' ? <HeartIcon /> : <span className="reward-pop-basket"><Icon name="basket" /></span>}<span aria-hidden="true">+1</span>
-      <span className="sr-only">{pop.reward === 'heart' ? t.rewardHeart : t.rewardTrayClear}</span>
+      {pop.reward === 'heart' ? <HeartIcon /> : pop.reward === 'quickOrder' ? <QuickOrderIcon /> : <span className="reward-pop-basket"><Icon name="basket" /></span>}<span aria-hidden="true">+1</span>
+      <span className="sr-only">{pop.reward === 'heart' ? t.rewardHeart : pop.reward === 'quickOrder' ? t.rewardQuickOrder : t.rewardTrayClear}</span>
     </span>)}
     <p className="sr-only" role="status" aria-live="polite">{t.status(state.completedOrders, state.tray.length, state.trayCapacity)} {returning.size > 0 && t.returned}</p>
     {showResult && <section className="glass-popup result-panel" aria-labelledby="result-heading">
@@ -451,7 +487,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <div className="result-actions">
         {status === 'clear' && !lastStage && <button type="button" className="primary-button popup-primary-button next-stage-button" onClick={onNext}>{t.nextStage}</button>}
         {/* A bonus stage pays out once, so its clear offers no replay. */}
-        {!(bonus && status === 'clear') && <button type="button" className={failed ? 'primary-button popup-primary-button' : 'secondary-button'} onClick={() => act({ type: 'RESTART' })}><Icon name="retry" />{t.retry}</button>}
+        {!(bonus && status === 'clear') && <button type="button" className={failed ? 'primary-button popup-primary-button' : 'secondary-button'} onClick={retry}><Icon name="retry" />{t.retry}</button>}
         <button type="button" className="secondary-button" onClick={onStages}><Icon name="grid" />{t.stageSelect}</button>
       </div>
     </section>}
@@ -464,16 +500,18 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       }
       return { ...order, remaining };
     }) : state.orders} stageId={state.stageId} onOrderReady={onOrderReady} />
-    <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft}
+    <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
       canClear={playing && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
-      onClear={() => act({ type: 'CLEAR_TRAY' })} />
-    <DonutQueue key={round} queues={state.queues} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
+      onClear={requestTrayClear}
+      quickOrders={quickOrders} onQuickOrder={() => act({ type: 'QUICK_ORDER' })}
+      canQuickOrder={playing && canQuickOrder(state) && !waitingForGoodbye && !showIntro && inFlight.size === 0 && returning.size === 0} />
+    <DonutQueue key={round} queues={state.queues} revealed={state.peeked} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}
     <dialog className="glass-popup tray-full-dialog pause-dialog" ref={pauseDialog} aria-labelledby="pause-heading" onCancel={event => { event.preventDefault(); act({ type: 'RESUME' }); }}>
       <h2 id="pause-heading">{t.pause}</h2>
       <div className="result-actions">
         <button type="button" data-sfx="none" className="primary-button popup-primary-button" onClick={() => act({ type: 'RESUME' })}><Icon name="play" />{t.resume}</button>
-        <button type="button" className="secondary-button" onClick={() => act({ type: 'RESTART' })}><Icon name="retry" />{t.retry}</button>
+        <button type="button" className="secondary-button" onClick={retry}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={onStages}><Icon name="grid" />{t.stageSelect}</button>
       </div>
     </dialog>
@@ -481,10 +519,14 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <img className="popup-cat" src={popupCat} alt="" draggable={false} />
       <h2 id="tray-full-heading">{resultTitles.blocked}</h2>
       <div className="result-actions">
-        <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={() => act({ type: 'CLEAR_TRAY' })} aria-label={t.clearTrayLabel(state.trayClearsLeft)}>
-          <Icon name="basket" />{t.clearTray} <span className="tray-clear-count" aria-hidden="true">{state.trayClearsLeft}</span>
+        <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={requestTrayClear} aria-label={clearNeedsAd ? t.clearTrayAdLabel : t.clearTrayLabel(clearsOwned)}>
+          <Icon name="basket" />{t.clearTray} <span className="tray-clear-count" lang={clearNeedsAd ? 'en' : undefined} aria-hidden="true">{clearNeedsAd ? 'AD' : clearsOwned}</span>
         </button>
-        <button type="button" className="secondary-button" onClick={() => act({ type: 'RESTART' })}><Icon name="retry" />{t.retry}</button>
+        {!!quickOrders && <button type="button" data-sfx="none" className="primary-button popup-primary-button quick-order-button" onClick={() => act({ type: 'QUICK_ORDER' })}
+          disabled={!canQuickOrder(state)} aria-label={t.quickOrderLabel(quickOrders)}>
+          <QuickOrderIcon />{t.quickOrder} <span className="tray-clear-count" aria-hidden="true">{quickOrders}</span>
+        </button>}
+        <button type="button" className="secondary-button" onClick={retry}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={() => act({ type: 'GIVE_UP' })}>{t.giveUp}</button>
       </div>
     </dialog>

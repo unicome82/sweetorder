@@ -412,10 +412,11 @@ describe('스테이지 해법과 게임 불변식', () => {
 });
 
 describe('세션 진행', () => {
-  it('스테이지를 클리어할 때마다 트레이 비우기 기회가 1회 늘어나 다음 스테이지로 이어진다', () => {
+  it('스테이지를 클리어해도 트레이 비우기는 늘어나지 않는다', () => {
     const stage = stages[0]!;
     const session = reduceSession(createSession(), { type: 'START', stageId: stage.id });
-    expect(session.game.trayClearsLeft).toBe(3);
+    expect(session.trayClears).toBe(3);
+    expect(session.game.trayClearsLeft).toBe(2);
     const game = session.game;
     const order = game.orders[0]!;
     const type = stage.donutTypes[0]!;
@@ -425,26 +426,45 @@ describe('세션 진행', () => {
     game.tray = tray(type, 1);
     const cleared = reduceSession(session, { type: 'GAME', action: { type: 'PICKUP_TRAY', readyOrders: [order.definitionId], parallel: true } });
     expect(cleared.game.status).toBe('clear');
-    expect(cleared.trayClears).toBe(4);
+    expect(cleared.trayClears).toBe(3);
     const next = reduceSession(cleared, { type: 'START', stageId: stages[1]!.id });
-    expect(next.game.trayClearsLeft).toBe(4);
-    const retried = reduceSession(next, { type: 'GAME', action: { type: 'RESTART' } });
-    expect(retried.game.trayClearsLeft).toBe(4);
+    expect(next.game.trayClearsLeft).toBe(2);
   });
 
-  it('트레이 비우기는 처음 3회로 시작하고 재도전이나 새 스테이지에서 다시 채워지지 않는다', () => {
+  it('트레이 비우기는 보유 3개로 시작해 쓸 때마다 줄고, 판당 2회까지 쓸 수 있다', () => {
     const stage = stages[0]!;
     const started = reduceSession(createSession(), { type: 'START', stageId: stage.id });
-    expect(started.game.trayClearsLeft).toBe(3);
+    expect(started.game.trayClearsLeft).toBe(2);
     const game = structuredClone(started.game);
     const queues = game.queues.map(queue => [...queue]);
     game.tray = queues[0]!.splice(0, 1);
     const used = reduceSession({ ...started, game: { ...game, queues } }, { type: 'GAME', action: { type: 'CLEAR_TRAY' } });
     expect(used.trayClears).toBe(2);
+    expect(used.game.trayClearsLeft).toBe(1);
     expect(reduceSession(used, { type: 'GAME', action: { type: 'RESTART' } }).game.trayClearsLeft).toBe(2);
+    // The per-game cap doesn't depend on the pool: once it is empty, rewarded ads pay for each clear.
     const empty = { ...createSession(), trayClears: 0 };
-    expect(reduceSession(empty, { type: 'START', stageId: stage.id }).game.trayClearsLeft).toBe(0);
-    expect(reduceSession(reduceSession(empty, { type: 'START', stageId: stage.id }), { type: 'GAME', action: { type: 'RESTART' } }).game.trayClearsLeft).toBe(0);
+    const startedEmpty = reduceSession(empty, { type: 'START', stageId: stage.id });
+    expect(startedEmpty.game.trayClearsLeft).toBe(2);
+    const emptyGame = structuredClone(startedEmpty.game);
+    emptyGame.tray = emptyGame.queues[0]!.splice(0, 1);
+    const viaAd = reduceSession({ ...startedEmpty, game: emptyGame }, { type: 'GAME', action: { type: 'CLEAR_TRAY' } });
+    expect(viaAd.game.trayClearsLeft).toBe(1);
+    expect(viaAd.trayClears).toBe(0);
+  });
+
+  it('패스가 있으면 트레이 비우기를 써도 보유 개수가 줄지 않고, 판당 상한은 그대로다', () => {
+    const stage = stages[0]!;
+    const withPass = reduceSession(createSession(), { type: 'BUY_PASS', now: 0 });
+    const started = reduceSession(withPass, { type: 'START', stageId: stage.id, now: 1 });
+    expect(started.game.trayClearsLeft).toBe(2);
+    const game = structuredClone(started.game);
+    game.tray = game.queues[0]!.splice(0, 1);
+    const used = reduceSession({ ...started, game }, { type: 'GAME', action: { type: 'CLEAR_TRAY' }, now: 2 });
+    expect(used.game.trayClearsLeft).toBe(1);
+    expect(used.trayClears).toBe(3);
+    const expired = reduceSession({ ...started, game }, { type: 'GAME', action: { type: 'CLEAR_TRAY' }, now: 31 * 24 * 60 * 60_000 });
+    expect(expired.trayClears).toBe(2);
   });
 
   it('게임 중에도 트레이를 비울 수 있지만 비어 있으면 비울 수 없다', () => {

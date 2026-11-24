@@ -3,6 +3,8 @@ import { createSession, MAX_TRAY_CLEARS, reduceSession } from '../game/session';
 import { UNLIMITED_HEARTS_FOR_TESTING, UNLOCK_ALL_STAGES_FOR_TESTING } from '../game/constants';
 import { isStageId } from '../game/stages';
 import { parseHearts } from '../game/hearts';
+import { parsePass } from '../monetization/pass';
+import { MAX_QUICK_ORDERS } from '../game/engine';
 
 const progressKey = 'sweet-order-progress-v1';
 
@@ -28,6 +30,9 @@ function loadSession() {
     if (hearts) session.hearts = hearts;
     if (Array.isArray(saved.rewardedStages)) session.rewardedStages = saved.rewardedStages.filter((id: unknown) => typeof id === 'number' && isStageId(id));
     if (saved.clearsVersion === 2 && Number.isSafeInteger(saved.trayClears) && saved.trayClears >= 0) session.trayClears = Math.min(MAX_TRAY_CLEARS, saved.trayClears);
+    session.pass = parsePass(saved.pass);
+    if (Number.isSafeInteger(saved.quickOrders) && saved.quickOrders > 0) session.quickOrders = Math.min(MAX_QUICK_ORDERS, saved.quickOrders);
+    if (typeof saved.bonusDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(saved.bonusDay)) session.bonusDay = saved.bonusDay;
   } catch {
     return session;
   }
@@ -42,13 +47,13 @@ export function encodeStars(stars: Record<number, number>): string {
 
 export function useGame() {
   const [session, dispatch] = useReducer(reduceSession, undefined, loadSession);
-  const { stars, score, trayClears, hearts, rewardedStages } = session;
+  const { stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders } = session;
   useEffect(() => {
     try {
-      localStorage.setItem(progressKey, JSON.stringify({ stars: encodeStars(stars), score, trayClears, hearts, rewardedStages, clearsVersion: 2, progressVersion: 3 }));
+      localStorage.setItem(progressKey, JSON.stringify({ stars: encodeStars(stars), score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, clearsVersion: 2, progressVersion: 3 }));
     } catch {
       // Play can continue when browser storage is unavailable.
     }
-  }, [stars, score, trayClears, hearts, rewardedStages]);
+  }, [stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders]);
   return { session, dispatch };
 }

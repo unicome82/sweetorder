@@ -1,9 +1,12 @@
-import { createGame, getStars } from './engine';
+import { createGame, getStars, MAX_QUICK_ORDERS } from './engine';
 import { getStage, isBonusStage, isStageId, practiceStage, prepareBonusStage, STAGE_COUNT } from './stages';
-import { reduceGame, type GameAction } from './reducer';
-import { addHeart, canEarnHearts, chargeFromBonus, fullHearts, refillHearts, spendHeart, type HeartSource, type Hearts } from './hearts';
-import type { DonutType, GameState } from './types';
+import { hasHiddenDesserts, reduceGame, type GameAction } from './reducer';
+import { addHeart, canEarnHearts, fullHearts, rebaseRefill, refillHearts, spendHeart } from './hearts';
+import type { Hearts } from './hearts';
+import type { DonutType, GameState, RewardKind } from './types';
 import { isFeaturePreviewStage } from './constants';
+import { dayKey } from './day';
+import { isPassActive, PASS_SPARE_HEARTS, purchasePass, type Pass } from '../monetization/pass';
 
 const POINTS_PER_ORDER = 100;
 
@@ -15,79 +18,153 @@ export interface SessionState {
   score: number;
   unlockAllStages: boolean;
   unlimitedHearts: boolean;
-  /** Tray clears carried between stages; each stage clear earns one more. */
+  /** Tray clears the player owns; three at the very start and never refilled. */
   trayClears: number;
   hearts: Hearts;
   /** Which pool paid for the attempt in play, so a clear can give the heart back; unset when it was free. */
-  heartPaidFrom?: HeartSource;
+  heartPaidFrom?: HeartPayment;
   /** Campaign stages whose queue reward has been picked up; each pays out only once. */
   rewardedStages: number[];
   /** The bonus stage in play and the campaign stage it leads on to. */
   bonus?: { dessert: DonutType; nextStageId: number };
+  /** The local day (see dayKey) the daily bonus stage was last entered. */
+  bonusDay?: string;
+  /** The premium pass from the latest purchase; it may have expired. */
+  pass?: Pass;
+  /** Quick orders the player holds (at most one), kept from game to game. */
+  quickOrders: number;
 }
 export type SessionAction =
   | { type: 'HOME' }
   | { type: 'STAGES' }
-  | { type: 'START'; stageId: number; now?: number; relaxed?: boolean }
-  | { type: 'START_BONUS'; dessert: DonutType; nextStageId: number; relaxed?: boolean }
+  /** items: chosen in the pre-start popup, applied as the attempt begins. Retries start this way too. */
+  | { type: 'START'; stageId: number; now?: number; relaxed?: boolean; items?: ItemChoice }
+  /** testing: the Stage 00 playtest entry, which leaves the daily bonus stage unused. */
+  | { type: 'START_BONUS'; dessert: DonutType; nextStageId: number; relaxed?: boolean; now?: number; testing?: boolean }
   | { type: 'GAME'; action: GameAction; now?: number }
-  | { type: 'CHARGE_HEARTS'; amount?: number; now?: number };
+  /** A rewarded ad for hearts was watched to the end: one heart. */
+  | { type: 'AD_HEARTS'; now?: number }
+  | { type: 'BUY_PASS'; now?: number }
+  /** Playtesting only: drops the pass as if it had run out. */
+  | { type: 'END_PASS' }
+  /** Playtesting only: fills the regular hearts to five, or empties them with the refill starting now. */
+  | { type: 'TEST_HEARTS'; full: boolean; now?: number };
+
+/** Items switched on in the pre-start popup; they can't be used once the attempt is under way. */
+export interface ItemChoice { peek?: boolean; addTime?: boolean }
 
 export function createSession(unlockAllStages = false, unlimitedHearts = false): SessionState {
-  return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, unlimitedHearts, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [] };
+  return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, unlimitedHearts, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [], quickOrders: 0 };
 }
-// Tray clears are a single pool: three at the very start, +1 for each stage's first clear, never refilled otherwise.
+// Tray clears are a single owned pool: three at the very start and nothing refills it.
 export const STARTING_TRAY_CLEARS = 3;
-/** The carried pool never holds more than this; tray-clear rewards stay away while it is full. */
+/** Older saves could hold up to this many; loading clamps to it. */
 export const MAX_TRAY_CLEARS = 5;
-/** Relaxed attempts get one free tray clear of their own, so the carried pool and its rewards stay out of them. */
+/** Owned tray clears an attempt may use: two in timed play, one in relaxed play. */
+export const TIMED_TRAY_CLEARS_PER_GAME = 2;
 export const RELAXED_TRAY_CLEARS = 1;
-/** Sets an attempt up for its mode: relaxed drops VIPs and tray-clear rewards; timed draws on the carried tray clears. */
-function withMode(game: GameState, relaxed: boolean, trayClears: number): GameState {
-  if (!relaxed) return game.stageId === practiceStage.id ? game : { ...game, trayClearsLeft: trayClears };
-  const next: GameState = {
-    ...game, relaxed: true, trayClearsLeft: RELAXED_TRAY_CLEARS,
-    orders: game.orders.map(order => order && { ...order, vip: undefined }),
-    queues: game.queues.map(queue => queue.filter(token => token.reward !== 'trayClear')),
-  };
-  delete next.vipOrderIds;
-  for (const order of next.orders) if (order) delete order.vip;
-  return next;
+export const trayClearsPerGame = (relaxed: boolean) => relaxed ? RELAXED_TRAY_CLEARS : TIMED_TRAY_CLEARS_PER_GAME;
+/**
+ * Sets an attempt up for its mode. trayClearsLeft is the per-game cap: each use comes out of the
+ * owned pool, or, with none left, is paid for with a rewarded ad (pass holders use them freely).
+ */
+function withMode(game: GameState, relaxed: boolean): GameState {
+  if (game.stageId === practiceStage.id) return game;
+  const trayClearsLeft = trayClearsPerGame(relaxed);
+  return relaxed ? { ...game, relaxed: true, trayClearsLeft } : { ...game, trayClearsLeft };
 }
-function createSessionGame(stageId: number, trayClears: number, rewardedStages: readonly number[], relaxed: boolean, heartReward: boolean): GameState {
-  return withMode(withoutFullRewards(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), heartReward, trayClears), relaxed, trayClears);
+/** What the player could take from the queues as the attempt starts. */
+interface Earnable { heart: boolean; quickOrder: boolean }
+function earnable(state: SessionState, now: number): Earnable {
+  return { heart: canEarnHearts(state.hearts, now, heartsFastUntil(state)), quickOrder: state.quickOrders < MAX_QUICK_ORDERS };
 }
-/** Drops rewards the player can't take now: hearts unless they could earn one, tray clears once the pool is full. */
-function withoutFullRewards(game: GameState, heartReward: boolean, trayClears: number): GameState {
-  return withoutTrayClearReward(withoutHeartReward(game, heartReward), trayClears < MAX_TRAY_CLEARS);
+function createSessionGame(stageId: number, rewardedStages: readonly number[], relaxed: boolean, can: Earnable): GameState {
+  return withMode(withoutUnearnableRewards(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), can), relaxed);
 }
-function withoutTrayClearReward(game: GameState, keep: boolean): GameState {
-  return keep ? game : { ...game, queues: game.queues.map(queue => queue.filter(token => token.reward !== 'trayClear')) };
+/**
+ * Drops rewards the player can't take, checked as the attempt starts: hearts unless they could earn one, a quick order
+ * while one is already held, and tray clears always (they can't be earned).
+ */
+function withoutUnearnableRewards(game: GameState, can: Earnable): GameState {
+  const drop = (reward: RewardKind) => reward === 'trayClear' || (reward === 'heart' && !can.heart) || (reward === 'quickOrder' && !can.quickOrder);
+  return { ...game, queues: game.queues.map(queue => queue.filter(token => !token.reward || !drop(token.reward))) };
 }
-/** A heart reward only stays in the queues while the player could still earn hearts (checked as the attempt starts). */
-function withoutHeartReward(game: GameState, keep: boolean): GameState {
-  return keep ? game : { ...game, queues: game.queues.map(queue => queue.filter(token => token.reward !== 'heart')) };
+/** The held quick order comes along into campaign and bonus attempts; practice has none. */
+function withQuickOrders(game: GameState, quickOrders: number): GameState {
+  return game.stageId === practiceStage.id ? game : { ...game, quickOrders };
 }
 /** A stage whose reward was already collected comes back without it, so retries can't farm it. */
 function withoutSpentRewards(game: GameState, rewardedStages: readonly number[]): GameState {
   if (!rewardedStages.includes(game.stageId) || isFeaturePreviewStage(game.stageId)) return game;
   return { ...game, queues: game.queues.map(queue => queue.filter(token => !token.reward)) };
 }
-/** A heart picked up from the queues always goes to the bonus pool. */
-function grantHeart(hearts: Hearts, now: number): Hearts {
-  return addHeart(hearts, now, 'bonus');
+/**
+ * Items the pre-start popup can offer for this attempt. Peek: any stage with "?" desserts, from the pass while
+ * its peeks last, otherwise for a rewarded ad. +5 seconds: pass holders with some left, in timed play.
+ */
+export function availableItems(game: GameState, pass: Pass | undefined, now: number): Required<ItemChoice> {
+  const campaign = game.stageId !== practiceStage.id && !isBonusStage(game.stageId);
+  return {
+    peek: campaign && hasHiddenDesserts(game),
+    addTime: campaign && isPassActive(pass, now) && pass.timeBonuses > 0 && !game.relaxed,
+  };
 }
+/** Whether peek comes out of the pass for this attempt; otherwise it costs a rewarded ad. */
+export function peekFromPass(pass: Pass | undefined, now = Date.now()): boolean {
+  return isPassActive(pass, now) && pass.peeks > 0;
+}
+/** The items the pre-start popup can offer for this stage; the stage must be loaded. */
+export function itemsBeforeStart(state: SessionState, stageId: number, relaxed: boolean, now = Date.now()): Required<ItemChoice> {
+  return availableItems({ ...createGame(getStage(stageId)), relaxed }, state.pass, now);
+}
+/**
+ * Applies the pre-start choice: peek opens with the "?" desserts shown, +5 seconds starts on the clock.
+ * Each comes out of the pass when it can; a peek without pass peeks was paid for with an ad before the start.
+ */
+function applyItems(game: GameState, pass: Pass | undefined, choice: ItemChoice | undefined, now: number): { game: GameState; pass?: Pass } {
+  if (!choice) return { game, pass };
+  const available = availableItems(game, pass, now);
+  const peek = !!choice.peek && available.peek;
+  const addTime = !!choice.addTime && available.addTime;
+  if (!peek && !addTime) return { game, pass };
+  const passPeek = peek && peekFromPass(pass, now);
+  return {
+    game: { ...game, ...(peek ? { peeked: true } : {}), ...(addTime ? { timeBonusUsed: true } : {}) },
+    pass: passPeek || addTime ? { ...pass!, peeks: pass!.peeks - (passPeek ? 1 : 0), timeBonuses: pass!.timeBonuses - (addTime ? 1 : 0) } : pass,
+  };
+}
+/** Where an attempt's heart came from: the regular hearts, or a pass spare heart once those ran out. */
+export type HeartPayment = 'regular' | 'spare';
+/** Regular hearts refill twice as fast up to the end of the latest pass. */
+export const heartsFastUntil = (state: Pick<SessionState, 'pass'>) => state.pass?.expiresAt;
 /** Practice and bonus stages cost no heart. */
 export const isFreeStage = (id: number) => id === practiceStage.id || isBonusStage(id);
-/** Whether a paid attempt can start now. */
-export function canAffordAttempt(state: SessionState, stageId: number, now = Date.now()): boolean {
-  return state.unlimitedHearts || isFreeStage(stageId) || refillHearts(state.hearts, now).count >= 1;
+/** Pass spare hearts usable now: only while the pass runs. */
+export function spareHearts(state: Pick<SessionState, 'pass'>, now = Date.now()): number {
+  return isPassActive(state.pass, now) ? state.pass.spareHearts : 0;
 }
-/** Pays one heart for an attempt at a campaign stage; null when no heart is left. */
-function payForAttempt(state: SessionState, stageId: number, now: number): Pick<SessionState, 'hearts' | 'heartPaidFrom'> | null {
-  if (state.unlimitedHearts || isFreeStage(stageId)) return { hearts: state.hearts, heartPaidFrom: undefined };
-  const paid = spendHeart(state.hearts, now);
-  return paid ? { hearts: paid.hearts, heartPaidFrom: paid.from } : null;
+/** Whether a paid attempt can start now: a regular heart, or a spare heart when none is left. */
+export function canAffordAttempt(state: SessionState, stageId: number, now = Date.now()): boolean {
+  return state.unlimitedHearts || isFreeStage(stageId)
+    || refillHearts(state.hearts, now, heartsFastUntil(state)).count >= 1 || spareHearts(state, now) > 0;
+}
+/** Pays one heart for an attempt at a campaign stage (spare hearts only once regular ones are gone); null when none is left. */
+function payForAttempt(state: SessionState, stageId: number, now: number): Pick<SessionState, 'hearts' | 'heartPaidFrom' | 'pass'> | null {
+  if (state.unlimitedHearts || isFreeStage(stageId)) return { hearts: state.hearts, heartPaidFrom: undefined, pass: state.pass };
+  const paid = spendHeart(state.hearts, now, heartsFastUntil(state));
+  if (paid) return { hearts: paid, heartPaidFrom: 'regular', pass: state.pass };
+  if (spareHearts(state, now) < 1) return null;
+  return { hearts: state.hearts, heartPaidFrom: 'spare', pass: { ...state.pass!, spareHearts: state.pass!.spareHearts - 1 } };
+}
+/** A clear gives the attempt's heart back to where it came from. */
+function refundHeart(state: SessionState, from: HeartPayment, now: number): Pick<SessionState, 'hearts' | 'pass'> {
+  if (from === 'regular') return { hearts: addHeart(state.hearts, now, heartsFastUntil(state)), pass: state.pass };
+  return { hearts: state.hearts, pass: state.pass && { ...state.pass, spareHearts: Math.min(PASS_SPARE_HEARTS, state.pass.spareHearts + 1) } };
+}
+
+/** Whether the daily bonus stage is still unused on the device's current day. */
+export function canPlayBonusToday(state: SessionState, now = Date.now()): boolean {
+  return state.bonusDay !== dayKey(now);
 }
 
 /** The highest cleared stage id, in either mode; 0 before the first clear. */
@@ -118,13 +195,30 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const now = action.now ?? Date.now();
       const payment = payForAttempt(state, action.stageId, now);
       if (!payment) return state;
-      const game = createSessionGame(action.stageId, state.trayClears, state.rewardedStages, action.relaxed ?? false, canEarnHearts(state.hearts, now));
-      return { ...state, ...payment, bonus: undefined, screen: 'game', game };
+      const created = withQuickOrders(createSessionGame(action.stageId, state.rewardedStages, action.relaxed ?? false, earnable(state, now)), state.quickOrders);
+      const { game, pass } = applyItems(created, payment.pass, action.items, now);
+      return { ...state, ...payment, pass, bonus: undefined, screen: 'game', game };
     }
-    case 'CHARGE_HEARTS': return { ...state, hearts: chargeFromBonus(state.hearts, action.now ?? Date.now(), action.amount) };
+    case 'BUY_PASS': {
+      // The running refill keeps its progress and goes on at double speed until the new end.
+      const now = action.now ?? Date.now();
+      const pass = purchasePass(state.pass, now);
+      return { ...state, pass, hearts: rebaseRefill(state.hearts, now, heartsFastUntil(state), pass.expiresAt) };
+    }
+    case 'END_PASS': {
+      const now = Date.now();
+      const endedAt = state.pass && Math.min(state.pass.expiresAt, now);
+      return { ...state, pass: undefined, hearts: rebaseRefill(state.hearts, now, endedAt, undefined) };
+    }
+    case 'TEST_HEARTS': return { ...state, hearts: action.full ? fullHearts() : { count: 0, refillFrom: action.now ?? Date.now() } };
+    case 'AD_HEARTS': return { ...state, hearts: addHeart(state.hearts, action.now ?? Date.now(), heartsFastUntil(state)) };
     case 'START_BONUS': {
-      const game = withMode(createGame(prepareBonusStage(action.dessert)), action.relaxed ?? false, state.trayClears);
-      return { ...state, screen: 'game', heartPaidFrom: undefined, bonus: { dessert: action.dessert, nextStageId: action.nextStageId }, game };
+      // Entering uses up the day's bonus stage, so leaving and coming back can't repeat it.
+      const today = dayKey(action.now ?? Date.now());
+      if (!action.testing && state.bonusDay === today) return state;
+      const game = withQuickOrders(withMode(createGame(prepareBonusStage(action.dessert)), action.relaxed ?? false), state.quickOrders);
+      const bonusDay = action.testing ? state.bonusDay : today;
+      return { ...state, screen: 'game', heartPaidFrom: undefined, bonus: { dessert: action.dessert, nextStageId: action.nextStageId }, bonusDay, game };
     }
     case 'GAME': {
       if (state.screen !== 'game') return state;
@@ -132,32 +226,36 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const restart = action.action.type === 'RESTART';
       const payment = restart ? payForAttempt(state, state.game.stageId, now) : null;
       if (restart && !payment) return state;
+      const passActive = isPassActive(state.pass, now);
       let game = reduceGame(state.game, action.action, getStage(state.game.stageId));
       if (game === state.game) return state;
       const relaxed = state.game.relaxed ?? false;
-      if (restart) game = withMode(withoutFullRewards(withoutSpentRewards(game, state.rewardedStages), canEarnHearts(state.hearts, now), state.trayClears), relaxed, state.trayClears);
+      if (restart) game = withQuickOrders(withMode(withoutUnearnableRewards(withoutSpentRewards(game, state.rewardedStages), earnable(state, now)), relaxed), state.quickOrders);
       if (game.stageId === practiceStage.id) return { ...state, game };
+      // The held quick order follows the attempt: picked up from a queue, or used on the customers.
+      const quickOrders = game.quickOrders ?? state.quickOrders;
+      // Each tray clear used in play comes out of the owned pool while any are left (an ad covers the rest);
+      // pass holders keep theirs.
+      const usedClears = restart || passActive ? 0 : Math.max(0, state.game.trayClearsLeft - game.trayClearsLeft);
+      const trayClears = Math.max(0, state.trayClears - usedClears);
       const earned = restart ? [] : (game.collectedRewards ?? []).slice(state.game.collectedRewards?.length ?? 0);
       let rewardedStages = state.rewardedStages;
       let rewardHearts = state.hearts;
       if (earned.length) {
         if (!rewardedStages.includes(game.stageId)) rewardedStages = [...rewardedStages, game.stageId];
-        for (const reward of earned) if (reward === 'heart') rewardHearts = grantHeart(rewardHearts, now);
+        for (const reward of earned) if (reward === 'heart') rewardHearts = addHeart(rewardHearts, now, heartsFastUntil(state));
       }
-      state = { ...state, hearts: rewardHearts, rewardedStages };
+      state = { ...state, hearts: rewardHearts, rewardedStages, quickOrders };
       const newlyCleared = game.status === 'clear' && state.game.status !== 'clear';
       if (isBonusStage(game.stageId)) {
-        // A bonus clear adds a heart that may go past the usual five; it leaves stars and tray clears alone.
-        return { ...state, game, trayClears: relaxed ? state.trayClears : Math.min(MAX_TRAY_CLEARS, game.trayClearsLeft), hearts: newlyCleared ? addHeart(state.hearts, now, 'bonus') : state.hearts };
+        // A bonus clear adds a heart (up to five); it leaves stars and tray clears alone.
+        return { ...state, game, trayClears, hearts: newlyCleared ? addHeart(state.hearts, now, heartsFastUntil(state)) : state.hearts };
       }
-      const paid = payment ?? { hearts: state.hearts, heartPaidFrom: state.heartPaidFrom };
+      const paid = payment ?? { hearts: state.hearts, heartPaidFrom: state.heartPaidFrom, pass: state.pass };
       const refund = newlyCleared && paid.heartPaidFrom
-        ? { hearts: addHeart(paid.hearts, now, paid.heartPaidFrom), heartPaidFrom: undefined }
+        ? { ...refundHeart({ ...state, ...paid }, paid.heartPaidFrom, now), heartPaidFrom: undefined }
         : paid;
-      // Relaxed play leaves the carried tray clears alone and records the clear without stars.
-      // Timed play earns one more only for a stage's first clear, up to the cap.
-      const firstClear = newlyCleared && state.stars[game.stageId] === undefined;
-      const trayClears = relaxed ? state.trayClears : Math.min(MAX_TRAY_CLEARS, game.trayClearsLeft + (firstClear ? 1 : 0));
+      // Relaxed play records the clear without stars.
       const earnedStars = relaxed ? 0 : getStars(game);
       const stars = game.status === 'clear'
         ? { ...state.stars, [game.stageId]: Math.max(state.stars[game.stageId] ?? 0, earnedStars) }

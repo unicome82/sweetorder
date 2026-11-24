@@ -177,15 +177,6 @@ const cueBuilders = {
     noises: [{ at: 0.1, freq: 8000, dur: 0.25, level: 0.04, attack: 0.02, q: 0.8, filter: 'highpass' }],
     echo: true,
   }),
-  // VIP order done: a quick rising G–C–E chime as time is added.
-  timeBonus: (): Cue => ({
-    tones: [
-      { at: 0, freq: 783.99, dur: 0.2, level: 0.1, attack: 0.006, partials: bell },
-      { at: 0.06, freq: 1046.5, dur: 0.22, level: 0.11, attack: 0.006, partials: bell },
-      { at: 0.12, freq: 1318.51, dur: 0.4, level: 0.12, attack: 0.008, partials: bell },
-    ],
-    echo: true,
-  }),
   // Stage opening: a quick sparkling C–E–G–C climb.
   stageStart: (): Cue => ({
     tones: [
