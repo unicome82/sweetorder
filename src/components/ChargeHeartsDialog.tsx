@@ -17,11 +17,11 @@ export function ChargeHeartsDialog({ max, spare, onCharge, onClose }: { max: num
     <h2 id="charge-hearts-heading"><HeartIcon /><span>{t.chargeHearts}</span></h2>
     <p className="no-hearts-wait">{t.chargeHeartsHint(spare)}</p>
     <div className="charge-stepper">
-      <button type="button" className="icon-button charge-stepper-button" onClick={() => setPicked(amount - 1)} disabled={amount <= 1} aria-label={t.chargeLess}>
+      <button type="button" data-repeat-tap className="icon-button charge-stepper-button" onClick={() => setPicked(previous => Math.min(Math.max(1, previous), Math.max(1, max)) - 1)} disabled={amount <= 1} aria-label={t.chargeLess}>
         <span aria-hidden="true">−</span>
       </button>
       <output className="charge-stepper-value" aria-live="polite" lang="en">{amount}</output>
-      <button type="button" className="icon-button charge-stepper-button" onClick={() => setPicked(amount + 1)} disabled={amount >= max} aria-label={t.chargeMore}>
+      <button type="button" data-repeat-tap className="icon-button charge-stepper-button" onClick={() => setPicked(previous => Math.min(Math.max(1, previous), Math.max(1, max)) + 1)} disabled={amount >= max} aria-label={t.chargeMore}>
         <span aria-hidden="true">+</span>
       </button>
     </div>
