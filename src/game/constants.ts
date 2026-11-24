@@ -1,5 +1,5 @@
 // Set to true to open every stage for playtesting.
-export const UNLOCK_ALL_STAGES_FOR_TESTING = false;
+export const UNLOCK_ALL_STAGES_FOR_TESTING = true;
 
 // Set to false to restore normal heart costs and counter display after playtesting.
 export const UNLIMITED_HEARTS_FOR_TESTING = false;
@@ -20,6 +20,6 @@ export const BONUS_STAGE_ID = 100_000;
 // Set to true to open the stages below at once for playtesting, with their new features up front:
 // in stage 25 a heart and a tray clear sit second in two queues.
 // Their rewards can be collected on every attempt.
-export const FEATURE_PREVIEW_FOR_TESTING = false;
+export const FEATURE_PREVIEW_FOR_TESTING = true;
 export const FEATURE_PREVIEW_STAGES: readonly number[] = [25];
 export const isFeaturePreviewStage = (id: number) => FEATURE_PREVIEW_FOR_TESTING && FEATURE_PREVIEW_STAGES.includes(id);
