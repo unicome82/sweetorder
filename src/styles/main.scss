@@ -1057,21 +1057,6 @@
 }
 // Jua draws about 1px high, so the numbers get a little top padding to sit level with the heart.
 .heart-counter-count { padding-top: 2.5px; font-size: 18px; }
-.heart-counter-spare {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  display: grid;
-  place-items: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 2px 4px 0;
-  border-radius: 9px;
-  background: #e5262f;
-  color: white;
-  font-size: 11px;
-  box-shadow: 0 1px 2px #7a1a1a59;
-}
 .no-hearts-ad-button { position: relative; white-space: nowrap; padding-inline: 8px; }
 .heart-counter-timer { padding-top: 2.5px; padding-left: 6px; border-left: 1px solid #e7c9b6; color: #a0715a; font-size: 14px; font-variant-numeric: tabular-nums; }
 .stage-navigation .heart-counter { margin-right: auto; }
@@ -1233,23 +1218,24 @@
 .fake-ad h2 { margin: 6px 0 10px; font-size: 22px; }
 .fake-ad-tag { margin: 0; font-size: 12px; font-weight: 900; letter-spacing: .12em; color: #8a6fb3; }
 .fake-ad-timer { margin: 0 0 16px; font-size: 15px; }
-// Every count badge (tray clear, quick order, items left) looks like the spare-hearts badge on the heart counter:
-// a small red pill on the top right of its button or icon. Where an ad pays instead, the same pill is yellow with AD.
-.tray-clear-shortcut-count, .tray-clear-count, .start-item-count, .ad-badge {
+// Every count badge (tray clear, quick order, items left, spare hearts) is one small red badge on the top right
+// of its button, card or counter. Where an ad pays instead, the same pill is yellow with AD.
+.tray-clear-shortcut-count, .tray-clear-count, .start-item-count, .ad-badge, .heart-counter-spare {
   position: absolute;
   top: -6px;
   right: -6px;
   z-index: 1;
   display: grid;
   place-items: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 2px 4px 0;
-  border-radius: 9px;
+  // The size of the chosen-item check: a 22px circle for one digit, widening into a pill for more.
+  min-width: 22px;
+  height: 22px;
+  padding: 2px 6px 0;
+  border-radius: 11px;
   background: #e5262f;
   color: #fff;
   font-family: Jua, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
   line-height: 1;
   text-shadow: none;
