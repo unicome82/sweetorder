@@ -32,10 +32,11 @@ const PICKUP_INTERVAL = 100;
 // Every stage but practice opens with its title in the middle; the clock starts once it has gone.
 const INTRO_MS = 1800;
 // Items chosen before the start play out one after another once the title has gone, with the clock held:
-// "+5s" pops in the middle on the dimmed layer, then the dim lifts and peek's "?" blink and turn into desserts
-// (DonutQueue's CSS animation lasts PEEK_REVEAL_MS and starts at --peek-delay).
+// "+5s" pops in the middle on the dimmed layer, then the dim lifts and, after a short pause, peek's "?" blink and
+// turn into desserts (DonutQueue's CSS animation lasts PEEK_REVEAL_MS and starts at --peek-delay).
 const PEEK_REVEAL_MS = 1300;
-const TIME_BONUS_POP_MS = 900;
+const TIME_BONUS_POP_MS = 1200;
+const PEEK_AFTER_TIME_BONUS_MS = 500;
 
 interface Delivery { orderId: string; type: DonutType }
 /** A reward icon floating up from the queue column it was picked from (viewport coordinates). */
@@ -72,8 +73,10 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const [round, setRound] = useState(0);
   const timeLimit = getGameTimeLimit(state, getStage(state.stageId));
   const hasIntro = state.stageId !== practiceStage.id;
-  const peekMs = hasIntro && state.peeked ? PEEK_REVEAL_MS : 0;
   const timeBonusMs = hasIntro && state.timeBonusUsed ? TIME_BONUS_POP_MS : 0;
+  const peekPauseMs = timeBonusMs ? PEEK_AFTER_TIME_BONUS_MS : 0;
+  const peekDelayMs = INTRO_MS + timeBonusMs + peekPauseMs;
+  const peekMs = hasIntro && state.peeked ? peekPauseMs + PEEK_REVEAL_MS : 0;
   const introMs = hasIntro ? INTRO_MS + peekMs + timeBonusMs : 0;
   const [introRound, setIntroRound] = useState<number | null>(hasIntro ? 0 : null);
   const showIntro = introRound === round;
@@ -452,7 +455,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     setMusicMood(status === 'paused' || status === 'blocked' || showResult ? 'muted' : urgent ? 'urgent' : 'normal');
   }, [showResult, status, urgent]);
   useEffect(() => () => setMusicMood('normal'), []);
-  return <main className={`game-page game-status--${waitingForGoodbye || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root} style={{ '--peek-delay': `${INTRO_MS + timeBonusMs}ms` } as CSSProperties}>
+  return <main className={`game-page game-status--${waitingForGoodbye || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root} style={{ '--peek-delay': `${peekDelayMs}ms` } as CSSProperties}>
     {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro}
       settings={<SettingsButton {...settings} mode={state.relaxed ? 'relaxed' : 'timed'} inGame className="header-settings-button"
         onOpen={() => {

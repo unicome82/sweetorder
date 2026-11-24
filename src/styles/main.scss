@@ -1131,14 +1131,15 @@
 
 .stage-clock-wrap { position: relative; flex: none; z-index: 5; }
 .time-bonus-pop {
-  color: #ec6a86;
+  // The clock bar's blue end.
+  color: #6fb4ff;
   font-family: Jua, sans-serif;
   font-size: clamp(42px, 13vw, 60px);
   line-height: 1;
   -webkit-text-stroke: 7px #fff;
   paint-order: stroke fill;
-  text-shadow: 0 3px 0 #c43c5e, 0 6px 14px #5a322199;
-  animation: time-bonus-pop .9s ease-out both;
+  text-shadow: 0 3px 0 #3f80d4, 0 6px 14px #1f3a6699;
+  animation: time-bonus-pop 1.2s ease-out both;
 }
 // Pops in big in the middle, then keeps rising as it fades.
 @keyframes time-bonus-pop {
@@ -1279,45 +1280,28 @@
 .add-time-icon { display: block; width: 32px; height: 32px; overflow: visible; }
 
 // Items for the next game, switched on before it starts. A chosen item lights up pink with a check.
-.start-items { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; margin: 6px 0 18px; }
+.start-items { display: grid; grid-auto-flow: column; grid-auto-columns: 104px; justify-content: center; gap: 14px; margin: 6px 0 20px; }
 .start-item {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 6px;
-  padding: 14px 8px 12px;
+  gap: 2px;
+  padding: 10px 6px 8px;
   border: 2px solid #f1d5c4;
-  border-radius: 18px;
+  border-radius: 16px;
   background: #fffaf4;
   color: #813f29;
   font: inherit;
   cursor: pointer;
-  transition: transform .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+  transition: transform .15s ease, background-color .15s ease, border-color .15s ease;
 }
 .start-item:active { transform: scale(.96); }
-// Chosen, the whole card turns pink and its icon sits on a white disc.
-.start-item[aria-pressed='true'] {
-  border-color: #e45471;
-  background: linear-gradient(#ff9bb0, #ec6a86);
-  color: #fff;
-  box-shadow: inset 0 -3px #cf4d6c, 0 4px 10px #ec6a8640;
-  transform: translateY(-2px);
-}
-// Not chosen: a white card with a brown icon on a cream disc. Chosen: the card turns pink.
-.start-item-icon {
-  display: grid;
-  place-items: center;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: #fbe9da;
-  color: #9a5f43;
-  box-shadow: inset 0 -3px #efd2bd;
-  transition: background-color .15s ease, color .15s ease;
-}
-.start-item[aria-pressed='true'] .start-item-icon { background: #fff; color: #ec6a86; box-shadow: inset 0 -3px #f3c3cf; }
-.start-item-name { font-size: 15px; font-weight: 800; }
-.start-item[aria-pressed='true'] .start-item-name { text-shadow: 0 1px 2px #87314680; }
+// Chosen: a soft green card to match the check on its corner.
+.start-item[aria-pressed='true'] { border-color: #34b65a; background: #e8f7ec; color: #1f7a3b; }
+// The icon sits straight on the card, brown, green once chosen.
+.start-item-icon { display: grid; place-items: center; width: 36px; height: 36px; color: #9a5f43; }
+.start-item[aria-pressed='true'] .start-item-icon { color: #2a9a4b; }
+.start-item-name { font-size: 13px; font-weight: 800; white-space: nowrap; }
 // The badge sits on the card's top right; a chosen card shows a green check there.
 .start-item > .start-item-count, .start-item > .ad-badge { top: -7px; right: -7px; }
 .start-item-count--chosen { padding: 0; width: 22px; height: 22px; border-radius: 50%; background: #34b65a; box-shadow: 0 1px 2px #1a5a2a59; }
