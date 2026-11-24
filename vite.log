@@ -1,16 +1,5 @@
 
-  VITE v7.3.8  ready in 919 ms
+  VITE v7.3.8  ready in 192 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-6:38:04 AM [vite] (client) hmr update /src/app/App.tsx, /src/pages/StageSelectPage.tsx, /src/pages/GamePage.tsx, /src/pages/StartPage.tsx
-6:38:04 AM [vite] (client) hmr update /src/app/App.tsx, /src/pages/StageSelectPage.tsx, /src/pages/GamePage.tsx
-6:38:04 AM [vite] (client) hmr update /src/app/App.tsx, /src/pages/StageSelectPage.tsx, /src/pages/GamePage.tsx, /src/pages/StartPage.tsx, /src/components/OrderBoard.tsx
-6:38:04 AM [vite] (client) hmr update /src/app/App.tsx, /src/pages/StageSelectPage.tsx
-6:38:04 AM [vite] (client) hmr update /src/pages/GamePage.tsx
-6:38:04 AM [vite] (client) hmr update /src/components/OrderBoard.tsx
-6:38:04 AM [vite] (client) page reload src/i18n/messages.ts
-6:38:04 AM [vite] (client) hmr update /src/app/App.tsx, /src/pages/GamePage.tsx, /src/components/OrderBoard.tsx, /src/components/SoundControls.tsx
-6:38:04 AM [vite] (client) hmr update /src/app/App.tsx, /src/pages/StageSelectPage.tsx, /src/pages/GamePage.tsx, /src/pages/StartPage.tsx, /src/components/OrderBoard.tsx, /src/components/StageClock.tsx, /src/components/DonutTray.tsx
-6:38:11 AM [vite] (client) hmr update /src/styles/main.scss
-6:38:45 AM [vite] (client) hmr update /src/app/App.tsx, /src/pages/StageSelectPage.tsx, /src/pages/GamePage.tsx, /src/pages/StartPage.tsx

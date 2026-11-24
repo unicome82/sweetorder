@@ -13,10 +13,6 @@ export type GameAction = (
   | { type: 'PAUSE' }
   | { type: 'RESUME' }
   | { type: 'RESTART' }
-  /** Reveals the "?" desserts for the rest of the attempt; once per attempt. */
-  | { type: 'PEEK' }
-  /** Marks the pass's +5 seconds as used; the page moves the clock. Once per timed attempt. */
-  | { type: 'ADD_TIME' }
 ) & { remainingTimeMs?: number };
 
 /** Whether any dessert behind a queue's front still shows as "?". */
@@ -44,8 +40,6 @@ function applyGameAction(state: GameState, action: GameAction, stage: StageDefin
     case 'GIVE_UP': return state.status === 'blocked' ? { ...state, status: 'gameover', transitionId: state.transitionId + 1 } : state;
     case 'PAUSE': return state.status === 'playing' ? { ...state, status: 'paused' } : state;
     case 'RESUME': return state.status === 'paused' ? { ...state, status: 'playing' } : state;
-    case 'PEEK': return state.status === 'playing' && !state.peeked && hasHiddenDesserts(state) ? { ...state, peeked: true } : state;
-    case 'ADD_TIME': return state.status === 'playing' && !state.relaxed && !state.timeBonusUsed ? { ...state, timeBonusUsed: true } : state;
     case 'RESTART': return { ...createGame(stage), transitionId: state.transitionId + 1 };
   }
 }

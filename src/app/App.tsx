@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { LanguageContext, readLanguagePreference, saveLanguagePreference } from '../i18n/language';
 import type { MouseEvent } from 'react';
 import { playSound, readSoundPreference, saveSoundPreference, setMusicScene, unlockSound } from '../effects/sound';
-import { canAffordAttempt, canPlayBonusToday, getCurrentStage, passItemsBeforeStart, type PassItemChoice } from '../game/session';
-import { PassItemsDialog } from '../components/PassItemsDialog';
+import { canAffordAttempt, canPlayBonusToday, getCurrentStage, itemsBeforeStart, peekFromPass, type ItemChoice } from '../game/session';
+import { StartItemsDialog } from '../components/StartItemsDialog';
+import { ads } from '../monetization/ads';
+import { getStage } from '../game/stages';
 import { MAX_HEARTS } from '../game/hearts';
 import { isBonusStage, isStageLoaded, loadStage, practiceStage, preloadStage } from '../game/stages';
 import { randomBonusDessert } from '../game/stages/bonus';
@@ -73,19 +75,27 @@ export function App() {
     setOutOfHearts(undefined);
     dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId, relaxed, now: Date.now() });
   }
-  // Pass holders choose peek / +5 seconds for the attempt first, when the stage can use either; the last choice is kept.
-  const [preStart, setPreStart] = useState<{ stageId: number; available: Required<PassItemChoice> }>();
-  const [passChoice, setPassChoice] = useState<PassItemChoice>({});
-  function enter(stageId: number) {
-    const available = passItemsBeforeStart(session, stageId, relaxed);
-    if (available.peek || available.addTime) setPreStart({ stageId, available });
-    else dispatch({ type: 'START', stageId, relaxed });
+  // Items are chosen before each attempt (retries included), when the stage can use one; the last choice is kept.
+  const [preStart, setPreStart] = useState<{ stageId: number; available: Required<ItemChoice> }>();
+  const [itemChoice, setItemChoice] = useState<ItemChoice>({});
+  // Every START is a fresh attempt, so the game page starts over even on the same stage.
+  const [attempt, setAttempt] = useState(0);
+  function begin(stageId: number, items?: ItemChoice) {
+    setAttempt(previous => previous + 1);
+    dispatch({ type: 'START', stageId, relaxed, items, now: Date.now() });
   }
-  function startWithPassItems(choice: PassItemChoice) {
+  function enter(stageId: number) {
+    const available = itemsBeforeStart(session, stageId, relaxed);
+    if (available.peek || available.addTime) setPreStart({ stageId, available });
+    else begin(stageId);
+  }
+  async function startWithItems(choice: ItemChoice) {
     if (!preStart) return;
-    setPassChoice(choice);
+    // Without pass peeks, peek is paid for with a rewarded ad; skipping it leaves the popup open to choose again.
+    if (choice.peek && !peekFromPass(session.pass) && !await ads.showRewarded('peek')) return;
+    setItemChoice(choice);
     setPreStart(undefined);
-    dispatch({ type: 'START', stageId: preStart.stageId, relaxed, passItems: choice });
+    begin(preStart.stageId, choice);
   }
   // Stage data arrives in 100-stage chunks; fetch the one a START needs before entering it.
   function start(stageId: number) {
@@ -117,8 +127,8 @@ export function App() {
       ? <StartPage stage={currentStage} settings={settings} onGame={() => start(currentStage)} onStages={() => dispatch({ type: 'STAGES' })} />
       : screen === 'stages'
         ? <StageSelectPage stars={stars} hearts={displayedHearts} onChargeHearts={openCharge} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} />
-        : <GamePage key={game.stageId} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
-          trayClearsOwned={session.trayClears} pass={passActive ? session.pass : undefined}
+        : <GamePage key={`${game.stageId}:${attempt}`} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
+          trayClearsOwned={session.trayClears} passActive={passActive} onRetry={() => start(game.stageId)}
           canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => setOutOfHearts(game.stageId)} />
     }
     {screen === 'start' && !modeChosen && <ModeChoiceDialog onChoose={changeMode} />}
@@ -126,8 +136,9 @@ export function App() {
       onBonus={() => startDailyBonus(outOfHearts)} />}
     {chargeOpen && <ChargeHeartsDialog hearts={displayedHearts} onClose={() => setChargeOpen(false)}
       onCharge={amount => { dispatch({ type: 'CHARGE_HEARTS', amount, now: Date.now() }); setChargeOpen(false); }} />}
-    {preStart && session.pass && <PassItemsDialog pass={session.pass} available={preStart.available} initial={passChoice}
-      onStart={startWithPassItems} onClose={() => setPreStart(undefined)} />}
+    {preStart && <StartItemsDialog pass={passActive ? session.pass : undefined} available={preStart.available} peekNeedsAd={!peekFromPass(session.pass)}
+      dessert={getStage(preStart.stageId).queues.flat().find(token => token.hidden && !token.reward)?.type}
+      initial={itemChoice} onStart={choice => void startWithItems(choice)} onClose={() => setPreStart(undefined)} />}
     <FakeAdHost />
     {loadingStage !== undefined && <p className="stage-loading" role="status">Loading…</p>}
   </div></LanguageContext>;

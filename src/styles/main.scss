@@ -1134,22 +1134,7 @@
   100% { opacity: 0; scale: 1.05; translate: 0 -40px; }
 }
 
-// +5 seconds floats up from the clock.
 .stage-clock-wrap { position: relative; flex: none; z-index: 5; }
-.time-bonus-pop {
-  position: absolute;
-  top: 50%;
-  right: 4px;
-  z-index: 6;
-  color: #6fa3cf;
-  font-family: Jua, sans-serif;
-  font-size: 16px;
-  -webkit-text-stroke: 4px #fff;
-  paint-order: stroke fill;
-  filter: drop-shadow(0 1px 2px #3b5a7a40);
-  pointer-events: none;
-  animation: float-pop 1000ms ease-out both;
-}
 
 // A reward takes a dessert-sized slot in its queue. The tray clear copies the active tray-clear
 // button; the heart is a raised heart in the same pink.
@@ -1206,12 +1191,8 @@
 .fake-ad-timer { margin: 0 0 16px; font-size: 15px; }
 .tray-clear-ad { background: #ffe27a; font-size: 10px; }
 
-// Helper items at the top left of a game: peek and the pass's +5 seconds. Badges reuse the tray clear's.
-.game-header-items { grid-column: 1; grid-row: 1; justify-self: start; display: flex; gap: 10px; }
-.header-item { position: relative; }
-.header-item .tray-clear-shortcut-count { top: -6px; right: -8px; min-width: 20px; height: 20px; font-size: 11px; }
-// Peek: "?" and a dessert take turns; +5 seconds: a stopwatch with "+5s" inside.
-.peek-icon { display: grid; width: 28px; height: 28px; }
+// Item icons. Peek: "?" and a dessert take turns; +5 seconds: a stopwatch with "+5s" inside.
+.peek-icon { display: grid; width: 32px; height: 32px; }
 .peek-icon > * { grid-area: 1 / 1; display: grid; place-items: center; }
 .peek-icon-mystery {
   border: 2px dashed #d7a98b;
@@ -1219,7 +1200,7 @@
   background: #fbe9da;
   color: #b0785a;
   font-family: Jua, sans-serif;
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1;
   animation: peek-mystery 2.4s ease-in-out infinite;
 }
@@ -1227,39 +1208,64 @@
 .peek-icon-dessert .donut { width: 100%; }
 @keyframes peek-mystery { 0%, 38%, 100% { opacity: 1; } 50%, 88% { opacity: 0; } }
 @keyframes peek-dessert { 0%, 38%, 100% { opacity: 0; } 50%, 88% { opacity: 1; } }
-// Used up or not usable now: the "?" holds still.
-.header-item:disabled .peek-icon > * { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .peek-icon > * { animation: none; }
 }
-.add-time-icon { display: block; width: 30px; height: 30px; overflow: visible; }
-.pass-item-icon .peek-icon { width: 32px; height: 32px; }
-.pass-item-icon .add-time-icon { width: 32px; height: 32px; }
+.add-time-icon { display: block; width: 32px; height: 32px; overflow: visible; }
 
-// Pass holders switch items on for the next game before it starts.
-.pass-items { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; margin: 4px 0 16px; }
-.pass-item {
+// Items for the next game, switched on before it starts. A chosen item lights up pink with a check.
+.start-items { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; margin: 6px 0 18px; }
+.start-item {
+  position: relative;
   display: grid;
   justify-items: center;
   gap: 4px;
-  padding: 12px 8px 10px;
+  padding: 14px 8px 12px;
   border: 2px solid #f1d5c4;
   border-radius: 18px;
   background: #fffaf4;
   color: #9a6a52;
   font: inherit;
   cursor: pointer;
+  transition: transform .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
-.pass-item[aria-pressed='true'] { border-color: #ec6a86; background: #ffeef1; color: #813f29; box-shadow: 0 2px 6px #ec6a8640; }
-.pass-item-icon {
+.start-item:active { transform: scale(.96); }
+.start-item[aria-pressed='true'] {
+  border-color: #ec6a86;
+  background: linear-gradient(#fff3f5, #ffdfe6);
+  color: #813f29;
+  box-shadow: 0 0 0 3px #ec6a8633, 0 4px 10px #ec6a8640;
+  transform: translateY(-2px);
+}
+.start-item-icon {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   background: #fbe9da;
   color: #b0785a;
+  transition: background-color .15s ease, color .15s ease;
 }
-.pass-item[aria-pressed='true'] .pass-item-icon { background: linear-gradient(#ff9bb0, #ec6a86); }
-.pass-item-name { font-size: 15px; font-weight: 800; }
-.pass-item-left { font-size: 12px; }
+.start-item[aria-pressed='true'] .start-item-icon { background: linear-gradient(#ff9bb0, #ec6a86); color: #fff; box-shadow: inset 0 -3px #cf4d6c; }
+.start-item-name { font-size: 15px; font-weight: 800; }
+.start-item-left { font-size: 12px; }
+.start-item-ad { padding: 1px 5px; border-radius: 6px; background: #ffe27a; color: #723f2b; font-size: 10px; font-weight: 900; }
+.start-item-check {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #f1d5c4;
+  color: #fff;
+  box-shadow: 0 2px 4px #85384030;
+  transition: background-color .15s ease, transform .2s cubic-bezier(.3, 1.6, .5, 1);
+  transform: scale(.85);
+}
+.start-item-check svg { width: 16px; height: 16px; }
+.start-item[aria-pressed='true'] .start-item-check { background: #ec6a86; transform: scale(1); }
