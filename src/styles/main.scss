@@ -1119,11 +1119,11 @@
   // The clock bar's blue end.
   color: #6fb4ff;
   font-family: Jua, sans-serif;
-  font-size: clamp(42px, 13vw, 60px);
+  font-size: clamp(34px, 10vw, 46px);
   line-height: 1;
-  -webkit-text-stroke: 7px #fff;
+  -webkit-text-stroke: 6px #fff;
   paint-order: stroke fill;
-  text-shadow: 0 3px 0 #3f80d4, 0 6px 14px #1f3a6699;
+  text-shadow: 0 2px 0 #5d9ee6, 0 3px 6px #1f3a6640;
   animation: time-bonus-pop 1.2s ease-out both;
 }
 // Pops in big in the middle, then keeps rising as it fades.
