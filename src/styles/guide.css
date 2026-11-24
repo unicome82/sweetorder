@@ -72,3 +72,35 @@ h1 { margin: 28px 0 0; font-size: clamp(2rem, 6vw, 3.5rem); letter-spacing: -.04
 .heart-icon { fill: #dd617c; }
 
 .effect-icon { color: #b95669; }
+
+/* Game facts: definition, how to play, items, settings and the pass. */
+.guide-nav-divider { flex: none; width: 1px; margin: 4px 4px; background: #e2c6b3; }
+.guide-part-heading { margin: 56px 0 0; padding-top: 24px; border-top: 2px solid #ead9cc; font-size: 1.75rem; letter-spacing: -.02em; }
+.guide-info h3 { margin: 0 0 6px; font-size: 1rem; }
+.guide-info p { margin: 0; line-height: 1.55; }
+.info-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 10px; }
+.info-card, .info-items li, .info-steps li { border: 1px solid #ead9cc; border-radius: 12px; background: #fffdf9; padding: 14px 16px; }
+.info-steps { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.info-steps li { counter-increment: step; display: grid; grid-template-columns: 28px 1fr; gap: 10px; line-height: 1.55; }
+.info-steps li::before {
+  content: counter(step);
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: 50%; background: #a94f29; color: #fff; font-weight: 700; font-size: .875rem;
+}
+.info-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.info-items li { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: start; }
+.info-item-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 12px; background: #f9f0e7; }
+.info-item-icon img, .info-item-icon svg { width: 30px; height: 30px; }
+.info-item-icon--quick { color: #e0a21a; }
+.info-item-icon--time { color: #a94f29; }
+.info-item-icon--text { font: 700 1.625rem system-ui, sans-serif; color: #825039; }
+.info-subheading { margin: 22px 0 8px !important; color: #825039; }
+.info-subheading:first-child { margin-top: 0 !important; }
+.info-table-wrap { overflow-x: auto; border: 1px solid #ead9cc; border-radius: 12px; background: #fffdf9; }
+.info-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.info-table th, .info-table td { padding: 9px 12px; border-bottom: 1px solid #f0e2d6; text-align: left; vertical-align: top; }
+.info-table tr:last-child > * { border-bottom: 0; }
+.info-table thead th { background: #f7e9dd; font-weight: 700; white-space: nowrap; }
+.info-table tbody th { font-weight: 600; white-space: nowrap; }
+.info-pass-lead { margin-bottom: 10px !important; }
+.info-pass .info-table td:last-child { color: #a94f29; font-weight: 600; }

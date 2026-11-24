@@ -6,10 +6,10 @@ import { isFeaturePreviewStage } from '../constants';
 export const REWARDS_FROM_STAGE = 25;
 // A quick order takes the place of a stage's reward about once every 10 to 15 stages from here.
 export const QUICK_ORDER_FROM_STAGE = 30;
-const QUICK_ORDER_GAP_MIN = 10;
-const QUICK_ORDER_GAP_MAX = 15;
+export const QUICK_ORDER_GAP_MIN = 10;
+export const QUICK_ORDER_GAP_MAX = 15;
 // A reward slot never sits within a queue's first few desserts, so it takes some digging to reach.
-const REWARD_MIN_DEPTH = 3;
+export const REWARD_MIN_DEPTH = 3;
 
 function randomFor(seed: number) {
   let state = seed >>> 0;

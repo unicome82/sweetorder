@@ -8,7 +8,7 @@ import { isFeaturePreviewStage } from './constants';
 import { dayKey } from './day';
 import { isPassActive, purchasePass, type Pass } from '../monetization/pass';
 
-const POINTS_PER_ORDER = 100;
+export const POINTS_PER_ORDER = 100;
 
 export interface SessionState {
   screen: 'start' | 'stages' | 'game';
