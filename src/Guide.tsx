@@ -3,6 +3,7 @@ import { HeartIcon } from './components/HeartIcon';
 import { RewardHeart } from './components/RewardHeart';
 import { itemNames } from './components/Donut/donutThemes';
 import { DONUT_TYPES } from './game/types';
+import { infoSections } from './GuideInfo';
 import './styles/guide.css';
 
 const images = import.meta.glob<string>('./assets/{menu,menu-archive,customers,home,game,icons}/*.{webp,svg}', {
@@ -111,13 +112,20 @@ export function Guide() {
           <span className="guide-brand">Sweet Order</span>
           <a href="../">게임으로 돌아가기 <span aria-hidden="true">↗</span></a>
         </div>
-        <h1>시각 자료 가이드</h1>
+        <h1>게임 가이드</h1>
       </div>
     </header>
     <main className="guide-shell">
       <nav className="guide-nav" aria-label="자료 분류">
+        {infoSections.map(({ id, title }) => <a key={id} href={`#${id}`}>{title}</a>)}
+        <span className="guide-nav-divider" aria-hidden="true" />
         {sections.map(({ id, title, entries }) => <a key={id} href={`#${id}`}>{title} <span>{entries.length}</span></a>)}
       </nav>
+      {infoSections.map(({ id, title, body }) => <section className={`guide-section guide-info guide-info--${id}`} id={id} key={id} aria-labelledby={`heading-${id}`}>
+        <h2 id={`heading-${id}`}>{title}</h2>
+        {body}
+      </section>)}
+      <h2 className="guide-part-heading">시각 자료</h2>
       {sections.map(({ id, title, entries }) => <section className={`guide-section guide-section--${id}`} id={id} key={id} aria-labelledby={`heading-${id}`}>
         <h2 id={`heading-${id}`}>{title}</h2>
         <ul className="guide-grid">

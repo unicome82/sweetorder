@@ -28,8 +28,8 @@ export function campaignProgress(id: number): number {
 // Covered ("?") desserts appear only in hard stages after stage 50: four at first,
 // then one more for each later hard stage (hard stages come every four stages).
 export const hiddenDessertsAfterStage = 50;
-const firstHiddenCount = 4;
-const maxHiddenCount = 30;
+export const firstHiddenCount = 4;
+export const maxHiddenCount = 30;
 export function hiddenDessertCount(id: number, difficulty: StageDifficulty): number {
   if (difficulty !== 'hard' || id <= hiddenDessertsAfterStage) return 0;
   return Math.min(maxHiddenCount, firstHiddenCount + Math.floor((id - hiddenDessertsAfterStage - 1) / 4));

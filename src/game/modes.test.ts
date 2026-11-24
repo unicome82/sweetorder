@@ -29,13 +29,13 @@ const start = (stageId: number, relaxed: boolean, session = createSession(true))
   reduceSession(session, { type: 'START', stageId, relaxed, now: 0 });
 
 describe('여유 모드', () => {
-  it('타이머와 트레이 비우기 보상이 없고 트레이 비우기는 판당 1번까지 쓴다', async () => {
+  it('타이머가 없고, 트레이 비우기 보상은 받을 수 있으며, 트레이 비우기는 판당 1번까지 쓴다', async () => {
     const stage = await stageWithReward('trayClear');
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const session = start(stage.id, true);
       expect(session.game.relaxed).toBe(true);
       expect(getGameTimeLimit(session.game, stage)).toBe(0);
-      expect(session.game.queues.flat().some(token => token.reward === 'trayClear')).toBe(false);
+      expect(session.game.queues.flat().some(token => token.reward === 'trayClear')).toBe(true);
       expect(session.game.trayClearsLeft).toBe(RELAXED_TRAY_CLEARS);
     }
     const heartStage = await stageWithReward('heart');

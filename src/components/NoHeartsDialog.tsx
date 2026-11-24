@@ -5,9 +5,12 @@ import { useNow } from '../hooks/useNow';
 import { useMessages } from '../i18n/language';
 import { HeartIcon } from './HeartIcon';
 
-/** Out of hearts once spare hearts and today's bonus stage are used up: a rewarded ad gives a heart. */
-export function NoHeartsDialog({ hearts, fastUntil, onClose, onWatchAd }: {
-  hearts: Hearts; fastUntil?: number; onClose: () => void; onWatchAd: () => void;
+/**
+ * Out of hearts once spare hearts and today's bonus stage are used up: a rewarded ad gives a heart. Without a pass,
+ * a link offers it (`onShowPass`).
+ */
+export function NoHeartsDialog({ hearts, fastUntil, onClose, onWatchAd, onShowPass }: {
+  hearts: Hearts; fastUntil?: number; onClose: () => void; onWatchAd: () => void; onShowPass?: () => void;
 }) {
   const t = useMessages();
   const now = useNow();
@@ -29,5 +32,6 @@ export function NoHeartsDialog({ hearts, fastUntil, onClose, onWatchAd }: {
       </button>
       <button type="button" className="primary-button popup-primary-button" onClick={onClose}>{t.ok}</button>
     </div>
+    {onShowPass && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passHearts}</button>}
   </dialog>;
 }

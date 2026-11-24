@@ -8,11 +8,12 @@ import { AddTimeIcon, PeekIcon } from './ItemIcons';
 /**
  * Before an attempt: switch on peek and/or +5 seconds for it; items can't be used once play starts. Only the items
  * this stage can use (`available`) are listed. Peek comes from the pass (`pass` with peeks left) or costs an ad
- * (`peekNeedsAd`), shown on Start. `initial` is the previous choice.
+ * (`peekNeedsAd`), shown on Start. `initial` is the previous choice. Without a pass, timed play shows +5 seconds
+ * locked; tapping it offers the pass (`onShowPass`).
  */
-export function StartItemsDialog({ pass, available, peekNeedsAd, dessert, initial, onStart, onClose }: {
+export function StartItemsDialog({ pass, available, peekNeedsAd, dessert, initial, onStart, onClose, onShowPass }: {
   pass?: Pass; available: Required<ItemChoice>; peekNeedsAd: boolean; dessert?: DonutType; initial: ItemChoice;
-  onStart: (choice: ItemChoice) => void; onClose: () => void;
+  onStart: (choice: ItemChoice) => void; onClose: () => void; onShowPass?: () => void;
 }) {
   const t = useMessages();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -43,6 +44,11 @@ export function StartItemsDialog({ pass, available, peekNeedsAd, dessert, initia
         <span className="start-item-icon"><AddTimeIcon /></span>
         <span className="start-item-name">{t.passItemAddTime}</span>
         <span className="sr-only">{t.passItemsLeft(pass.timeBonuses)}</span>
+      </button>}
+      {onShowPass && <button type="button" className="start-item start-item--locked" onClick={onShowPass} aria-label={t.passAddTimeLocked}>
+        <span className="start-item-count pass-badge" aria-hidden="true">{t.passShortcut}</span>
+        <span className="start-item-icon"><AddTimeIcon /></span>
+        <span className="start-item-name" aria-hidden="true">{t.passItemAddTime}</span>
       </button>}
     </div>
     <div className="result-actions charge-hearts-actions">

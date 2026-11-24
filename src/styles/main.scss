@@ -1300,3 +1300,32 @@
 .start-item-icon .add-time-icon { translate: 0 -2px; }
 // The "?" takes its disc's colour: brown on cream, pink once chosen (white disc).
 .start-item-icon .peek-icon-mystery { border-color: currentColor; background: transparent; color: inherit; }
+
+// Pass offer: the popup, and the small "Pass" links in the popups where it helps (tray clear, hearts, +5 seconds).
+.pass-offer-lead { margin: 4px 0 0; color: #9a6a52; font-size: 15px; text-align: center; }
+.pass-offer-benefits { display: grid; gap: 8px; margin: 16px 0 18px; padding: 0; list-style: none; }
+.pass-offer-benefits li { display: flex; align-items: center; gap: 8px; color: var(--secondary-text); font-size: 16px; }
+.pass-offer-benefits li::before {
+  content: '';
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #6cbf73 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px no-repeat;
+}
+.pass-link-button {
+  display: block;
+  margin: 12px auto 0;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  color: #a5552f;
+  font: inherit;
+  font-size: 15px;
+  text-decoration: underline;
+  text-underline-offset: .25em;
+  cursor: pointer;
+}
+.start-item--locked { opacity: .78; }
+.start-item--locked .start-item-icon { filter: grayscale(.6); }
+.pass-badge { background: #6d4ad1; color: #fff; }

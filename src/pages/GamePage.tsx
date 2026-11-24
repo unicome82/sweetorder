@@ -51,10 +51,12 @@ interface Props {
   trayClearsOwned: number;
   /** Pass holders clear the tray without an ad and without using owned clears. */
   passActive: boolean;
+  /** Offers the pass; the tray-full popup links to it while a tray clear costs an ad. */
+  onShowPass: () => void;
   /** A campaign retry starts the stage afresh through the app, so the pre-start item popup can come first. */
   onRetry: () => void;
 }
-export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, passActive, onRetry }: Props) {
+export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, passActive, onRetry, onShowPass }: Props) {
   const t = useMessages();
   const { soundEnabled } = settings;
   // Settings opened mid-play pause the game behind them and resume it when closed.
@@ -547,6 +549,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         <button type="button" className="secondary-button" onClick={retry}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={() => act({ type: 'GIVE_UP' })}>{t.giveUp}</button>
       </div>
+      {clearNeedsAd && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passClearTray}</button>}
     </dialog>
     {/* The dimmed layer stays through every item effect: +5s (popping in the middle), then the "?" reveal. */}
     {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-ms': `${introMs}ms` } as CSSProperties}>

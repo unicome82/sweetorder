@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createGame, selectDonut } from './engine';
 import { createSession, reduceSession } from './session';
 import { loadStage } from './stages';
-import { REWARDS_FROM_STAGE } from './stages/extras';
+import { REWARD_SPLIT_PERCENT, REWARD_STAGE_PERCENT, REWARDS_FROM_STAGE, rewardFor } from './stages/extras';
+import { DAILY_REWARD_LIMITS, MAX_TRAY_CLEARS, type SessionState } from './session';
+import { STAGE_COUNT } from './stages/schedule';
 import type { GameState } from './types';
 import { isFeaturePreviewStage } from './constants';
+import { dayKey } from './day';
 
 // While the playtest flag is on, stage 25 uses the preview layout; check the rules one stage later.
 const real = (id: number) => isFeaturePreviewStage(id) ? id + 1 : id;
@@ -17,10 +20,42 @@ function rewardSpot(state: GameState) {
   return undefined;
 }
 
+/** The first ordinary stage whose queue reward is this kind. */
+function stageWith(kind: string): number {
+  let id = real(REWARDS_FROM_STAGE);
+  while (isFeaturePreviewStage(id) || rewardFor(id) !== kind) id += 1;
+  return id;
+}
+
+/** Digs straight down the reward's column, with room to spare in the tray. */
+function collect(session: SessionState): SessionState {
+  const { column, index } = rewardSpot(session.game)!;
+  session = { ...session, game: { ...session.game, trayCapacity: 99 } };
+  for (let n = 0; n <= index; n += 1) {
+    const front = session.game.queues[column]![0]!;
+    session = reduceSession(session, { type: 'GAME', action: { type: 'SELECT_DONUT', queueIndex: column, expectedDonutId: front.id }, now: 0 });
+  }
+  return session;
+}
+
 describe('대기열 보상', () => {
-  it(`${REWARDS_FROM_STAGE}번부터 스테이지마다 하나씩, 맨 앞 세 칸 밖의 보이는 디저트에 붙는다`, async () => {
+  it(`${REWARDS_FROM_STAGE}번부터 약 ${REWARD_STAGE_PERCENT}%의 스테이지에 하나씩, 하트 > 트레이 비우기 > 퀵오더 순으로 자주 나온다`, () => {
+    const counts = { none: 0, heart: 0, trayClear: 0, quickOrder: 0 };
+    for (let id = 1; id < REWARDS_FROM_STAGE; id += 1) expect(rewardFor(id)).toBeUndefined();
+    for (let id = REWARDS_FROM_STAGE; id <= STAGE_COUNT; id += 1) counts[rewardFor(id) ?? 'none'] += 1;
+    const total = STAGE_COUNT - REWARDS_FROM_STAGE + 1;
+    const rewarded = total - counts.none;
+    expect(Math.abs(rewarded / total - REWARD_STAGE_PERCENT / 100)).toBeLessThan(0.02);
+    for (const kind of ['heart', 'trayClear', 'quickOrder'] as const) {
+      expect(Math.abs(counts[kind] / rewarded - REWARD_SPLIT_PERCENT[kind] / 100)).toBeLessThan(0.03);
+    }
+  });
+
+  it('보상이 있는 스테이지에는 하나씩, 맨 앞 세 칸 밖의 보이는 디저트에 붙는다', async () => {
+    const ids: number[] = [];
+    for (let id = real(REWARDS_FROM_STAGE); ids.length < 4; id += 1) if (!isFeaturePreviewStage(id) && rewardFor(id)) ids.push(id);
     expect((await loadStage(REWARDS_FROM_STAGE - 1)).queues.flat().some(token => token.reward)).toBe(false);
-    for (const id of [real(REWARDS_FROM_STAGE), 51, 99, 777]) {
+    for (const id of ids) {
       const stage = await loadStage(id);
       const rewarded = stage.queues.flatMap(queue => queue.flatMap((token, index) => token.reward ? [{ token, index }] : []));
       expect(rewarded).toHaveLength(1);
@@ -84,12 +119,28 @@ describe.runIf(isFeaturePreviewStage(25))('기능 미리보기 (테스트용)', 
 });
 
 describe('보상 칸', () => {
-  it('트레이 비우기 보상 칸은 나오지 않는다 (추가 획득처 없음)', async () => {
-    let id = real(REWARDS_FROM_STAGE);
-    while (isFeaturePreviewStage(id) || rewardSpot({ queues: (await loadStage(id)).queues } as GameState)?.reward !== 'trayClear') id += 1;
-    for (const relaxed of [false, true]) {
-      const session = reduceSession(createSession(true), { type: 'START', stageId: id, relaxed, now: 0 });
-      expect(session.game.queues.flat().some(token => token.reward === 'trayClear')).toBe(false);
+  it('트레이 비우기 보상은 보유분에 더해지고, 보유가 가득하면 나오지 않는다', () => {
+    const id = stageWith('trayClear');
+    const full = reduceSession({ ...createSession(true), trayClears: MAX_TRAY_CLEARS }, { type: 'START', stageId: id, now: 0 });
+    expect(rewardSpot(full.game)).toBeUndefined();
+    const session = collect(reduceSession({ ...createSession(true), trayClears: 1 }, { type: 'START', stageId: id, now: 0 }));
+    expect(session.game.collectedRewards).toEqual(['trayClear']);
+    expect(session.trayClears).toBe(2);
+    expect(session.dailyRewards).toMatchObject({ trayClear: 1, heart: 0, quickOrder: 0 });
+  });
+
+  it('하루 한도에 닿은 보상은 시작할 때 빠지고, 다음 날 다시 나온다', () => {
+    const day = 86_400_000;
+    for (const kind of ['heart', 'trayClear', 'quickOrder'] as const) {
+      const id = stageWith(kind);
+      const capped: SessionState = {
+        ...createSession(true), hearts: { count: 1, refillFrom: 0 }, trayClears: 0,
+        dailyRewards: { day: dayKey(0), heart: 0, trayClear: 0, quickOrder: 0, [kind]: DAILY_REWARD_LIMITS[kind] },
+      };
+      expect(rewardSpot(reduceSession(capped, { type: 'START', stageId: id, now: 0 }).game)).toBeUndefined();
+      // A day later the hearts would have refilled, so keep them short to leave room for a heart.
+      const tomorrow = { ...capped, hearts: { count: 1, refillFrom: day } };
+      expect(rewardSpot(reduceSession(tomorrow, { type: 'START', stageId: id, now: day }).game)?.reward).toBe(kind);
     }
   });
 

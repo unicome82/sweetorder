@@ -14,6 +14,7 @@ import { isPassActive } from '../monetization/pass';
 import { billing } from '../monetization/billing';
 import { FakeAdHost } from '../components/FakeAdHost';
 import { NoHeartsDialog } from '../components/NoHeartsDialog';
+import { PassOfferDialog } from '../components/PassOfferDialog';
 import { ChargeHeartsDialog } from '../components/ChargeHeartsDialog';
 import { useGame } from '../hooks/useGame';
 import { useNow } from '../hooks/useNow';
@@ -123,6 +124,16 @@ export function App() {
   async function buyPass() {
     if (await billing.purchasePass()) dispatch({ type: 'BUY_PASS', now: Date.now() });
   }
+  // The pass offer opens from the popups where it helps; buying closes it and the popup below carries on with the pass.
+  const [passOfferOpen, setPassOfferOpen] = useState(false);
+  async function buyFromOffer() {
+    if (!await billing.purchasePass()) return;
+    dispatch({ type: 'BUY_PASS', now: Date.now() });
+    setPassOfferOpen(false);
+    // Out of hearts: the new spare hearts can be charged straight away.
+    if (outOfHearts !== undefined) { setOutOfHearts(undefined); setChargeOpen(true); }
+  }
+  const showPass = passActive ? undefined : () => setPassOfferOpen(true);
   const testPass = FAKE_MONETIZATION_FOR_TESTING
     ? {
       pass: session.pass, onBuy: () => void buyPass(), onEnd: () => dispatch({ type: 'END_PASS' }),
@@ -139,16 +150,18 @@ export function App() {
       : screen === 'stages'
         ? <StageSelectPage stars={stars} hearts={displayedHearts} spareHearts={session.unlimitedHearts ? 0 : spareHearts(session, passNow)} heartsFastUntil={fastUntil} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} />
         : <GamePage key={`${game.stageId}:${attempt}`} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
-          trayClearsOwned={session.trayClears} passActive={passActive} onRetry={() => start(game.stageId)}
+          trayClearsOwned={session.trayClears} passActive={passActive} onRetry={() => start(game.stageId)} onShowPass={() => setPassOfferOpen(true)}
           canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => handleOutOfHearts(game.stageId)} />
     }
     {screen === 'start' && !modeChosen && <ModeChoiceDialog onChoose={changeMode} />}
-    {outOfHearts !== undefined && <NoHeartsDialog hearts={displayedHearts} fastUntil={fastUntil} onClose={closeOutOfHearts} onWatchAd={() => void watchHeartAd()} />}
+    {outOfHearts !== undefined && <NoHeartsDialog hearts={displayedHearts} fastUntil={fastUntil} onClose={closeOutOfHearts} onWatchAd={() => void watchHeartAd()} onShowPass={showPass} />}
     {chargeOpen && <ChargeHeartsDialog max={chargeableSpareHearts(session)} spare={spareHearts(session)} onClose={() => setChargeOpen(false)}
       onCharge={amount => { dispatch({ type: 'CHARGE_SPARE', amount, now: Date.now() }); setChargeOpen(false); }} />}
     {preStart && <StartItemsDialog pass={passActive ? session.pass : undefined} available={preStart.available} peekNeedsAd={!peekFromPass(session.pass)}
       dessert={getStage(preStart.stageId).queues.flat().find(token => token.hidden && !token.reward)?.type}
-      initial={itemChoice} onStart={choice => void startWithItems(choice)} onClose={() => setPreStart(undefined)} />}
+      initial={itemChoice} onStart={choice => void startWithItems(choice)} onClose={() => setPreStart(undefined)}
+      onShowPass={showPass && !relaxed && !isBonusStage(preStart.stageId) ? showPass : undefined} />}
+    {passOfferOpen && <PassOfferDialog onBuy={() => void buyFromOffer()} onClose={() => setPassOfferOpen(false)} />}
     <FakeAdHost />
     {loadingStage !== undefined && <p className="stage-loading" role="status">Loading…</p>}
   </div></LanguageContext>;

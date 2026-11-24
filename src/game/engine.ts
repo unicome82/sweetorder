@@ -142,7 +142,7 @@ function collectReward(state: GameState, stage: StageDefinition, queueIndex: num
     ...state, queues, transitionId: state.transitionId + 1,
     collectedRewards: [...(state.collectedRewards ?? []), reward],
     ...(reward === 'trayClear' ? { trayClearsLeft: state.trayClearsLeft + 1 } : {}),
-    ...(reward === 'quickOrder' ? { quickOrders: Math.min(MAX_QUICK_ORDERS, (state.quickOrders ?? 0) + 1) } : {}),
+    ...(reward === 'quickOrder' ? { quickOrders: Math.min(MAX_QUICK_ORDERS + (state.passQuickOrders ?? 0), (state.quickOrders ?? 0) + 1) } : {}),
   };
   const events: GameEvent[] = [{ type: 'rewardCollected', reward, donutId: front.id, queueIndex }];
   updateStatus(next, stage, events);
@@ -259,6 +259,9 @@ export function quickOrder(state: GameState, stage: StageDefinition): Transition
   if (!canQuickOrder(state) || state.stageId !== stage.id) return { state, events: [] };
   const next = structuredClone(state);
   next.quickOrders = (state.quickOrders ?? 0) - 1;
+  // The owned quick order goes first; the pass's one is used only when none is owned.
+  const passQuickOrders = state.passQuickOrders ?? 0;
+  if (passQuickOrders > 0 && (state.quickOrders ?? 0) <= passQuickOrders) next.passQuickOrders = passQuickOrders - 1;
   next.transitionId += 1;
   const events: GameEvent[] = [];
   const ordered = next.orders.filter((o): o is ActiveOrder => o !== null).sort((a, b) => a.sequence - b.sequence);
