@@ -32,7 +32,7 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
         <feGaussianBlur stdDeviation="1" result="eroded" />
         <feComposite in="SourceAlpha" in2="eroded" operator="out" result="inner" />
         <feMerge result="edges"><feMergeNode in="outer" /><feMergeNode in="inner" /></feMerge>
-        <feFlood className="queue-dessert-glow-color" floodColor="#fff" />
+        <feFlood className="queue-dessert-glow-color" floodColor="#e52b70" />
         <feComposite in2="edges" operator="in" result="glow" />
         <feMerge><feMergeNode in="SourceGraphic" /><feMergeNode in="glow" /></feMerge>
       </filter>
