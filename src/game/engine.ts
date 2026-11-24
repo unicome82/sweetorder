@@ -99,6 +99,15 @@ export function getReadyTrayPickupOrders(state: GameState, readyOrders: readonly
     .map(({ order }) => order.definitionId);
 }
 
+export function getQueueHint(state: GameState, readyOrders: readonly string[]): number {
+  return state.queues.findIndex(([front]) => {
+    if (!front || front.reward) return false;
+    const withFront = { ...state, tray: [...state.tray, front] };
+    return Array.from(trayPickups(withFront)).some(({ token, order }) =>
+      token.id === front.id && readyOrders.includes(order.definitionId));
+  });
+}
+
 // Orders only change after a pickup, so without one the needed types stay fixed. A needed dessert
 // at depth d costs d + 1 tray slots to reach; if none fits in the free slots, play cannot continue.
 function canReachNeededDessert(state: GameState): boolean {

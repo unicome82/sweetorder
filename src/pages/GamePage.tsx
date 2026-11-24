@@ -12,7 +12,7 @@ import { DonutTray } from '../components/DonutTray';
 import { DonutQueue } from '../components/DonutQueue';
 import { getStage, isBonusStage, practiceStage, STAGE_COUNT } from '../game/stages';
 import { HeartIcon } from '../components/HeartIcon';
-import { getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray } from '../game/engine';
+import { getQueueHint, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray } from '../game/engine';
 import type { DonutType, GameState, RewardKind } from '../game/types';
 import { VIP_BONUS_MS } from '../game/stages/extras';
 import type { GameAction } from '../game/reducer';
@@ -342,6 +342,10 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const stars = status === 'clear' ? getStars(state) : 0;
   const stage = getStage(state.stageId);
   const trayFull = state.tray.length >= state.trayCapacity;
+  const queueDisabled = !playing || waitingForGoodbye || returning.size > 0 || showIntro;
+  const hintColumn = !queueDisabled && !trayFull && inFlight.size === 0 && pendingDeliveries.length === 0
+    ? getQueueHint(state, readyOrders)
+    : -1;
   function rejectSelection(element: HTMLElement) {
     haptic('denied');
     if (soundEnabled) playSound('denied');
@@ -463,7 +467,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft}
       canClear={playing && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
       onClear={() => act({ type: 'CLEAR_TRAY' })} />
-    <DonutQueue queues={state.queues} returning={returning} disabled={!playing || waitingForGoodbye || returning.size > 0 || showIntro} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
+    <DonutQueue key={round} queues={state.queues} returning={returning} disabled={queueDisabled} hintColumn={hintColumn} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}
     <dialog className="glass-popup tray-full-dialog pause-dialog" ref={pauseDialog} aria-labelledby="pause-heading" onCancel={event => { event.preventDefault(); act({ type: 'RESUME' }); }}>
       <h2 id="pause-heading">{t.pause}</h2>

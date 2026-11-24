@@ -1,17 +1,52 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { DonutToken } from '../game/types';
 import { Donut } from './Donut/Donut';
 import { useMessages } from '../i18n/language';
 import { RewardHeart } from './RewardHeart';
 import { Icon } from './Icon';
-export function DonutQueue({ queues, disabled, locked = false, returning, onSelect, onReject }: {
-  queues: DonutToken[][]; disabled: boolean; locked?: boolean; returning: ReadonlySet<string>;
+export function DonutQueue({ queues, disabled, locked = false, returning, hintColumn, onSelect, onReject }: {
+  queues: DonutToken[][]; disabled: boolean; locked?: boolean; returning: ReadonlySet<string>; hintColumn: number;
   onSelect: (queueIndex: number, expectedDonutId: string) => void;
   /** Called when a tap cannot pick anything: the tray is full or the column is empty. */
   onReject?: (queueIndex: number, element: HTMLElement) => void;
 }) {
   const t = useMessages();
   const presses = useRef(new Map<number, number>());
+  const section = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (hintColumn < 0) return;
+    const board = section.current?.closest('.game-board');
+    const column = section.current?.querySelector<HTMLElement>(`[data-queue-index="${hintColumn}"]`);
+    if (!board || !column) return;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let animation: Animation | undefined;
+    function restartHint() {
+      clearTimeout(timer);
+      animation?.cancel();
+      if (document.hidden) return;
+      timer = setTimeout(() => {
+        const glow = { borderColor: '#bc701b', boxShadow: 'inset 0 0 0 2px #efba5d' };
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        animation = column?.animate(reducedMotion ? [glow, glow] : [{}, glow, {}], {
+          duration: 1000,
+          easing: 'ease-in-out',
+        });
+      }, 4000);
+    }
+    restartHint();
+    board.addEventListener('pointerdown', restartHint);
+    board.addEventListener('keydown', restartHint);
+    document.addEventListener('visibilitychange', restartHint);
+    return () => {
+      clearTimeout(timer);
+      animation?.cancel();
+      board.removeEventListener('pointerdown', restartHint);
+      board.removeEventListener('keydown', restartHint);
+      document.removeEventListener('visibilitychange', restartHint);
+    };
+  }, [hintColumn, queues]);
+
   function selectColumn(column: number, element: HTMLElement) {
     if (disabled) return;
     const front = queues[column]?.[0];
@@ -22,7 +57,7 @@ export function DonutQueue({ queues, disabled, locked = false, returning, onSele
 
   const rewardName = (reward: 'heart' | 'trayClear') => reward === 'heart' ? t.rewardSlotHeart : t.rewardSlotTrayClear;
   const depth = Math.max(1, ...queues.map(queue => queue.length));
-  return <section className="queue-section" aria-label={t.queueSection}>
+  return <section ref={section} className="queue-section" aria-label={t.queueSection}>
     <div className="queue-grid">{queues.map((queue, i) => <button type="button" data-sfx="none" className={`queue-column${queue.some(donut => returning.has(donut.id)) ? ' queue-column--returning' : ''}`} key={i} data-queue-index={i}
       style={{ gridTemplateRows: depth === 1 ? 'var(--queue-head)' : `var(--queue-head) repeat(${depth - 1}, var(--queue-step))` }}
       disabled={disabled}
