@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import type { DonutToken } from '../game/types';
 import { Donut } from './Donut/Donut';
 import { useMessages } from '../i18n/language';
@@ -12,38 +12,6 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
 }) {
   const t = useMessages();
   const presses = useRef(new Map<number, number>());
-  const section = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (hintColumn < 0) return;
-    const hintTarget = section.current?.querySelector<HTMLElement>(`[data-queue-index="${hintColumn}"] .queue-front img.donut`);
-    if (!hintTarget) return;
-
-    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const glow = { filter: 'brightness(2) contrast(0.75) drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px #fff)' };
-    const resting = { filter: 'brightness(1) contrast(1) drop-shadow(0 0 2px #fff0) drop-shadow(0 0 5px #fff0)' };
-    let animation: Animation | undefined;
-    const syncHint = () => {
-      animation?.cancel();
-      if (document.hidden) return;
-      animation = motionPreference.matches
-        ? hintTarget.animate([glow, glow], { duration: 1000, iterations: Infinity })
-        : hintTarget.animate([resting, glow], {
-          duration: 850,
-          direction: 'alternate',
-          easing: 'ease-in-out',
-          iterations: Infinity,
-        });
-    };
-    syncHint();
-    document.addEventListener('visibilitychange', syncHint);
-    motionPreference.addEventListener('change', syncHint);
-    return () => {
-      animation?.cancel();
-      document.removeEventListener('visibilitychange', syncHint);
-      motionPreference.removeEventListener('change', syncHint);
-    };
-  }, [hintColumn, queues]);
-
   function selectColumn(column: number, element: HTMLElement) {
     if (disabled) return;
     const front = queues[column]?.[0];
@@ -54,7 +22,21 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
 
   const rewardName = (reward: 'heart' | 'trayClear') => reward === 'heart' ? t.rewardSlotHeart : t.rewardSlotTrayClear;
   const depth = Math.max(1, ...queues.map(queue => queue.length));
-  return <section ref={section} className="queue-section" aria-label={t.queueSection}>
+  return <section className="queue-section" aria-label={t.queueSection}>
+    {hintColumn >= 0 && <svg className="sr-only" aria-hidden="true">
+      <filter id="queue-dessert-glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feMorphology in="SourceAlpha" operator="dilate" radius="2" />
+        <feGaussianBlur stdDeviation="3" />
+        <feComposite in2="SourceAlpha" operator="out" result="outer" />
+        <feMorphology in="SourceAlpha" operator="erode" radius="2" />
+        <feGaussianBlur stdDeviation="1" result="eroded" />
+        <feComposite in="SourceAlpha" in2="eroded" operator="out" result="inner" />
+        <feMerge result="edges"><feMergeNode in="outer" /><feMergeNode in="inner" /></feMerge>
+        <feFlood className="queue-dessert-glow-color" floodColor="#fff" />
+        <feComposite in2="edges" operator="in" result="glow" />
+        <feMerge><feMergeNode in="SourceGraphic" /><feMergeNode in="glow" /></feMerge>
+      </filter>
+    </svg>}
     <div className="queue-grid">{queues.map((queue, i) => <button type="button" data-sfx="none" className={`queue-column${queue.some(donut => returning.has(donut.id)) ? ' queue-column--returning' : ''}`} key={i} data-queue-index={i}
       style={{ gridTemplateRows: depth === 1 ? 'var(--queue-head)' : `var(--queue-head) repeat(${depth - 1}, var(--queue-step))` }}
       disabled={disabled}
@@ -77,7 +59,7 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
       onClick={event => { if (event.detail === 0) selectColumn(i, event.currentTarget); }}
       aria-label={t.queueLabel(i + 1, queue[0] && (queue[0].reward ? rewardName(queue[0].reward) : t.items[queue[0].type]), queue.length)}>
       {queue.map((donut, position) => <span
-        className={position === 0 ? 'queue-front' : 'queue-back'}
+        className={position === 0 ? (i === hintColumn ? 'queue-front queue-front--hint' : 'queue-front') : 'queue-back'}
         key={donut.id}
         data-token-id={donut.id}
         style={{ zIndex: position, visibility: returning.has(donut.id) ? 'hidden' : undefined }}>

@@ -699,6 +699,16 @@
 .queue-front .donut { width: min(100%, 40px); }
 .queue-back .donut { width: min(92%, 36px); }
 
+.queue-front--hint img.donut { filter: url(#queue-dessert-glow); }
+.queue-dessert-glow-color { flood-opacity: .8; }
+@media (prefers-reduced-motion: no-preference) {
+  .queue-dessert-glow-color { animation: queue-dessert-glow 850ms ease-in-out infinite alternate; }
+}
+@keyframes queue-dessert-glow {
+  from { flood-opacity: 0; }
+  to { flood-opacity: .8; }
+}
+
 .glass-popup {
   border-radius: 42px 42px 30px 30px;
   border: 2px solid #fff8ef;
