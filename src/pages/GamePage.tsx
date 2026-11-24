@@ -32,9 +32,10 @@ const PICKUP_INTERVAL = 100;
 // Every stage but practice opens with its title in the middle; the clock starts once it has gone.
 const INTRO_MS = 1800;
 // Items chosen before the start play out one after another once the title has gone, with the clock held:
-// peek's "?" blink and turn (the delays in DonutQueue's CSS match), then "+5s" pops under the clock.
+// "+5s" pops in the middle on the dimmed layer, then the dim lifts and peek's "?" blink and turn into desserts
+// (DonutQueue's CSS animation lasts PEEK_REVEAL_MS and starts at --peek-delay).
 const PEEK_REVEAL_MS = 1300;
-const TIME_BONUS_POP_MS = 1300;
+const TIME_BONUS_POP_MS = 900;
 
 interface Delivery { orderId: string; type: DonutType }
 /** A reward icon floating up from the queue column it was picked from (viewport coordinates). */
@@ -82,7 +83,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   // Chosen before the start, +5 seconds is on the clock from the first moment.
   const [deadline, setDeadline] = useState(() => performance.now() + currentClockMax + introMs);
   // The clock shows the stage's own limit until "+5s" pops, then the extra 5 seconds join it.
-  const [timeBonusAt] = useState(() => performance.now() + INTRO_MS + peekMs);
+  const [timeBonusAt] = useState(() => performance.now() + INTRO_MS);
   const [pausedTimeMs, setPausedTimeMs] = useState<number>();
   const [remainingTimeMs, setRemainingTimeMs] = useState(currentClockMax);
   const timerRunning = timeLimit > 0 && state.status === 'playing';
@@ -451,7 +452,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     setMusicMood(status === 'paused' || status === 'blocked' || showResult ? 'muted' : urgent ? 'urgent' : 'normal');
   }, [showResult, status, urgent]);
   useEffect(() => () => setMusicMood('normal'), []);
-  return <main className={`game-page game-status--${waitingForGoodbye || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root}>
+  return <main className={`game-page game-status--${waitingForGoodbye || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root} style={{ '--peek-delay': `${INTRO_MS + timeBonusMs}ms` } as CSSProperties}>
     {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro}
       settings={<SettingsButton {...settings} mode={state.relaxed ? 'relaxed' : 'timed'} inGame className="header-settings-button"
         onOpen={() => {
@@ -544,11 +545,11 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         <button type="button" className="secondary-button" onClick={() => act({ type: 'GIVE_UP' })}>{t.giveUp}</button>
       </div>
     </dialog>
-    {/* The dimmed layer stays through the item effects; +5 seconds pops big in the middle after the peek. */}
-    {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-ms': `${introMs}ms` } as CSSProperties}>
+    {/* The dimmed layer stays through +5s (which pops in the middle) and lifts before the peek. */}
+    {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-ms': `${INTRO_MS + timeBonusMs}ms` } as CSSProperties}>
       <span className="stage-intro-title">{bonus ? 'Bonus Stage!' : `Stage ${String(state.stageId).padStart(2, '0')}`}</span>
       {timeBonusMs > 0 && <span className="time-bonus-pop" lang="en"
-        style={{ animationDelay: `${INTRO_MS + peekMs}ms`, animationDuration: `${TIME_BONUS_POP_MS}ms` }}>+5s</span>}
+        style={{ animationDelay: `${INTRO_MS}ms`, animationDuration: `${TIME_BONUS_POP_MS}ms` }}>+5s</span>}
     </div>}
     {showResult && status === 'clear' && <div className="confetti" aria-hidden="true">{Array.from({ length: 36 }, (_, i) => <span key={i} style={{ left: `${(i * 29) % 100}%`, background: ['#ed96a6', '#a8d8c8', '#f5c66b', '#af9aca'][i % 4], animationDelay: `${(i % 9) * 55}ms`, transform: `rotate(${i * 37}deg)` }} />)}</div>}
   </main>;
