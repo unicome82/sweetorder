@@ -16,24 +16,35 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
   useEffect(() => {
     if (hintColumn < 0) return;
     const board = section.current?.closest('.game-board');
-    const column = section.current?.querySelector<HTMLElement>(`[data-queue-index="${hintColumn}"]`);
-    if (!board || !column) return;
-
+    const hintTarget = section.current?.querySelector<HTMLElement>(`[data-queue-index="${hintColumn}"]`);
+    if (!board || !hintTarget) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let animation: Animation | undefined;
-    function restartHint() {
+    const restartHint = () => {
       clearTimeout(timer);
       animation?.cancel();
       if (document.hidden) return;
       timer = setTimeout(() => {
-        const glow = { borderColor: '#bc701b', boxShadow: 'inset 0 0 0 2px #efba5d' };
+        const glow = { borderColor: '#a9510b', boxShadow: 'inset 0 0 0 3px #ffbd38', backgroundColor: '#ffe5a6' };
+        const resting = {
+          borderColor: getComputedStyle(hintTarget).borderColor,
+          boxShadow: 'inset 0 0 0 0 transparent',
+          backgroundColor: getComputedStyle(hintTarget).backgroundColor,
+        };
         const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        animation = column?.animate(reducedMotion ? [glow, glow] : [{}, glow, {}], {
-          duration: 1000,
-          easing: 'ease-in-out',
-        });
+        animation = hintTarget.animate(reducedMotion ? [
+          { ...glow, offset: 0, easing: 'steps(1, end)' },
+          { ...resting, offset: 0.4 },
+          { ...resting, offset: 1 },
+        ] : [
+          { ...resting, offset: 0, easing: 'ease-out' },
+          { ...glow, offset: 0.08 },
+          { ...glow, offset: 0.32, easing: 'ease-in' },
+          { ...resting, offset: 0.4 },
+          { ...resting, offset: 1 },
+        ], { duration: 5000, iterations: Infinity });
       }, 4000);
-    }
+    };
     restartHint();
     board.addEventListener('pointerdown', restartHint);
     board.addEventListener('keydown', restartHint);

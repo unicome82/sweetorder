@@ -371,6 +371,9 @@ function startMusic(context: AudioContext) {
 
 export function unlockSound() {
   try {
+    // On supporting browsers, ambient audio follows the device's silent switch.
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session && session.type !== 'ambient') session.type = 'ambient';
     if (!audio) {
       const Context = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Context) return;
