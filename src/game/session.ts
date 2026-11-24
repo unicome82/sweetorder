@@ -89,6 +89,16 @@ function withoutSpentRewards(game: GameState, rewardedStages: readonly number[])
   if (!rewardedStages.includes(game.stageId) || isFeaturePreviewStage(game.stageId)) return game;
   return { ...game, queues: game.queues.map(queue => queue.filter(token => !token.reward)) };
 }
+/**
+ * Takes what a step used from the pass: +5 seconds always, a peek while any are left (with none left,
+ * a rewarded ad paid for it instead).
+ */
+function spendPassItems(pass: Pass | undefined, before: GameState, after: GameState, passActive: boolean): Pass | undefined {
+  if (!pass || !passActive) return pass;
+  const timeBonuses = after.timeBonusUsed && !before.timeBonusUsed ? 1 : 0;
+  const peeks = after.peeked && !before.peeked && pass.peeks > 0 ? 1 : 0;
+  return timeBonuses || peeks ? { ...pass, timeBonuses: pass.timeBonuses - timeBonuses, peeks: pass.peeks - peeks } : pass;
+}
 /** A heart picked up from the queues always goes to the bonus pool. */
 function grantHeart(hearts: Hearts, now: number): Hearts {
   return addHeart(hearts, now, 'bonus');
@@ -159,14 +169,18 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const restart = action.action.type === 'RESTART';
       const payment = restart ? payForAttempt(state, state.game.stageId, now) : null;
       if (restart && !payment) return state;
+      const passActive = isPassActive(state.pass, now);
+      // +5 seconds is a pass benefit and needs one left.
+      if (action.action.type === 'ADD_TIME' && !(passActive && state.pass!.timeBonuses > 0)) return state;
       let game = reduceGame(state.game, action.action, getStage(state.game.stageId));
       if (game === state.game) return state;
+      state = { ...state, pass: spendPassItems(state.pass, state.game, game, passActive) };
       const relaxed = state.game.relaxed ?? false;
       if (restart) game = withMode(withoutUnearnableRewards(withoutSpentRewards(game, state.rewardedStages), canEarnHearts(state.hearts, now)), relaxed);
       if (game.stageId === practiceStage.id) return { ...state, game };
       // Each tray clear used in play comes out of the owned pool while any are left (an ad covers the rest);
       // pass holders keep theirs.
-      const usedClears = restart || isPassActive(state.pass, now) ? 0 : Math.max(0, state.game.trayClearsLeft - game.trayClearsLeft);
+      const usedClears = restart || passActive ? 0 : Math.max(0, state.game.trayClearsLeft - game.trayClearsLeft);
       const trayClears = Math.max(0, state.trayClears - usedClears);
       const earned = restart ? [] : (game.collectedRewards ?? []).slice(state.game.collectedRewards?.length ?? 0);
       let rewardedStages = state.rewardedStages;

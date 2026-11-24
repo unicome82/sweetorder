@@ -101,6 +101,7 @@
 .material-symbol--basket { --symbol: url('../assets/icons/shopping_basket.svg'); }
 .material-symbol--lock { --symbol: url('../assets/icons/lock.svg'); }
 .material-symbol--settings { --symbol: url('../assets/icons/settings.svg'); }
+.material-symbol--visibility { --symbol: url('../assets/icons/visibility.svg'); }
 .pause-button {
   position: absolute;
   top: calc(12px + var(--safe-top));
@@ -1235,3 +1236,9 @@
 .fake-ad-tag { margin: 0; font-size: 12px; font-weight: 900; letter-spacing: .12em; color: #8a6fb3; }
 .fake-ad-timer { margin: 0 0 16px; font-size: 15px; }
 .tray-clear-ad { background: #ffe27a; font-size: 10px; }
+
+// Helper items at the top left of a game: peek and the pass's +5 seconds. Badges reuse the tray clear's.
+.game-header-items { grid-column: 1; grid-row: 1; justify-self: start; display: flex; gap: 10px; }
+.header-item { position: relative; }
+.header-item .tray-clear-shortcut-count { top: -6px; right: -8px; min-width: 20px; height: 20px; font-size: 11px; }
+.header-item--time { font-family: Jua, sans-serif; font-size: 17px; line-height: 1; }

@@ -5,6 +5,8 @@ export const PASS_MS = PASS_DAYS * 24 * 60 * 60_000;
 export const PASS_SPARE_HEARTS = 10;
 export const PASS_TIME_BONUSES = 30;
 export const PASS_PEEKS = 30;
+/** What one +5 seconds adds to the clock. */
+export const PASS_TIME_BONUS_MS = 5_000;
 /** "Extend your pass" reminders start this long before the pass runs out. */
 export const PASS_REMINDER_MS = 3 * 24 * 60 * 60_000;
 

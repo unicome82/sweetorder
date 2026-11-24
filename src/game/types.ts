@@ -30,4 +30,8 @@ export interface GameState {
   completedOrders: number; trayClearsLeft: number; transitionId: number;
   /** Rewards picked up from the queues during this attempt, in order. */
   collectedRewards?: RewardKind[];
+  /** Peek was used this attempt: every "?" in the queues shows its dessert. */
+  peeked?: boolean;
+  /** The pass's +5 seconds was used this attempt. */
+  timeBonusUsed?: boolean;
 }

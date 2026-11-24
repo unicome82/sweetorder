@@ -23,7 +23,9 @@ import { haptic } from '../effects/haptics';
 import { useMessages } from '../i18n/language';
 import { createEffects } from '../effects/turnEffects';
 import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
-import { ads } from '../monetization/ads';
+import { ads, type RewardedPlacement } from '../monetization/ads';
+import { PASS_TIME_BONUS_MS, type Pass } from '../monetization/pass';
+import { hasHiddenDesserts } from '../game/reducer';
 
 // Keep the standard pickup cadence independent of visual effect duration.
 const TRAY_READY_DELAY = 235;
@@ -42,10 +44,14 @@ interface Props {
   canRestart: () => boolean; onOutOfHearts: () => void;
   /** The player's owned tray clears, shown on the tray-clear badges. */
   trayClearsOwned: number;
-  /** Pass holders clear the tray without an ad and without using owned clears. */
-  passActive: boolean;
+  /**
+   * The pass, only while it is active. Holders clear the tray without an ad or using owned clears,
+   * peek without an ad while peeks are left, and get +5 seconds in timed play.
+   */
+  pass?: Pass;
 }
-export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, passActive }: Props) {
+export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, pass }: Props) {
+  const passActive = pass !== undefined;
   const t = useMessages();
   const { soundEnabled } = settings;
   // Settings opened mid-play pause the game behind them and resume it when closed.
@@ -177,6 +183,17 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       deferredMatches.current = [];
       flushSync(() => dispatch(action));
       for (const donutId of deferred) act({ type: 'TRAY_READY', donutId });
+      return;
+    }
+    if (action.type === 'ADD_TIME') {
+      if (current.status !== 'playing' || current.timeBonusUsed || remaining === undefined) return;
+      remaining = Math.min(timeLimit, remaining + PASS_TIME_BONUS_MS);
+      setDeadline(now + remaining);
+      setRemainingTimeMs(remaining);
+      haptic('select');
+      if (soundEnabled) playSound('timeBonus');
+      showPop(id => setTimeBonusPops(previous => [...previous, id]), id => setTimeBonusPops(previous => previous.filter(pop => pop !== id)));
+      dispatch(action);
       return;
     }
     const currentStage = getStage(current.stageId);
@@ -318,16 +335,27 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const clearNeedsAd = !practice && !passActive && trayClearsOwned <= 0;
   const actAfterAd = useRef(act);
   useLayoutEffect(() => { actAfterAd.current = act; });
-  async function requestTrayClear() {
-    if (!clearNeedsAd) { act({ type: 'CLEAR_TRAY' }); return; }
+  /** Shows a rewarded ad with the clock paused, then applies the action if it was watched to the end. */
+  async function actAfterRewardedAd(placement: RewardedPlacement, action: GameAction) {
     const pauseForAd = latest.current.status === 'playing' && timeLimit > 0;
     setAdPlaying(true);
     if (pauseForAd) act({ type: 'PAUSE' });
-    const watched = await ads.showRewarded('trayClear');
+    const watched = await ads.showRewarded(placement);
     if (!mounted.current) return;
     setAdPlaying(false);
     if (pauseForAd) actAfterAd.current({ type: 'RESUME' });
-    if (watched) actAfterAd.current({ type: 'CLEAR_TRAY' });
+    if (watched) actAfterAd.current(action);
+  }
+  function requestTrayClear() {
+    if (clearNeedsAd) void actAfterRewardedAd('trayClear', { type: 'CLEAR_TRAY' });
+    else act({ type: 'CLEAR_TRAY' });
+  }
+  // Peek: once per attempt; pass holders use their pass peeks, everyone else (or a pass with none left) watches an ad.
+  const passPeeks = pass?.peeks ?? 0;
+  const peekNeedsAd = passPeeks <= 0;
+  function requestPeek() {
+    if (peekNeedsAd) void actAfterRewardedAd('peek', { type: 'PEEK' });
+    else act({ type: 'PEEK' });
   }
   const boardVisible = playing || status === 'blocked' || status === 'paused';
   const [presentedResult, setPresentedResult] = useState<GameState | null>(null);
@@ -380,6 +408,25 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     target.animate(shake, { duration: 220, easing: 'ease-out' });
   }
   const lastStage = state.stageId === STAGE_COUNT;
+  // Helper items sit at the top left: peek on stages with "?" desserts, +5 seconds for pass holders in timed play.
+  const itemsUsable = playing && !waitingForGoodbye && !showIntro && !adPlaying;
+  const stageHasHidden = useMemo(() => stage.queues.some(queue => queue.some(token => token.hidden)), [stage]);
+  const showPeek = !practice && stageHasHidden;
+  const showAddTime = !practice && !isBonusStage(state.stageId) && passActive && timeLimit > 0;
+  const items = (showPeek || showAddTime) && <>
+    {showPeek && <button type="button" className="icon-button header-item" onClick={requestPeek}
+      disabled={!itemsUsable || !hasHiddenDesserts(state)} aria-label={peekNeedsAd ? t.peekAdLabel : t.peekLabel(passPeeks)}>
+      <Icon name="visibility" />
+      <span className={`tray-clear-shortcut-count${peekNeedsAd ? ' tray-clear-ad' : ''}`} lang={peekNeedsAd ? 'en' : undefined} aria-hidden="true">{peekNeedsAd ? 'AD' : passPeeks}</span>
+    </button>}
+    {showAddTime && <button type="button" data-sfx="none" className="icon-button header-item header-item--time" onClick={() => act({ type: 'ADD_TIME' })}
+      // Usable once 5 seconds have run, so none of them is lost to the stage's limit.
+      disabled={!itemsUsable || state.timeBonusUsed || pass.timeBonuses <= 0 || remainingTimeMs > timeLimit - PASS_TIME_BONUS_MS}
+      aria-label={t.addTimeLabel(pass.timeBonuses)}>
+      <span lang="en" aria-hidden="true">+5</span>
+      <span className="tray-clear-shortcut-count" aria-hidden="true">{pass.timeBonuses}</span>
+    </button>}
+  </>;
   const bonus = isBonusStage(state.stageId);
   // Every stage opens with a chime (practice excepted); bonus stages get a grander one.
   const playStartSound = useEffectEvent(() => {
@@ -430,7 +477,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   }, [showResult, status, urgent]);
   useEffect(() => () => setMusicMood('normal'), []);
   return <main className={`game-page game-status--${waitingForGoodbye || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root}>
-    {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro}
+    {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} items={items} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro}
       settings={<SettingsButton {...settings} mode={state.relaxed ? 'relaxed' : 'timed'} inGame className="header-settings-button"
         onOpen={() => {
           setSettingsOpen(true);
@@ -491,8 +538,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     }) : state.orders} stageId={state.stageId} onOrderReady={onOrderReady} />
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
       canClear={playing && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
-      onClear={() => void requestTrayClear()} />
-    <DonutQueue key={round} queues={state.queues} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
+      onClear={requestTrayClear} />
+    <DonutQueue key={round} queues={state.queues} revealed={state.peeked} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}
     <dialog className="glass-popup tray-full-dialog pause-dialog" ref={pauseDialog} aria-labelledby="pause-heading" onCancel={event => { event.preventDefault(); act({ type: 'RESUME' }); }}>
       <h2 id="pause-heading">{t.pause}</h2>
@@ -506,7 +553,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <img className="popup-cat" src={popupCat} alt="" draggable={false} />
       <h2 id="tray-full-heading">{resultTitles.blocked}</h2>
       <div className="result-actions">
-        <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={() => void requestTrayClear()} aria-label={clearNeedsAd ? t.clearTrayAdLabel : t.clearTrayLabel(clearsOwned)}>
+        <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={requestTrayClear} aria-label={clearNeedsAd ? t.clearTrayAdLabel : t.clearTrayLabel(clearsOwned)}>
           <Icon name="basket" />{t.clearTray} <span className="tray-clear-count" lang={clearNeedsAd ? 'en' : undefined} aria-hidden="true">{clearNeedsAd ? 'AD' : clearsOwned}</span>
         </button>
         <button type="button" className="secondary-button" onClick={() => act({ type: 'RESTART' })}><Icon name="retry" />{t.retry}</button>
