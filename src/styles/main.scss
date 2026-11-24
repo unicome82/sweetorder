@@ -1097,7 +1097,8 @@
   font-size: 11px;
   box-shadow: 0 1px 2px #7a4a1a59;
 }
-.no-hearts-ad-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.no-hearts-ad-button { position: relative; white-space: nowrap; padding-inline: 8px; }
+.no-hearts-ad-button .start-item-ad { position: absolute; top: -7px; left: 6px; box-shadow: 0 1px 2px #7a4a1a40; }
 .heart-counter-timer { padding-top: 2.5px; padding-left: 6px; border-left: 1px solid #e7c9b6; color: #a0715a; font-size: 14px; font-variant-numeric: tabular-nums; }
 .stage-navigation .heart-counter { margin-right: auto; }
 .result-heart {
