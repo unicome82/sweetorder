@@ -15,42 +15,32 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
   const section = useRef<HTMLElement>(null);
   useEffect(() => {
     if (hintColumn < 0) return;
-    const board = section.current?.closest('.game-board');
     const hintTarget = section.current?.querySelector<HTMLElement>(`[data-queue-index="${hintColumn}"] .queue-front img.donut`);
-    if (!board || !hintTarget) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (!hintTarget) return;
+
+    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const glow = { filter: 'brightness(1.28) drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px #fff)' };
+    const resting = { filter: 'brightness(1) drop-shadow(0 0 2px #fff0) drop-shadow(0 0 5px #fff0)' };
     let animation: Animation | undefined;
-    const restartHint = () => {
-      clearTimeout(timer);
+    const syncHint = () => {
       animation?.cancel();
       if (document.hidden) return;
-      timer = setTimeout(() => {
-        const glow = { filter: 'brightness(1.1) drop-shadow(0 0 2px #fff5c9) drop-shadow(0 0 5px #ffb52f)' };
-        const resting = { filter: 'brightness(1) drop-shadow(0 0 2px transparent) drop-shadow(0 0 5px transparent)' };
-        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        animation = hintTarget.animate(reducedMotion ? [
-          { ...glow, offset: 0, easing: 'steps(1, end)' },
-          { ...resting, offset: 0.4 },
-          { ...resting, offset: 1 },
-        ] : [
-          { ...resting, offset: 0, easing: 'ease-out' },
-          { ...glow, offset: 0.08 },
-          { ...glow, offset: 0.32, easing: 'ease-in' },
-          { ...resting, offset: 0.4 },
-          { ...resting, offset: 1 },
-        ], { duration: 5000, iterations: Infinity });
-      }, 500);
+      animation = motionPreference.matches
+        ? hintTarget.animate([glow, glow], { duration: 1000, iterations: Infinity })
+        : hintTarget.animate([resting, glow], {
+          duration: 850,
+          direction: 'alternate',
+          easing: 'ease-in-out',
+          iterations: Infinity,
+        });
     };
-    restartHint();
-    board.addEventListener('pointerdown', restartHint);
-    board.addEventListener('keydown', restartHint);
-    document.addEventListener('visibilitychange', restartHint);
+    syncHint();
+    document.addEventListener('visibilitychange', syncHint);
+    motionPreference.addEventListener('change', syncHint);
     return () => {
-      clearTimeout(timer);
       animation?.cancel();
-      board.removeEventListener('pointerdown', restartHint);
-      board.removeEventListener('keydown', restartHint);
-      document.removeEventListener('visibilitychange', restartHint);
+      document.removeEventListener('visibilitychange', syncHint);
+      motionPreference.removeEventListener('change', syncHint);
     };
   }, [hintColumn, queues]);
 
