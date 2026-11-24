@@ -32,17 +32,21 @@ export function StartItemsDialog({ pass, available, peekNeedsAd, dessert, initia
     <div className="start-items">
       {available.peek && <button type="button" className="start-item" aria-pressed={!!choice.peek} onClick={() => toggle('peek')}>
         {check}
-        <span className="start-item-icon"><PeekIcon dessert={dessert} /></span>
+        <span className="start-item-icon"><PeekIcon dessert={dessert} />
+          {peekNeedsAd
+            ? <span className="start-item-count start-item-ad" lang="en" aria-hidden="true">AD</span>
+            : <span className="start-item-count" lang="en" aria-hidden="true">{pass!.peeks}</span>}
+        </span>
         <span className="start-item-name">{t.passItemPeek}</span>
-        {peekNeedsAd
-          ? <span className="start-item-left"><span className="start-item-ad" lang="en">AD</span>{t.startItemAd}</span>
-          : <span className="start-item-left">{t.passItemsLeft(pass!.peeks)}</span>}
+        <span className="sr-only">{peekNeedsAd ? `AD${t.startItemAd}` : t.passItemsLeft(pass!.peeks)}</span>
       </button>}
       {available.addTime && pass && <button type="button" className="start-item" aria-pressed={!!choice.addTime} onClick={() => toggle('addTime')}>
         {check}
-        <span className="start-item-icon"><AddTimeIcon /></span>
+        <span className="start-item-icon"><AddTimeIcon />
+          <span className="start-item-count" lang="en" aria-hidden="true">{pass.timeBonuses}</span>
+        </span>
         <span className="start-item-name">{t.passItemAddTime}</span>
-        <span className="start-item-left">{t.passItemsLeft(pass.timeBonuses)}</span>
+        <span className="sr-only">{t.passItemsLeft(pass.timeBonuses)}</span>
       </button>}
     </div>
     <div className="result-actions charge-hearts-actions">

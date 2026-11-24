@@ -1,12 +1,12 @@
 import { createGame, getStars, MAX_QUICK_ORDERS } from './engine';
 import { getStage, isBonusStage, isStageId, practiceStage, prepareBonusStage, STAGE_COUNT } from './stages';
 import { hasHiddenDesserts, reduceGame, type GameAction } from './reducer';
-import { addHeart, canEarnHearts, fullHearts, rebaseRefill, refillHearts, spendHeart } from './hearts';
+import { addHeart, canEarnHearts, fullHearts, MAX_HEARTS, rebaseRefill, refillHearts, spendHeart } from './hearts';
 import type { Hearts } from './hearts';
 import type { DonutType, GameState, RewardKind } from './types';
 import { isFeaturePreviewStage } from './constants';
 import { dayKey } from './day';
-import { isPassActive, PASS_SPARE_HEARTS, purchasePass, type Pass } from '../monetization/pass';
+import { isPassActive, purchasePass, type Pass } from '../monetization/pass';
 
 const POINTS_PER_ORDER = 100;
 
@@ -44,6 +44,8 @@ export type SessionAction =
   | { type: 'GAME'; action: GameAction; now?: number }
   /** A rewarded ad for hearts was watched to the end: one heart. */
   | { type: 'AD_HEARTS'; now?: number }
+  /** Moves this many pass spare hearts into the regular hearts, never past five. */
+  | { type: 'CHARGE_SPARE'; amount: number; now?: number }
   | { type: 'BUY_PASS'; now?: number }
   /** Playtesting only: drops the pass as if it had run out. */
   | { type: 'END_PASS' }
@@ -133,8 +135,8 @@ function applyItems(game: GameState, pass: Pass | undefined, choice: ItemChoice 
     pass: passPeek || addTime ? { ...pass!, peeks: pass!.peeks - (passPeek ? 1 : 0), timeBonuses: pass!.timeBonuses - (addTime ? 1 : 0) } : pass,
   };
 }
-/** Where an attempt's heart came from: the regular hearts, or a pass spare heart once those ran out. */
-export type HeartPayment = 'regular' | 'spare';
+/** Where an attempt's heart came from; only regular hearts pay (spare hearts are charged into them first). */
+export type HeartPayment = 'regular';
 /** Regular hearts refill twice as fast up to the end of the latest pass. */
 export const heartsFastUntil = (state: Pick<SessionState, 'pass'>) => state.pass?.expiresAt;
 /** Practice and bonus stages cost no heart. */
@@ -143,23 +145,19 @@ export const isFreeStage = (id: number) => id === practiceStage.id || isBonusSta
 export function spareHearts(state: Pick<SessionState, 'pass'>, now = Date.now()): number {
   return isPassActive(state.pass, now) ? state.pass.spareHearts : 0;
 }
-/** Whether a paid attempt can start now: a regular heart, or a spare heart when none is left. */
+/** Whether a paid attempt can start now: it takes a regular heart. Spare hearts never pay on their own. */
 export function canAffordAttempt(state: SessionState, stageId: number, now = Date.now()): boolean {
-  return state.unlimitedHearts || isFreeStage(stageId)
-    || refillHearts(state.hearts, now, heartsFastUntil(state)).count >= 1 || spareHearts(state, now) > 0;
+  return state.unlimitedHearts || isFreeStage(stageId) || refillHearts(state.hearts, now, heartsFastUntil(state)).count >= 1;
 }
-/** Pays one heart for an attempt at a campaign stage (spare hearts only once regular ones are gone); null when none is left. */
-function payForAttempt(state: SessionState, stageId: number, now: number): Pick<SessionState, 'hearts' | 'heartPaidFrom' | 'pass'> | null {
-  if (state.unlimitedHearts || isFreeStage(stageId)) return { hearts: state.hearts, heartPaidFrom: undefined, pass: state.pass };
+/** How many spare hearts could be charged into the regular hearts now (they fill up to five). */
+export function chargeableSpareHearts(state: SessionState, now = Date.now()): number {
+  return Math.min(spareHearts(state, now), Math.max(0, MAX_HEARTS - refillHearts(state.hearts, now, heartsFastUntil(state)).count));
+}
+/** Pays one regular heart for an attempt at a campaign stage; null when none is left. */
+function payForAttempt(state: SessionState, stageId: number, now: number): Pick<SessionState, 'hearts' | 'heartPaidFrom'> | null {
+  if (state.unlimitedHearts || isFreeStage(stageId)) return { hearts: state.hearts, heartPaidFrom: undefined };
   const paid = spendHeart(state.hearts, now, heartsFastUntil(state));
-  if (paid) return { hearts: paid, heartPaidFrom: 'regular', pass: state.pass };
-  if (spareHearts(state, now) < 1) return null;
-  return { hearts: state.hearts, heartPaidFrom: 'spare', pass: { ...state.pass!, spareHearts: state.pass!.spareHearts - 1 } };
-}
-/** A clear gives the attempt's heart back to where it came from. */
-function refundHeart(state: SessionState, from: HeartPayment, now: number): Pick<SessionState, 'hearts' | 'pass'> {
-  if (from === 'regular') return { hearts: addHeart(state.hearts, now, heartsFastUntil(state)), pass: state.pass };
-  return { hearts: state.hearts, pass: state.pass && { ...state.pass, spareHearts: Math.min(PASS_SPARE_HEARTS, state.pass.spareHearts + 1) } };
+  return paid ? { hearts: paid, heartPaidFrom: 'regular' } : null;
 }
 
 /** Whether the daily bonus stage is still unused on the device's current day. */
@@ -196,7 +194,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const payment = payForAttempt(state, action.stageId, now);
       if (!payment) return state;
       const created = withQuickOrders(createSessionGame(action.stageId, state.rewardedStages, action.relaxed ?? false, earnable(state, now)), state.quickOrders);
-      const { game, pass } = applyItems(created, payment.pass, action.items, now);
+      const { game, pass } = applyItems(created, state.pass, action.items, now);
       return { ...state, ...payment, pass, bonus: undefined, screen: 'game', game };
     }
     case 'BUY_PASS': {
@@ -209,6 +207,14 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const now = Date.now();
       const endedAt = state.pass && Math.min(state.pass.expiresAt, now);
       return { ...state, pass: undefined, hearts: rebaseRefill(state.hearts, now, endedAt, undefined) };
+    }
+    case 'CHARGE_SPARE': {
+      // The player chose to move spare hearts into the regular hearts.
+      const now = action.now ?? Date.now();
+      const amount = Math.min(Math.max(0, Math.floor(action.amount)), chargeableSpareHearts(state, now));
+      if (!amount) return state;
+      const hearts = refillHearts(state.hearts, now, heartsFastUntil(state));
+      return { ...state, hearts: { ...hearts, count: hearts.count + amount }, pass: { ...state.pass!, spareHearts: state.pass!.spareHearts - amount } };
     }
     case 'TEST_HEARTS': return { ...state, hearts: action.full ? fullHearts() : { count: 0, refillFrom: action.now ?? Date.now() } };
     case 'AD_HEARTS': return { ...state, hearts: addHeart(state.hearts, action.now ?? Date.now(), heartsFastUntil(state)) };
@@ -251,9 +257,10 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
         // A bonus clear adds a heart (up to five); it leaves stars and tray clears alone.
         return { ...state, game, trayClears, hearts: newlyCleared ? addHeart(state.hearts, now, heartsFastUntil(state)) : state.hearts };
       }
-      const paid = payment ?? { hearts: state.hearts, heartPaidFrom: state.heartPaidFrom, pass: state.pass };
+      const paid = payment ?? { hearts: state.hearts, heartPaidFrom: state.heartPaidFrom };
+      // A clear gives the attempt's heart back.
       const refund = newlyCleared && paid.heartPaidFrom
-        ? { ...refundHeart({ ...state, ...paid }, paid.heartPaidFrom, now), heartPaidFrom: undefined }
+        ? { hearts: addHeart(paid.hearts, now, heartsFastUntil(state)), heartPaidFrom: undefined }
         : paid;
       // Relaxed play records the clear without stars.
       const earnedStars = relaxed ? 0 : getStars(game);

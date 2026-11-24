@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addHeart, describeHearts, fullHearts, HEART_REFILL_MS, MAX_HEARTS, parseHearts, rebaseRefill, refillHearts, spendHeart, type Hearts } from './hearts';
 import { PASS_MS, PASS_SPARE_HEARTS } from '../monetization/pass';
-import { canAffordAttempt, canPlayBonusToday, createSession, reduceSession } from './session';
+import { canAffordAttempt, canPlayBonusToday, chargeableSpareHearts, createSession, reduceSession } from './session';
 import { BONUS_STAGE_ID } from './constants';
 import { getStage, loadStage } from './stages';
 import { createBonusStage } from './stages/bonus';
@@ -113,33 +113,36 @@ describe('패스 하트 혜택', () => {
     expect(describeHearts(ended, minutes(5)).nextInMs).toBe(minutes(20));
   });
 
-  it('일반 하트가 0일 때만 스페어 하트를 쓰고, 클리어하면 스페어 하트로 돌려받는다', async () => {
+  it('스페어 하트는 자동으로 쓰이지 않고, 고른 만큼 일반 하트로 충전한다 (최대 5개까지)', async () => {
     await loadStage(1);
     const bought = reduceSession(createSession(), { type: 'BUY_PASS', now: 0 });
-    const withOne = { ...bought, hearts: { count: 1, refillFrom: 0 } };
-    const regular = reduceSession(withOne, { type: 'START', stageId: 1, now: 0 });
-    expect(regular.hearts.count).toBe(0);
-    expect(regular.pass!.spareHearts).toBe(PASS_SPARE_HEARTS);
+    const empty = { ...bought, screen: 'stages' as const, hearts: { count: 0, refillFrom: 0 } };
+    expect(canAffordAttempt(empty, 1, 0)).toBe(false);
+    expect(reduceSession(empty, { type: 'START', stageId: 1, now: 0 })).toBe(empty);
+    expect(chargeableSpareHearts(empty, 0)).toBe(MAX_HEARTS);
 
-    const empty = { ...regular, screen: 'stages' as const };
-    expect(canAffordAttempt(empty, 1, 0)).toBe(true);
-    const spare = reduceSession(empty, { type: 'START', stageId: 1, now: 0 });
-    expect(spare.screen).toBe('game');
-    expect(spare.heartPaidFrom).toBe('spare');
-    expect(spare.pass!.spareHearts).toBe(PASS_SPARE_HEARTS - 1);
-    expect(spare.hearts.count).toBe(0);
+    const charged = reduceSession(empty, { type: 'CHARGE_SPARE', amount: 3, now: 0 });
+    expect(charged.hearts.count).toBe(3);
+    expect(charged.pass!.spareHearts).toBe(PASS_SPARE_HEARTS - 3);
+    // Never past five, never more than the spare hearts left.
+    const topped = reduceSession(charged, { type: 'CHARGE_SPARE', amount: 9, now: 0 });
+    expect(topped.hearts.count).toBe(MAX_HEARTS);
+    expect(topped.pass!.spareHearts).toBe(PASS_SPARE_HEARTS - MAX_HEARTS);
 
-    const cleared = clearFirstOrder(spare);
+    // A clear gives the heart back to the regular hearts.
+    const started = reduceSession(charged, { type: 'START', stageId: 1, now: 0 });
+    expect(started.hearts.count).toBe(2);
+    const cleared = clearFirstOrder(started);
     expect(cleared.game.status).toBe('clear');
-    expect(cleared.pass!.spareHearts).toBe(PASS_SPARE_HEARTS);
-    expect(cleared.hearts.count).toBe(0);
+    expect(cleared.hearts.count).toBe(3);
+    expect(cleared.pass!.spareHearts).toBe(PASS_SPARE_HEARTS - 3);
   });
 
   it('스페어 하트는 패스가 끝나면 쓸 수 없다', async () => {
     await loadStage(1);
     const session = { ...reduceSession(createSession(), { type: 'BUY_PASS', now: 0 }), hearts: { count: 0, refillFrom: PASS_MS } };
-    expect(canAffordAttempt(session, 1, PASS_MS)).toBe(false);
-    expect(reduceSession(session, { type: 'START', stageId: 1, now: PASS_MS })).toBe(session);
+    expect(chargeableSpareHearts(session, PASS_MS)).toBe(0);
+    expect(reduceSession(session, { type: 'CHARGE_SPARE', amount: 1, now: PASS_MS })).toBe(session);
   });
 
   it('광고를 끝까지 보면 일반 하트 1개를 받는다', () => {
