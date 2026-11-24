@@ -1080,6 +1080,24 @@
   font-size: 11px;
   box-shadow: 0 1px 2px #7a1a1a59;
 }
+// Pass spare hearts: gold, on the opposite corner from the bonus badge.
+.heart-counter-spare {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 2px 4px 0;
+  border: 1px solid #fff9f3;
+  border-radius: 9px;
+  background: #f2b632;
+  color: #6b3a12;
+  font-size: 11px;
+  box-shadow: 0 1px 2px #7a4a1a59;
+}
+.no-hearts-ad-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .heart-counter-timer { padding-top: 2.5px; padding-left: 6px; border-left: 1px solid #e7c9b6; color: #a0715a; font-size: 14px; font-variant-numeric: tabular-nums; }
 .stage-navigation .heart-counter { margin-right: auto; }
 .result-heart {

@@ -5,14 +5,14 @@ import { useNow } from '../hooks/useNow';
 import { HeartIcon } from './HeartIcon';
 
 /** Picks how many bonus hearts (1 up to what fits under five) move into the regular hearts. */
-export function ChargeHeartsDialog({ hearts, onCharge, onClose }: { hearts: Hearts; onCharge: (amount: number) => void; onClose: () => void }) {
+export function ChargeHeartsDialog({ hearts, fastUntil, onCharge, onClose }: { hearts: Hearts; fastUntil?: number; onCharge: (amount: number) => void; onClose: () => void }) {
   const t = useMessages();
   const dialog = useRef<HTMLDialogElement>(null);
   useLayoutEffect(() => {
     const element = dialog.current;
     if (element && !element.open) element.showModal();
   }, []);
-  const max = chargeAmount(hearts, useNow());
+  const max = chargeAmount(hearts, useNow(), fastUntil);
   const [picked, setPicked] = useState(max);
   const amount = Math.min(Math.max(1, picked), Math.max(1, max));
   return <dialog className="glass-popup tray-full-dialog no-hearts-dialog" ref={dialog} aria-labelledby="charge-hearts-heading"
