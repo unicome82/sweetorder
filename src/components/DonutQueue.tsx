@@ -25,15 +25,10 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
   return <section className="queue-section" aria-label={t.queueSection}>
     {hintColumn >= 0 && <svg className="sr-only" aria-hidden="true">
       <filter id="queue-dessert-glow" x="-50%" y="-50%" width="200%" height="200%">
-        <feMorphology in="SourceAlpha" operator="dilate" radius="2" />
-        <feGaussianBlur stdDeviation="3" />
-        <feComposite in2="SourceAlpha" operator="out" result="outer" />
-        <feMorphology in="SourceAlpha" operator="erode" radius="2" />
-        <feGaussianBlur stdDeviation="1" result="eroded" />
-        <feComposite in="SourceAlpha" in2="eroded" operator="out" result="inner" />
-        <feMerge result="edges"><feMergeNode in="outer" /><feMergeNode in="inner" /></feMerge>
+        <feMorphology in="SourceAlpha" operator="dilate" radius="2" result="expanded" />
+        <feComposite in="expanded" in2="SourceAlpha" operator="out" result="outline" />
         <feFlood className="queue-dessert-glow-color" floodColor="#e52b70" />
-        <feComposite in2="edges" operator="in" result="glow" />
+        <feComposite in2="outline" operator="in" result="glow" />
         <feMerge><feMergeNode in="SourceGraphic" /><feMergeNode in="glow" /></feMerge>
       </filter>
     </svg>}
