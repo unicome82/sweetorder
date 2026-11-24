@@ -3,7 +3,7 @@ import popupRibbon from '../assets/game/popup-ribbon.webp';
 import popupCat from '../assets/game/popup-cat.webp';
 import clearDesserts from '../assets/game/clear-desserts.webp';
 import rewardStar from '../assets/game/reward-star.webp';
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { flushSync } from 'react-dom';
 import { CUSTOMER_GOODBYE_MS } from '../effects/customerTiming';
 import { GameHeader } from '../components/GameHeader';
@@ -323,7 +323,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const failed = status === 'gameover';
   // Practice keeps its own single tray clear; elsewhere the badges show the owned pool.
   const practice = state.stageId === practiceStage.id;
-  const clearsOwned = practice ? state.trayClearsLeft : trayClearsOwned;
+  // Pass holders clear freely, so like practice their badge shows what this game has left rather than the owned pool.
+  const clearsOwned = practice || passActive ? state.trayClearsLeft : trayClearsOwned;
   // With no owned clears left (and no pass), each clear is paid for with a rewarded ad.
   const clearNeedsAd = !practice && !passActive && trayClearsOwned <= 0;
   const actAfterAd = useRef(act);
@@ -465,9 +466,6 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         }} />} />}
     {(showClock || (timeLimit > 0 && waitingForGoodbye)) && <div className="stage-clock-wrap">
       <StageClock limitMs={timeLimit} remainingMs={pausedTimeMs ?? remainingTimeMs} />
-      {/* +5 seconds chosen before the start: a "+5s" pops beside the clock as the stage title clears. */}
-      {state.timeBonusUsed && hasIntro && <span className="time-bonus-pop" lang="en" aria-hidden="true"
-        style={{ animationDelay: `${INTRO_MS + peekMs}ms`, animationDuration: `${TIME_BONUS_POP_MS}ms` }}>+5s</span>}
     </div>}
     {/* An even 2px white outline for masked icons, which can't carry a stroke or their own shadows. */}
     <svg className="sr-only" aria-hidden="true"><filter id="white-outline" x="-20%" y="-20%" width="140%" height="140%">
@@ -546,8 +544,11 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         <button type="button" className="secondary-button" onClick={() => act({ type: 'GIVE_UP' })}>{t.giveUp}</button>
       </div>
     </dialog>
-    {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true">
-      <span>{bonus ? 'Bonus Stage!' : `Stage ${String(state.stageId).padStart(2, '0')}`}</span>
+    {/* The dimmed layer stays through the item effects; +5 seconds pops big in the middle after the peek. */}
+    {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-ms': `${introMs}ms` } as CSSProperties}>
+      <span className="stage-intro-title">{bonus ? 'Bonus Stage!' : `Stage ${String(state.stageId).padStart(2, '0')}`}</span>
+      {timeBonusMs > 0 && <span className="time-bonus-pop" lang="en"
+        style={{ animationDelay: `${INTRO_MS + peekMs}ms`, animationDuration: `${TIME_BONUS_POP_MS}ms` }}>+5s</span>}
     </div>}
     {showResult && status === 'clear' && <div className="confetti" aria-hidden="true">{Array.from({ length: 36 }, (_, i) => <span key={i} style={{ left: `${(i * 29) % 100}%`, background: ['#ed96a6', '#a8d8c8', '#f5c66b', '#af9aca'][i % 4], animationDelay: `${(i % 9) * 55}ms`, transform: `rotate(${i * 37}deg)` }} />)}</div>}
   </main>;
