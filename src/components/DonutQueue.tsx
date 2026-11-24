@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { DonutToken } from '../game/types';
 import { Donut } from './Donut/Donut';
 import { useMessages } from '../i18n/language';
@@ -12,6 +12,36 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
 }) {
   const t = useMessages();
   const presses = useRef(new Map<number, number>());
+  const section = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (hintColumn < 0) return;
+    const queue = section.current;
+    const board = queue?.closest('.game-board');
+    if (!queue || !board) return;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const hideHint = () => {
+      clearTimeout(timer);
+      delete queue.dataset.hintVisible;
+    };
+    const restartHint = () => {
+      hideHint();
+      if (!document.hidden) {
+        timer = setTimeout(() => { queue.dataset.hintVisible = 'true'; }, 4000);
+      }
+    };
+    restartHint();
+    board.addEventListener('pointerdown', restartHint);
+    board.addEventListener('keydown', restartHint);
+    document.addEventListener('visibilitychange', restartHint);
+    return () => {
+      hideHint();
+      board.removeEventListener('pointerdown', restartHint);
+      board.removeEventListener('keydown', restartHint);
+      document.removeEventListener('visibilitychange', restartHint);
+    };
+  }, [hintColumn, queues]);
+
   function selectColumn(column: number, element: HTMLElement) {
     if (disabled) return;
     const front = queues[column]?.[0];
@@ -22,7 +52,7 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
 
   const rewardName = (reward: 'heart' | 'trayClear') => reward === 'heart' ? t.rewardSlotHeart : t.rewardSlotTrayClear;
   const depth = Math.max(1, ...queues.map(queue => queue.length));
-  return <section className="queue-section" aria-label={t.queueSection}>
+  return <section ref={section} className="queue-section" aria-label={t.queueSection}>
     {hintColumn >= 0 && <svg className="sr-only" aria-hidden="true">
       <filter id="queue-dessert-glow" x="-50%" y="-50%" width="200%" height="200%">
         <feMorphology in="SourceAlpha" operator="dilate" radius="2" result="expanded" />
