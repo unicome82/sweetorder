@@ -32,7 +32,7 @@ const PICKUP_INTERVAL = 100;
 // Every stage but practice opens with its title in the middle; the clock starts once it has gone.
 const INTRO_MS = 1800;
 // Items chosen before the start play out one after another once the title has gone, with the clock held:
-// "+5s" pops in the middle on the dimmed layer, then the dim lifts and, after a short pause, peek's "?" blink and
+// "+5s" pops in the middle on the dimmed layer, then after a short pause peek's "?" blink and
 // turn into desserts (DonutQueue's CSS animation lasts PEEK_REVEAL_MS and starts at --peek-delay).
 const PEEK_REVEAL_MS = 1300;
 const TIME_BONUS_POP_MS = 1200;
@@ -548,8 +548,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         <button type="button" className="secondary-button" onClick={() => act({ type: 'GIVE_UP' })}>{t.giveUp}</button>
       </div>
     </dialog>
-    {/* The dimmed layer stays through +5s (which pops in the middle) and lifts before the peek. */}
-    {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-ms': `${INTRO_MS + timeBonusMs}ms` } as CSSProperties}>
+    {/* The dimmed layer stays through every item effect: +5s (popping in the middle), then the "?" reveal. */}
+    {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-ms': `${introMs}ms` } as CSSProperties}>
       <span className="stage-intro-title">{bonus ? 'Bonus Stage!' : `Stage ${String(state.stageId).padStart(2, '0')}`}</span>
       {timeBonusMs > 0 && <span className="time-bonus-pop" lang="en"
         style={{ animationDelay: `${INTRO_MS}ms`, animationDuration: `${TIME_BONUS_POP_MS}ms` }}>+5s</span>}

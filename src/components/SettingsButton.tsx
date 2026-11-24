@@ -29,14 +29,14 @@ function TestPass({ pass, onBuy, onEnd, onFillHearts, onEmptyHearts }: NonNullab
   const daysLeft = passDaysLeft(pass, useNow());
   return <>
     <p className="settings-hint">{t.testPass}: {daysLeft > 0 ? t.testPassOn(daysLeft) : t.testPassOff}</p>
-    <div className="settings-segmented" role="group" aria-label={t.testPass}>
-      <button type="button" onClick={onBuy}>{t.testPassBuy}</button>
-      <button type="button" disabled={!pass} onClick={onEnd}>{t.testPassEnd}</button>
+    <div className="settings-test-actions" role="group" aria-label={t.testPass}>
+      <button type="button" className="secondary-button" onClick={onBuy}>{t.testPassBuy}</button>
+      <button type="button" className="secondary-button" disabled={!pass} onClick={onEnd}>{t.testPassEnd}</button>
     </div>
     <p className="settings-hint">{t.testHearts}</p>
-    <div className="settings-segmented" role="group" aria-label={t.testHearts}>
-      <button type="button" onClick={onFillHearts}>{t.testHeartsFill}</button>
-      <button type="button" onClick={onEmptyHearts}>{t.testHeartsEmpty}</button>
+    <div className="settings-test-actions" role="group" aria-label={t.testHearts}>
+      <button type="button" className="secondary-button" onClick={onFillHearts}>{t.testHeartsFill}</button>
+      <button type="button" className="secondary-button" onClick={onEmptyHearts}>{t.testHeartsEmpty}</button>
     </div>
   </>;
 }
