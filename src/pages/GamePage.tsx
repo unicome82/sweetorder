@@ -31,6 +31,10 @@ const TRAY_READY_DELAY = 235;
 const PICKUP_INTERVAL = 100;
 // Every stage but practice opens with its title in the middle; the clock starts once it has gone.
 const INTRO_MS = 1800;
+// Items chosen before the start play out one after another once the title has gone, with the clock held:
+// peek's "?" blink and turn (the delays in DonutQueue's CSS match), then "+5s" pops under the clock.
+const PEEK_REVEAL_MS = 1300;
+const TIME_BONUS_POP_MS = 1300;
 
 interface Delivery { orderId: string; type: DonutType }
 /** A reward icon floating up from the queue column it was picked from (viewport coordinates). */
@@ -67,7 +71,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const [round, setRound] = useState(0);
   const timeLimit = getGameTimeLimit(state, getStage(state.stageId));
   const hasIntro = state.stageId !== practiceStage.id;
-  const introMs = hasIntro ? INTRO_MS : 0;
+  const peekMs = hasIntro && state.peeked ? PEEK_REVEAL_MS : 0;
+  const timeBonusMs = hasIntro && state.timeBonusUsed ? TIME_BONUS_POP_MS : 0;
+  const introMs = hasIntro ? INTRO_MS + peekMs + timeBonusMs : 0;
   const [introRound, setIntroRound] = useState<number | null>(hasIntro ? 0 : null);
   const showIntro = introRound === round;
   // +5 seconds may take the clock past the stage's limit, by those 5 seconds at most.
@@ -75,6 +81,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const currentClockMax = clockMax(state);
   // Chosen before the start, +5 seconds is on the clock from the first moment.
   const [deadline, setDeadline] = useState(() => performance.now() + currentClockMax + introMs);
+  // The clock shows the stage's own limit until "+5s" pops, then the extra 5 seconds join it.
+  const [timeBonusAt] = useState(() => performance.now() + INTRO_MS + peekMs);
   const [pausedTimeMs, setPausedTimeMs] = useState<number>();
   const [remainingTimeMs, setRemainingTimeMs] = useState(currentClockMax);
   const timerRunning = timeLimit > 0 && state.status === 'playing';
@@ -83,14 +91,15 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   useLayoutEffect(() => {
     if (!timerRunning) return;
     const updateClock = () => {
-      const remaining = Math.min(currentClockMax, Math.max(0, deadline - performance.now()));
-      setRemainingTimeMs(remaining);
+      const now = performance.now();
+      const remaining = Math.min(currentClockMax, Math.max(0, deadline - now));
+      setRemainingTimeMs(now < timeBonusAt ? Math.min(remaining, timeLimit) : remaining);
       if (remaining === 0) clearInterval(interval);
     };
     const interval = setInterval(updateClock, 100);
     const deadlineTimer = setTimeout(updateClock, Math.max(0, Math.ceil(deadline - performance.now())));
     return () => { clearInterval(interval); clearTimeout(deadlineTimer); };
-  }, [deadline, timerRunning, currentClockMax]);
+  }, [deadline, timerRunning, currentClockMax, timeBonusAt, timeLimit]);
   const nextPickupAt = useRef(new Map<string, number>());
   const onOrderReady = useCallback((id: string) => {
     setReadyOrders(previous => previous.includes(id) ? previous : [...previous, id]);
@@ -401,9 +410,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   useEffect(() => { playStartSound(); }, [round]);
   useEffect(() => {
     if (!showIntro) return;
-    const timer = setTimeout(() => setIntroRound(null), INTRO_MS);
+    const timer = setTimeout(() => setIntroRound(null), introMs);
     return () => clearTimeout(timer);
-  }, [showIntro]);
+  }, [showIntro, introMs]);
   useEffect(() => {
     if (!showGoodbye) return;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -457,7 +466,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     {(showClock || (timeLimit > 0 && waitingForGoodbye)) && <div className="stage-clock-wrap">
       <StageClock limitMs={timeLimit} remainingMs={pausedTimeMs ?? remainingTimeMs} />
       {/* +5 seconds chosen before the start: a "+5s" pops beside the clock as the stage title clears. */}
-      {state.timeBonusUsed && !showIntro && <span className="time-bonus-pop" lang="en" aria-hidden="true">+5s</span>}
+      {state.timeBonusUsed && hasIntro && <span className="time-bonus-pop" lang="en" aria-hidden="true"
+        style={{ animationDelay: `${INTRO_MS + peekMs}ms`, animationDuration: `${TIME_BONUS_POP_MS}ms` }}>+5s</span>}
     </div>}
     {/* An even 2px white outline for masked icons, which can't carry a stroke or their own shadows. */}
     <svg className="sr-only" aria-hidden="true"><filter id="white-outline" x="-20%" y="-20%" width="140%" height="140%">
@@ -486,12 +496,14 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         <span className="result-progress-label" aria-hidden="true">{t.ordersDone} <strong>{state.completedOrders}</strong> / {stage.targetOrders}</span>
         <span className="result-progress-track" aria-hidden="true"><span style={{ width: `${state.completedOrders / stage.targetOrders * 100}%` }} /></span>
       </div>}
-      <div className="result-actions">
+      {/* A bonus stage pays out once: its clear only leads back to the stage list. */}
+      {bonus && status === 'clear' ? <div className="result-actions">
+        <button type="button" className="primary-button popup-primary-button" onClick={onStages}>{t.ok}</button>
+      </div> : <div className="result-actions">
         {status === 'clear' && !lastStage && <button type="button" className="primary-button popup-primary-button next-stage-button" onClick={onNext}>{t.nextStage}</button>}
-        {/* A bonus stage pays out once, so its clear offers no replay. */}
-        {!(bonus && status === 'clear') && <button type="button" className={failed ? 'primary-button popup-primary-button' : 'secondary-button'} onClick={retry}><Icon name="retry" />{t.retry}</button>}
+        <button type="button" className={failed ? 'primary-button popup-primary-button' : 'secondary-button'} onClick={retry}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={onStages}><Icon name="grid" />{t.stageSelect}</button>
-      </div>
+      </div>}
     </section>}
     {(boardVisible || waitingForGoodbye) && <div className="game-board">
     <OrderBoard key={round} orders={pendingDeliveries.length ? state.orders.map(order => {
@@ -522,7 +534,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <h2 id="tray-full-heading">{resultTitles.blocked}</h2>
       <div className="result-actions">
         <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={requestTrayClear} aria-label={clearNeedsAd ? t.clearTrayAdLabel : t.clearTrayLabel(clearsOwned)}>
-          <Icon name="basket" />{t.clearTray} <span className={`tray-clear-count${clearNeedsAd ? ' tray-clear-ad' : ''}`} lang={clearNeedsAd ? 'en' : undefined} aria-hidden="true">{clearNeedsAd ? 'AD' : clearsOwned}</span>
+          <Icon name="basket" />{t.clearTray} {clearNeedsAd
+            ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span>
+            : <span className="tray-clear-count" aria-hidden="true">{clearsOwned}</span>}
         </button>
         {!!quickOrders && <button type="button" data-sfx="none" className="primary-button popup-primary-button quick-order-button" onClick={() => act({ type: 'QUICK_ORDER' })}
           disabled={!canQuickOrder(state)} aria-label={t.quickOrderLabel(quickOrders)}>

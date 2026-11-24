@@ -641,12 +641,14 @@
   line-height: 1;
   box-shadow: 0 1px 3px #8c3f3d50;
 }
-.tray-row--quick-order {
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 6px;
-  // The second square button: as wide as the tray is tall (a slot plus padding and border), plus a gap, less the 2px the gaps shrank.
-  --tray-lent: calc(clamp(24px, 4.2dvh, 36px) + 11px + 6px - 2px);
+.tray-row {
+  // The square buttons beside the tray are as wide as the tray is tall: a slot plus its padding and border.
+  --tray-button: calc(clamp(24px, 4.2dvh, 36px) + 11px);
 }
+// Desserts are sized for a tray beside one button; --tray-lent gives back or takes away the width
+// the buttons actually shown leave, so desserts keep one size whichever buttons are there.
+.tray-row--buttons-0 { grid-template-columns: minmax(0, 1fr); --tray-lent: calc(-1 * (var(--tray-button) + 8px)); }
+.tray-row--buttons-2 { grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; --tray-lent: calc(var(--tray-button) + 4px); }
 // Quick order: amber, so it reads apart from the pink tray clear beside it.
 .quick-order-shortcut {
   border-color: #f0b54a;
@@ -661,6 +663,10 @@
   box-shadow: inset 0 -4px #f0d6a8, 0 2px 3px #aa6b3b15;
 }
 .quick-order-icon { display: block; width: 24px; height: 24px; }
+// Picked up mid-game, the quick order button pops in beside the tray.
+.quick-order-shortcut--new { animation: quick-order-arrive .5s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes quick-order-arrive { 0% { opacity: 0; transform: scale(.3); } 100% { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .quick-order-shortcut--new { animation: none; } }
 .tray-section { transition: background-color 200ms, border-color 200ms, box-shadow 200ms; }
 .tray-section--warn {
   --tray-blink: #f5c66b;
@@ -687,7 +693,7 @@
 .tray-donut {
   translate: 0 -4px;
   // Size against a 12-slot row so desserts look the same at every capacity.
-  // The quick order button takes width from the tray; --tray-lent adds it back so desserts keep their size.
+  // --tray-lent evens out the width the buttons beside the tray take, so desserts keep their size.
   width: min(calc((100cqw + var(--tray-lent, 0px)) / 12 * 1.4), 44px);
   justify-self: center;
   position: relative;
@@ -1104,7 +1110,6 @@
   box-shadow: 0 1px 2px #7a1a1a59;
 }
 .no-hearts-ad-button { position: relative; white-space: nowrap; padding-inline: 8px; }
-.no-hearts-ad-button .start-item-ad { position: absolute; top: -7px; left: 6px; box-shadow: 0 1px 2px #7a4a1a40; }
 .heart-counter-timer { padding-top: 2.5px; padding-left: 6px; border-left: 1px solid #e7c9b6; color: #a0715a; font-size: 14px; font-variant-numeric: tabular-nums; }
 .stage-navigation .heart-counter { margin-right: auto; }
 .result-heart {
@@ -1123,6 +1128,7 @@
 // Jua sits about 1px high; the padding lines the title up with the heart.
 .no-hearts-dialog h2 > span { padding-top: 3px; line-height: 1; }
 .no-hearts-dialog .result-actions { margin-top: 18px; }
+[data-repeat-tap] { touch-action: manipulation; }
 .charge-stepper { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 14px; }
 .charge-stepper-button { font-family: Jua, sans-serif; font-size: 26px; line-height: 1; }
 .charge-stepper-button span { padding-top: 2px; }
@@ -1160,9 +1166,11 @@
 .stage-clock-wrap { position: relative; flex: none; z-index: 5; }
 .time-bonus-pop {
   position: absolute;
-  z-index: 2;
-  top: calc(100% + 2px);
-  right: 14px;
+  z-index: 10;
+  top: calc(100% - 4px);
+  right: 4px;
+  // Room around the glyphs for their white outline and shadow, which would otherwise be cut at the sides.
+  padding: 6px 12px;
   color: #ec6a86;
   font-family: Jua, sans-serif;
   font-size: 24px;
@@ -1171,21 +1179,20 @@
   paint-order: stroke fill;
   filter: drop-shadow(0 2px 3px #aa3b5a50);
   pointer-events: none;
-  animation: time-bonus-pop 1.8s cubic-bezier(.22, .72, .26, 1) both;
+  animation: time-bonus-pop 1.3s ease-out both;
 }
-// Pops in under the clock's time, then rises onto it and fades.
+// Pops in under the clock's time and keeps rising onto it as it fades.
 @keyframes time-bonus-pop {
-  0% { opacity: 0; transform: scale(.4); }
-  15% { opacity: 1; transform: scale(1.3); }
-  28% { transform: scale(1); }
-  65% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-110%); }
+  0% { opacity: 0; transform: translateY(10px) scale(.5); }
+  18% { opacity: 1; transform: translateY(0) scale(1.15); }
+  35% { opacity: 1; transform: translateY(-12px) scale(1); }
+  100% { opacity: 0; transform: translateY(-56px) scale(1); }
 }
 // Peek: hidden desserts blink as "?" once the stage title has gone, then show what they are.
 .peek-reveal { display: grid; place-items: center; width: 100%; }
 .peek-reveal > * { grid-area: 1 / 1; }
-.peek-reveal-mystery { animation: peek-reveal-blink 1.3s ease-in-out 1.5s both; }
-.peek-reveal-dessert { animation: peek-reveal-show 1.3s ease-out 1.5s both; }
+.peek-reveal-mystery { animation: peek-reveal-blink 1.3s ease-in-out 1.8s both; }
+.peek-reveal-dessert { animation: peek-reveal-show 1.3s ease-out 1.8s both; }
 @keyframes peek-reveal-blink {
   0%, 26%, 52% { opacity: 1; }
   13%, 39%, 65% { opacity: .2; }
@@ -1266,8 +1273,27 @@
 .fake-ad h2 { margin: 6px 0 10px; font-size: 22px; }
 .fake-ad-tag { margin: 0; font-size: 12px; font-weight: 900; letter-spacing: .12em; color: #8a6fb3; }
 .fake-ad-timer { margin: 0 0 16px; font-size: 15px; }
-// Every AD badge shares the yellow of the ad tags.
-.tray-clear-ad, .tray-clear-count.tray-clear-ad { background: #ffe27a; color: #723f2b; font-size: 10px; }
+// One AD badge everywhere an ad pays for something: yellow, white rim, on the top right of its button or icon.
+.ad-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 1px 6px 0;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #ffe27a;
+  color: #723f2b;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: none;
+  box-shadow: 0 1px 3px #8c3f3d50;
+}
 
 // Item icons. Peek: "?" and a dessert take turns; +5 seconds: a stopwatch with "+5s" inside.
 .peek-icon { display: grid; width: 32px; height: 32px; }
@@ -1348,12 +1374,10 @@
   line-height: 1;
   box-shadow: 0 1px 3px #8c3f3d50;
 }
-.start-item-count.start-item-ad { background: #ffe27a; font-size: 10px; }
 // The stopwatch's face sits low in its box; lift it to the middle of the circle.
 .start-item-icon .add-time-icon { translate: 0 -2px; }
 // Chosen, the "?" turns white on the pink circle instead of keeping its cream disc.
 .start-item[aria-pressed='true'] .peek-icon-mystery { border-color: #fff; background: transparent; color: #fff; }
-.start-item-ad { padding: 1px 5px; border-radius: 6px; background: #ffe27a; color: #723f2b; font-size: 10px; font-weight: 900; }
 .start-item-check {
   position: absolute;
   top: -9px;

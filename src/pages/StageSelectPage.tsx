@@ -105,11 +105,11 @@ export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFast
         </div>
       </div>
       {optionCount > JUMP_SIZE && <div className="stage-jump">
-        <button type="button" className="stage-jump-button" disabled={upTarget === undefined}
+        <button type="button" data-repeat-tap className="stage-jump-button" disabled={upTarget === undefined}
           aria-label={upTarget === undefined ? t.jumpUp : t.jumpToStage(upTarget)} onClick={() => upTarget && jumpTo(upTarget)}>
           <span className="stage-jump-arrow stage-jump-arrow--up" aria-hidden="true" /><span lang="en">{upTarget ?? '—'}</span>
         </button>
-        <button type="button" className="stage-jump-button" disabled={downTarget === undefined}
+        <button type="button" data-repeat-tap className="stage-jump-button" disabled={downTarget === undefined}
           aria-label={downTarget === undefined ? t.jumpDown : t.jumpToStage(downTarget)} onClick={() => downTarget && jumpTo(downTarget)}>
           <span className="stage-jump-arrow stage-jump-arrow--down" aria-hidden="true" /><span lang="en">{downTarget ?? '—'}</span>
         </button>
