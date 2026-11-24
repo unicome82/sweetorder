@@ -519,12 +519,10 @@
   align-items: center;
   gap: 0 2px;
 }
-.order-items li { position: relative; display: flex; flex: none; align-items: center; padding: 3px 4px 0 0; }
+.order-items li { display: flex; flex: none; align-items: center; gap: 3px; padding-right: 1px; }
 .order-items .donut { width: clamp(30px, 8.6vw, 40px); }
 .order-items strong {
-  position: absolute;
-  top: 0;
-  right: 0;
+  // Sits beside the dessert instead of on top of it so the item stays fully visible.
   display: grid;
   place-items: center;
   min-width: 20px;
@@ -911,6 +909,7 @@
 
 @media (max-width: 360px) {
   .order-items { column-gap: 2px; }
+  .order-items li { gap: 1px; }
 }
 // Very short screens (iPhone SE) need the tight bubble to clear the time bar.
 @media (max-height: 600px) {
