@@ -45,9 +45,9 @@ describe('여유 모드', () => {
     expect(start(heartStage.id, true, lowHearts).game.queues.flat().some(token => token.reward === 'heart')).toBe(true);
   });
 
-  it('트레이 비우기는 보유분에서 차감되고, 보유가 없으면 쓸 수 없으며, 다시 하기도 여유 모드로 시작한다', async () => {
+  it('트레이 비우기는 판당 1번, 보유분에서 차감되고, 다시 하기도 여유 모드로 시작한다', async () => {
     const stage = await loadStage(30);
-    expect(start(stage.id, true, { ...createSession(true), trayClears: 0 }).game.trayClearsLeft).toBe(0);
+    expect(start(stage.id, true, { ...createSession(true), trayClears: 0 }).game.trayClearsLeft).toBe(1);
     const session = start(stage.id, true, { ...createSession(true), trayClears: 3 });
     expect(session.game.trayClearsLeft).toBe(1);
     const game = structuredClone(session.game);

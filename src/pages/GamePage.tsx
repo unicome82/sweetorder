@@ -23,6 +23,7 @@ import { haptic } from '../effects/haptics';
 import { useMessages } from '../i18n/language';
 import { createEffects } from '../effects/turnEffects';
 import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
+import { ads } from '../monetization/ads';
 
 // Keep the standard pickup cadence independent of visual effect duration.
 const TRAY_READY_DELAY = 235;
@@ -41,13 +42,17 @@ interface Props {
   canRestart: () => boolean; onOutOfHearts: () => void;
   /** The player's owned tray clears, shown on the tray-clear badges. */
   trayClearsOwned: number;
+  /** Pass holders clear the tray without an ad and without using owned clears. */
+  passActive: boolean;
 }
-export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned }: Props) {
+export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, passActive }: Props) {
   const t = useMessages();
   const { soundEnabled } = settings;
   // Settings opened mid-play pause the game behind them and resume it when closed.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const pausedForSettings = useRef(false);
+  // A rewarded ad on screen pauses a running clock like Settings does, without the pause popup.
+  const [adPlaying, setAdPlaying] = useState(false);
   const root = useRef<HTMLElement>(null);
   const latest = useRef(state);
   const matchTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
@@ -293,10 +298,10 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     else if (status !== 'blocked' && dialog.open) dialog.close();
     const pause = pauseDialog.current;
     if (!pause) return;
-    const showPause = status === 'paused' && !settingsOpen;
+    const showPause = status === 'paused' && !settingsOpen && !adPlaying;
     if (showPause && !pause.open) pause.showModal();
     else if (!showPause && pause.open) pause.close();
-  }, [status, settingsOpen]);
+  }, [status, settingsOpen, adPlaying]);
   const showGoodbye = status === 'clear';
   const resultTitles = {
     ready: t.tryAgain,
@@ -307,7 +312,23 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   };
   const failed = status === 'gameover';
   // Practice keeps its own single tray clear; elsewhere the badges show the owned pool.
-  const clearsOwned = state.stageId === practiceStage.id ? state.trayClearsLeft : trayClearsOwned;
+  const practice = state.stageId === practiceStage.id;
+  const clearsOwned = practice ? state.trayClearsLeft : trayClearsOwned;
+  // With no owned clears left (and no pass), each clear is paid for with a rewarded ad.
+  const clearNeedsAd = !practice && !passActive && trayClearsOwned <= 0;
+  const actAfterAd = useRef(act);
+  useLayoutEffect(() => { actAfterAd.current = act; });
+  async function requestTrayClear() {
+    if (!clearNeedsAd) { act({ type: 'CLEAR_TRAY' }); return; }
+    const pauseForAd = latest.current.status === 'playing' && timeLimit > 0;
+    setAdPlaying(true);
+    if (pauseForAd) act({ type: 'PAUSE' });
+    const watched = await ads.showRewarded('trayClear');
+    if (!mounted.current) return;
+    setAdPlaying(false);
+    if (pauseForAd) actAfterAd.current({ type: 'RESUME' });
+    if (watched) actAfterAd.current({ type: 'CLEAR_TRAY' });
+  }
   const boardVisible = playing || status === 'blocked' || status === 'paused';
   const [presentedResult, setPresentedResult] = useState<GameState | null>(null);
   const waitingForGoodbye = showGoodbye && presentedResult !== state;
@@ -468,9 +489,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       }
       return { ...order, remaining };
     }) : state.orders} stageId={state.stageId} onOrderReady={onOrderReady} />
-    <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned}
+    <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
       canClear={playing && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
-      onClear={() => act({ type: 'CLEAR_TRAY' })} />
+      onClear={() => void requestTrayClear()} />
     <DonutQueue key={round} queues={state.queues} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}
     <dialog className="glass-popup tray-full-dialog pause-dialog" ref={pauseDialog} aria-labelledby="pause-heading" onCancel={event => { event.preventDefault(); act({ type: 'RESUME' }); }}>
@@ -485,8 +506,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <img className="popup-cat" src={popupCat} alt="" draggable={false} />
       <h2 id="tray-full-heading">{resultTitles.blocked}</h2>
       <div className="result-actions">
-        <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={() => act({ type: 'CLEAR_TRAY' })} aria-label={t.clearTrayLabel(clearsOwned)}>
-          <Icon name="basket" />{t.clearTray} <span className="tray-clear-count" aria-hidden="true">{clearsOwned}</span>
+        <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={() => void requestTrayClear()} aria-label={clearNeedsAd ? t.clearTrayAdLabel : t.clearTrayLabel(clearsOwned)}>
+          <Icon name="basket" />{t.clearTray} <span className="tray-clear-count" lang={clearNeedsAd ? 'en' : undefined} aria-hidden="true">{clearNeedsAd ? 'AD' : clearsOwned}</span>
         </button>
         <button type="button" className="secondary-button" onClick={() => act({ type: 'RESTART' })}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={() => act({ type: 'GIVE_UP' })}>{t.giveUp}</button>

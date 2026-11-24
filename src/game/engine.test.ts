@@ -442,11 +442,29 @@ describe('세션 진행', () => {
     expect(used.trayClears).toBe(2);
     expect(used.game.trayClearsLeft).toBe(1);
     expect(reduceSession(used, { type: 'GAME', action: { type: 'RESTART' } }).game.trayClearsLeft).toBe(2);
-    const one = { ...createSession(), trayClears: 1 };
-    expect(reduceSession(one, { type: 'START', stageId: stage.id }).game.trayClearsLeft).toBe(1);
+    // The per-game cap doesn't depend on the pool: once it is empty, rewarded ads pay for each clear.
     const empty = { ...createSession(), trayClears: 0 };
-    expect(reduceSession(empty, { type: 'START', stageId: stage.id }).game.trayClearsLeft).toBe(0);
-    expect(reduceSession(reduceSession(empty, { type: 'START', stageId: stage.id }), { type: 'GAME', action: { type: 'RESTART' } }).game.trayClearsLeft).toBe(0);
+    const startedEmpty = reduceSession(empty, { type: 'START', stageId: stage.id });
+    expect(startedEmpty.game.trayClearsLeft).toBe(2);
+    const emptyGame = structuredClone(startedEmpty.game);
+    emptyGame.tray = emptyGame.queues[0]!.splice(0, 1);
+    const viaAd = reduceSession({ ...startedEmpty, game: emptyGame }, { type: 'GAME', action: { type: 'CLEAR_TRAY' } });
+    expect(viaAd.game.trayClearsLeft).toBe(1);
+    expect(viaAd.trayClears).toBe(0);
+  });
+
+  it('패스가 있으면 트레이 비우기를 써도 보유 개수가 줄지 않고, 판당 상한은 그대로다', () => {
+    const stage = stages[0]!;
+    const withPass = reduceSession(createSession(), { type: 'BUY_PASS', now: 0 });
+    const started = reduceSession(withPass, { type: 'START', stageId: stage.id, now: 1 });
+    expect(started.game.trayClearsLeft).toBe(2);
+    const game = structuredClone(started.game);
+    game.tray = game.queues[0]!.splice(0, 1);
+    const used = reduceSession({ ...started, game }, { type: 'GAME', action: { type: 'CLEAR_TRAY' }, now: 2 });
+    expect(used.game.trayClearsLeft).toBe(1);
+    expect(used.trayClears).toBe(3);
+    const expired = reduceSession({ ...started, game }, { type: 'GAME', action: { type: 'CLEAR_TRAY' }, now: 31 * 24 * 60 * 60_000 });
+    expect(expired.trayClears).toBe(2);
   });
 
   it('게임 중에도 트레이를 비울 수 있지만 비어 있으면 비울 수 없다', () => {

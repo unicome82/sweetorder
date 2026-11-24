@@ -5,6 +5,7 @@ import { addHeart, canEarnHearts, chargeFromBonus, fullHearts, refillHearts, spe
 import type { DonutType, GameState } from './types';
 import { isFeaturePreviewStage } from './constants';
 import { dayKey } from './day';
+import { isPassActive, purchasePass, type Pass } from '../monetization/pass';
 
 const POINTS_PER_ORDER = 100;
 
@@ -27,6 +28,8 @@ export interface SessionState {
   bonus?: { dessert: DonutType; nextStageId: number };
   /** The local day (see dayKey) the daily bonus stage was last entered. */
   bonusDay?: string;
+  /** The premium pass from the latest purchase; it may have expired. */
+  pass?: Pass;
 }
 export type SessionAction =
   | { type: 'HOME' }
@@ -35,7 +38,10 @@ export type SessionAction =
   /** testing: the Stage 00 playtest entry, which leaves the daily bonus stage unused. */
   | { type: 'START_BONUS'; dessert: DonutType; nextStageId: number; relaxed?: boolean; now?: number; testing?: boolean }
   | { type: 'GAME'; action: GameAction; now?: number }
-  | { type: 'CHARGE_HEARTS'; amount?: number; now?: number };
+  | { type: 'CHARGE_HEARTS'; amount?: number; now?: number }
+  | { type: 'BUY_PASS'; now?: number }
+  /** Playtesting only: drops the pass as if it had run out. */
+  | { type: 'END_PASS' };
 
 export function createSession(unlockAllStages = false, unlimitedHearts = false): SessionState {
   return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, unlimitedHearts, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [] };
@@ -48,10 +54,13 @@ export const MAX_TRAY_CLEARS = 5;
 export const TIMED_TRAY_CLEARS_PER_GAME = 2;
 export const RELAXED_TRAY_CLEARS = 1;
 export const trayClearsPerGame = (relaxed: boolean) => relaxed ? RELAXED_TRAY_CLEARS : TIMED_TRAY_CLEARS_PER_GAME;
-/** Sets an attempt up for its mode (relaxed drops VIPs) and lets it use owned tray clears up to the per-game cap. */
-function withMode(game: GameState, relaxed: boolean, trayClears: number): GameState {
+/**
+ * Sets an attempt up for its mode (relaxed drops VIPs). trayClearsLeft is the per-game cap: each use comes out of the
+ * owned pool, or, with none left, is paid for with a rewarded ad (pass holders use them freely).
+ */
+function withMode(game: GameState, relaxed: boolean): GameState {
   if (game.stageId === practiceStage.id) return game;
-  const trayClearsLeft = Math.min(trayClears, trayClearsPerGame(relaxed));
+  const trayClearsLeft = trayClearsPerGame(relaxed);
   if (!relaxed) return { ...game, trayClearsLeft };
   const next: GameState = {
     ...game, relaxed: true, trayClearsLeft,
@@ -61,8 +70,8 @@ function withMode(game: GameState, relaxed: boolean, trayClears: number): GameSt
   for (const order of next.orders) if (order) delete order.vip;
   return next;
 }
-function createSessionGame(stageId: number, trayClears: number, rewardedStages: readonly number[], relaxed: boolean, heartReward: boolean): GameState {
-  return withMode(withoutUnearnableRewards(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), heartReward), relaxed, trayClears);
+function createSessionGame(stageId: number, rewardedStages: readonly number[], relaxed: boolean, heartReward: boolean): GameState {
+  return withMode(withoutUnearnableRewards(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), heartReward), relaxed);
 }
 /** Drops rewards the player can't take: hearts unless they could earn one, and tray clears always (they can't be earned). */
 function withoutUnearnableRewards(game: GameState, heartReward: boolean): GameState {
@@ -130,15 +139,17 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const now = action.now ?? Date.now();
       const payment = payForAttempt(state, action.stageId, now);
       if (!payment) return state;
-      const game = createSessionGame(action.stageId, state.trayClears, state.rewardedStages, action.relaxed ?? false, canEarnHearts(state.hearts, now));
+      const game = createSessionGame(action.stageId, state.rewardedStages, action.relaxed ?? false, canEarnHearts(state.hearts, now));
       return { ...state, ...payment, bonus: undefined, screen: 'game', game };
     }
+    case 'BUY_PASS': return { ...state, pass: purchasePass(state.pass, action.now ?? Date.now()) };
+    case 'END_PASS': return { ...state, pass: undefined };
     case 'CHARGE_HEARTS': return { ...state, hearts: chargeFromBonus(state.hearts, action.now ?? Date.now(), action.amount) };
     case 'START_BONUS': {
       // Entering uses up the day's bonus stage, so leaving and coming back can't repeat it.
       const today = dayKey(action.now ?? Date.now());
       if (!action.testing && state.bonusDay === today) return state;
-      const game = withMode(createGame(prepareBonusStage(action.dessert)), action.relaxed ?? false, state.trayClears);
+      const game = withMode(createGame(prepareBonusStage(action.dessert)), action.relaxed ?? false);
       const bonusDay = action.testing ? state.bonusDay : today;
       return { ...state, screen: 'game', heartPaidFrom: undefined, bonus: { dessert: action.dessert, nextStageId: action.nextStageId }, bonusDay, game };
     }
@@ -151,10 +162,11 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       let game = reduceGame(state.game, action.action, getStage(state.game.stageId));
       if (game === state.game) return state;
       const relaxed = state.game.relaxed ?? false;
-      if (restart) game = withMode(withoutUnearnableRewards(withoutSpentRewards(game, state.rewardedStages), canEarnHearts(state.hearts, now)), relaxed, state.trayClears);
+      if (restart) game = withMode(withoutUnearnableRewards(withoutSpentRewards(game, state.rewardedStages), canEarnHearts(state.hearts, now)), relaxed);
       if (game.stageId === practiceStage.id) return { ...state, game };
-      // Each tray clear used in play comes out of the owned pool.
-      const usedClears = restart ? 0 : Math.max(0, state.game.trayClearsLeft - game.trayClearsLeft);
+      // Each tray clear used in play comes out of the owned pool while any are left (an ad covers the rest);
+      // pass holders keep theirs.
+      const usedClears = restart || isPassActive(state.pass, now) ? 0 : Math.max(0, state.game.trayClearsLeft - game.trayClearsLeft);
       const trayClears = Math.max(0, state.trayClears - usedClears);
       const earned = restart ? [] : (game.collectedRewards ?? []).slice(state.game.collectedRewards?.length ?? 0);
       let rewardedStages = state.rewardedStages;

@@ -6,10 +6,14 @@ import { canAffordAttempt, canPlayBonusToday, getCurrentStage } from '../game/se
 import { MAX_HEARTS } from '../game/hearts';
 import { isBonusStage, isStageLoaded, loadStage, practiceStage, preloadStage } from '../game/stages';
 import { randomBonusDessert } from '../game/stages/bonus';
-import { BONUS_AT_STAGE_00_FOR_TESTING } from '../game/constants';
+import { BONUS_AT_STAGE_00_FOR_TESTING, FAKE_MONETIZATION_FOR_TESTING } from '../game/constants';
+import { isPassActive } from '../monetization/pass';
+import { billing } from '../monetization/billing';
+import { FakeAdHost } from '../components/FakeAdHost';
 import { NoHeartsDialog } from '../components/NoHeartsDialog';
 import { ChargeHeartsDialog } from '../components/ChargeHeartsDialog';
 import { useGame } from '../hooks/useGame';
+import { useNow } from '../hooks/useNow';
 import { hasModePreference, readModePreference, saveModePreference, type PlayMode } from './modePreference';
 import { ModeChoiceDialog } from '../components/ModeChoiceDialog';
 import type { SettingsProps } from '../components/SettingsButton';
@@ -20,6 +24,9 @@ import { StageSelectPage } from '../pages/StageSelectPage';
 
 export function App() {
   const { session, dispatch } = useGame();
+  // Pass expiry only needs minute precision; a purchase lands well inside the pass either way.
+  const passNow = useNow(60_000);
+  const passActive = isPassActive(session.pass, passNow);
   const [soundEnabled, setSoundEnabled] = useState(readSoundPreference);
   const [language, setLanguage] = useState(readLanguagePreference);
   const [mode, setMode] = useState(readModePreference);
@@ -80,7 +87,13 @@ export function App() {
   function next() {
     start(isBonusStage(game.stageId) ? session.bonus?.nextStageId ?? currentStage : game.stageId + 1);
   }
-  const settings: SettingsProps = { soundEnabled, onToggleSound: toggleSound, language, onLanguage: changeLanguage, mode, onMode: changeMode };
+  async function buyPass() {
+    if (await billing.purchasePass()) dispatch({ type: 'BUY_PASS', now: Date.now() });
+  }
+  const testPass = FAKE_MONETIZATION_FOR_TESTING
+    ? { pass: session.pass, onBuy: () => void buyPass(), onEnd: () => dispatch({ type: 'END_PASS' }) }
+    : undefined;
+  const settings: SettingsProps = { soundEnabled, onToggleSound: toggleSound, language, onLanguage: changeLanguage, mode, onMode: changeMode, testPass };
   // Warm the chunks the player is likely to open next.
   useEffect(() => preloadStage(currentStage), [currentStage]);
   useEffect(() => { if (screen === 'game') preloadStage(game.stageId + 1); }, [screen, game.stageId]);
@@ -90,7 +103,7 @@ export function App() {
       : screen === 'stages'
         ? <StageSelectPage stars={stars} hearts={displayedHearts} onChargeHearts={openCharge} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} />
         : <GamePage key={game.stageId} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
-          trayClearsOwned={session.trayClears}
+          trayClearsOwned={session.trayClears} passActive={passActive}
           canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => setOutOfHearts(game.stageId)} />
     }
     {screen === 'start' && !modeChosen && <ModeChoiceDialog onChoose={changeMode} />}
@@ -98,6 +111,7 @@ export function App() {
       onBonus={() => startDailyBonus(outOfHearts)} />}
     {chargeOpen && <ChargeHeartsDialog hearts={displayedHearts} onClose={() => setChargeOpen(false)}
       onCharge={amount => { dispatch({ type: 'CHARGE_HEARTS', amount, now: Date.now() }); setChargeOpen(false); }} />}
+    <FakeAdHost />
     {loadingStage !== undefined && <p className="stage-loading" role="status">Loading…</p>}
   </div></LanguageContext>;
 }

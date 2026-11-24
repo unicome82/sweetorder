@@ -1219,3 +1219,19 @@
 @media (prefers-reduced-motion: reduce) {
   .vip-badge { animation: none; }
 }
+
+// Stand-in ad from the fake ad service (playtesting only).
+.fake-ad {
+  width: min(340px, calc(100vw - 32px));
+  padding: 28px 20px 20px;
+  border: 2px dashed #b9a2d6;
+  border-radius: 28px;
+  background: #f4effb;
+  color: #4b3a66;
+  text-align: center;
+}
+.fake-ad::backdrop { background: rgb(30 20 45 / .7); }
+.fake-ad h2 { margin: 6px 0 10px; font-size: 22px; }
+.fake-ad-tag { margin: 0; font-size: 12px; font-weight: 900; letter-spacing: .12em; color: #8a6fb3; }
+.fake-ad-timer { margin: 0 0 16px; font-size: 15px; }
+.tray-clear-ad { background: #ffe27a; font-size: 10px; }

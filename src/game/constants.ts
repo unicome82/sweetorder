@@ -9,6 +9,9 @@ export const ORDER_SLOTS = 4;
 export const BASE_TRAY_CAPACITY = 12;
 export const MAX_ORDER_QUANTITY = 16;
 
+// Set to false before release: shows stand-in ads and a pass switch in Settings instead of AdMob and the stores.
+export const FAKE_MONETIZATION_FOR_TESTING = true;
+
 // Set to true so the Stage 00 tile opens a bonus stage instead of practice, for playtesting.
 export const BONUS_AT_STAGE_00_FOR_TESTING = true;
 // Bonus stages live outside the campaign's 1–10,000 ids.
