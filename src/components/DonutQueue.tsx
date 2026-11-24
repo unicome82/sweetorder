@@ -19,8 +19,8 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
     if (!hintTarget) return;
 
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const glow = { filter: 'brightness(3) drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px #fff)' };
-    const resting = { filter: 'brightness(1) drop-shadow(0 0 2px #fff0) drop-shadow(0 0 5px #fff0)' };
+    const glow = { filter: 'brightness(2) contrast(0.75) drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px #fff)' };
+    const resting = { filter: 'brightness(1) contrast(1) drop-shadow(0 0 2px #fff0) drop-shadow(0 0 5px #fff0)' };
     let animation: Animation | undefined;
     const syncHint = () => {
       animation?.cancel();
