@@ -1104,7 +1104,6 @@
   box-shadow: 0 1px 2px #7a1a1a59;
 }
 .no-hearts-ad-button { position: relative; white-space: nowrap; padding-inline: 8px; }
-.no-hearts-ad-button .start-item-ad { position: absolute; top: -7px; left: 6px; box-shadow: 0 1px 2px #7a4a1a40; }
 .heart-counter-timer { padding-top: 2.5px; padding-left: 6px; border-left: 1px solid #e7c9b6; color: #a0715a; font-size: 14px; font-variant-numeric: tabular-nums; }
 .stage-navigation .heart-counter { margin-right: auto; }
 .result-heart {
@@ -1268,8 +1267,27 @@
 .fake-ad h2 { margin: 6px 0 10px; font-size: 22px; }
 .fake-ad-tag { margin: 0; font-size: 12px; font-weight: 900; letter-spacing: .12em; color: #8a6fb3; }
 .fake-ad-timer { margin: 0 0 16px; font-size: 15px; }
-// Every AD badge shares the yellow of the ad tags.
-.tray-clear-ad, .tray-clear-count.tray-clear-ad { background: #ffe27a; color: #723f2b; font-size: 10px; }
+// One AD badge everywhere an ad pays for something: yellow, white rim, on the top right of its button or icon.
+.ad-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 1px 6px 0;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #ffe27a;
+  color: #723f2b;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: none;
+  box-shadow: 0 1px 3px #8c3f3d50;
+}
 
 // Item icons. Peek: "?" and a dessert take turns; +5 seconds: a stopwatch with "+5s" inside.
 .peek-icon { display: grid; width: 32px; height: 32px; }
@@ -1350,12 +1368,10 @@
   line-height: 1;
   box-shadow: 0 1px 3px #8c3f3d50;
 }
-.start-item-count.start-item-ad { border-radius: 999px; background: #ffe27a; font-size: 10px; }
 // The stopwatch's face sits low in its box; lift it to the middle of the circle.
 .start-item-icon .add-time-icon { translate: 0 -2px; }
 // Chosen, the "?" turns white on the pink circle instead of keeping its cream disc.
 .start-item[aria-pressed='true'] .peek-icon-mystery { border-color: #fff; background: transparent; color: #fff; }
-.start-item-ad { padding: 1px 5px; border-radius: 6px; background: #ffe27a; color: #723f2b; font-size: 10px; font-weight: 900; }
 .start-item-check {
   position: absolute;
   top: -9px;

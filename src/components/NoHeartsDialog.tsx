@@ -25,7 +25,7 @@ export function NoHeartsDialog({ hearts, fastUntil, onClose, onWatchAd }: {
     {nextInMs !== null && <p className="no-hearts-wait">{t.nextHeart(formatWait(nextInMs))}</p>}
     <div className="result-actions charge-hearts-actions">
       <button type="button" className="secondary-button no-hearts-ad-button" onClick={onWatchAd}>
-        <span className="start-item-ad" lang="en">AD</span>{t.adHeartButton}
+        <span className="ad-badge" lang="en">AD</span>{t.adHeartButton}
       </button>
       <button type="button" className="primary-button popup-primary-button" onClick={onClose}>{t.ok}</button>
     </div>

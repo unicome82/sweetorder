@@ -534,7 +534,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <h2 id="tray-full-heading">{resultTitles.blocked}</h2>
       <div className="result-actions">
         <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={requestTrayClear} aria-label={clearNeedsAd ? t.clearTrayAdLabel : t.clearTrayLabel(clearsOwned)}>
-          <Icon name="basket" />{t.clearTray} <span className={`tray-clear-count${clearNeedsAd ? ' tray-clear-ad' : ''}`} lang={clearNeedsAd ? 'en' : undefined} aria-hidden="true">{clearNeedsAd ? 'AD' : clearsOwned}</span>
+          <Icon name="basket" />{t.clearTray} {clearNeedsAd
+            ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span>
+            : <span className="tray-clear-count" aria-hidden="true">{clearsOwned}</span>}
         </button>
         {!!quickOrders && <button type="button" data-sfx="none" className="primary-button popup-primary-button quick-order-button" onClick={() => act({ type: 'QUICK_ORDER' })}
           disabled={!canQuickOrder(state)} aria-label={t.quickOrderLabel(quickOrders)}>

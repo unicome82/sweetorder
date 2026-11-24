@@ -32,7 +32,7 @@ export function DonutTray({ donuts, capacity, difficulty, inFlight, clearsLeft, 
       {/* Once this game's clears are used up an ad can't buy another, so the AD badge goes. */}
       <Icon name="basket" />{!needsAd
         ? <span className="tray-clear-shortcut-count" aria-hidden="true">{owned}</span>
-        : clearsLeft > 0 && <span className="tray-clear-shortcut-count tray-clear-ad" lang="en" aria-hidden="true">AD</span>}
+        : clearsLeft > 0 && <span className="ad-badge" lang="en" aria-hidden="true">AD</span>}
     </button>
     {quickOrders !== undefined && <button type="button" data-sfx="none" className="tray-clear-shortcut quick-order-shortcut" onClick={onQuickOrder} disabled={!canQuickOrder || quickOrders <= 0} aria-label={t.quickOrderLabel(quickOrders)}>
       <QuickOrderIcon /><span className="tray-clear-shortcut-count" aria-hidden="true">{quickOrders}</span>

@@ -34,7 +34,7 @@ export function StartItemsDialog({ pass, available, peekNeedsAd, dessert, initia
         {check}
         <span className="start-item-icon"><PeekIcon dessert={dessert} />
           {peekNeedsAd
-            ? <span className="start-item-count start-item-ad" lang="en" aria-hidden="true">AD</span>
+            ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span>
             : <span className="start-item-count" lang="en" aria-hidden="true">{pass!.peeks}</span>}
         </span>
         <span className="start-item-name">{t.passItemPeek}</span>
