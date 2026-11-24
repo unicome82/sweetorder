@@ -1,9 +1,9 @@
-import { createGame, getStars } from './engine';
+import { createGame, getStars, MAX_QUICK_ORDERS } from './engine';
 import { getStage, isBonusStage, isStageId, practiceStage, prepareBonusStage, STAGE_COUNT } from './stages';
 import { hasHiddenDesserts, reduceGame, type GameAction } from './reducer';
 import { addHeart, canEarnHearts, fullHearts, rebaseRefill, refillHearts, spendHeart } from './hearts';
 import type { Hearts } from './hearts';
-import type { DonutType, GameState } from './types';
+import type { DonutType, GameState, RewardKind } from './types';
 import { isFeaturePreviewStage } from './constants';
 import { dayKey } from './day';
 import { isPassActive, PASS_SPARE_HEARTS, purchasePass, type Pass } from '../monetization/pass';
@@ -31,6 +31,8 @@ export interface SessionState {
   bonusDay?: string;
   /** The premium pass from the latest purchase; it may have expired. */
   pass?: Pass;
+  /** Quick orders the player holds (at most one), kept from game to game. */
+  quickOrders: number;
 }
 export type SessionAction =
   | { type: 'HOME' }
@@ -50,7 +52,7 @@ export type SessionAction =
 export interface ItemChoice { peek?: boolean; addTime?: boolean }
 
 export function createSession(unlockAllStages = false, unlimitedHearts = false): SessionState {
-  return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, unlimitedHearts, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [] };
+  return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, unlimitedHearts, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [], quickOrders: 0 };
 }
 // Tray clears are a single owned pool: three at the very start and nothing refills it.
 export const STARTING_TRAY_CLEARS = 3;
@@ -69,19 +71,25 @@ function withMode(game: GameState, relaxed: boolean): GameState {
   const trayClearsLeft = trayClearsPerGame(relaxed);
   return relaxed ? { ...game, relaxed: true, trayClearsLeft } : { ...game, trayClearsLeft };
 }
-function createSessionGame(stageId: number, rewardedStages: readonly number[], relaxed: boolean, heartReward: boolean): GameState {
-  return withMode(withoutUnearnableRewards(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), heartReward), relaxed);
+/** What the player could take from the queues as the attempt starts. */
+interface Earnable { heart: boolean; quickOrder: boolean }
+function earnable(state: SessionState, now: number): Earnable {
+  return { heart: canEarnHearts(state.hearts, now, heartsFastUntil(state)), quickOrder: state.quickOrders < MAX_QUICK_ORDERS };
 }
-/** Drops rewards the player can't take: hearts unless they could earn one, and tray clears always (they can't be earned). */
-function withoutUnearnableRewards(game: GameState, heartReward: boolean): GameState {
-  return withoutTrayClearReward(withoutHeartReward(game, heartReward));
+function createSessionGame(stageId: number, rewardedStages: readonly number[], relaxed: boolean, can: Earnable): GameState {
+  return withMode(withoutUnearnableRewards(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), can), relaxed);
 }
-function withoutTrayClearReward(game: GameState): GameState {
-  return { ...game, queues: game.queues.map(queue => queue.filter(token => token.reward !== 'trayClear')) };
+/**
+ * Drops rewards the player can't take, checked as the attempt starts: hearts unless they could earn one, a quick order
+ * while one is already held, and tray clears always (they can't be earned).
+ */
+function withoutUnearnableRewards(game: GameState, can: Earnable): GameState {
+  const drop = (reward: RewardKind) => reward === 'trayClear' || (reward === 'heart' && !can.heart) || (reward === 'quickOrder' && !can.quickOrder);
+  return { ...game, queues: game.queues.map(queue => queue.filter(token => !token.reward || !drop(token.reward))) };
 }
-/** A heart reward only stays in the queues while the player could still earn hearts (checked as the attempt starts). */
-function withoutHeartReward(game: GameState, keep: boolean): GameState {
-  return keep ? game : { ...game, queues: game.queues.map(queue => queue.filter(token => token.reward !== 'heart')) };
+/** The held quick order comes along into campaign and bonus attempts; practice has none. */
+function withQuickOrders(game: GameState, quickOrders: number): GameState {
+  return game.stageId === practiceStage.id ? game : { ...game, quickOrders };
 }
 /** A stage whose reward was already collected comes back without it, so retries can't farm it. */
 function withoutSpentRewards(game: GameState, rewardedStages: readonly number[]): GameState {
@@ -185,7 +193,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const now = action.now ?? Date.now();
       const payment = payForAttempt(state, action.stageId, now);
       if (!payment) return state;
-      const created = createSessionGame(action.stageId, state.rewardedStages, action.relaxed ?? false, canEarnHearts(state.hearts, now, heartsFastUntil(state)));
+      const created = withQuickOrders(createSessionGame(action.stageId, state.rewardedStages, action.relaxed ?? false, earnable(state, now)), state.quickOrders);
       const { game, pass } = applyItems(created, payment.pass, action.items, now);
       return { ...state, ...payment, pass, bonus: undefined, screen: 'game', game };
     }
@@ -205,7 +213,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       // Entering uses up the day's bonus stage, so leaving and coming back can't repeat it.
       const today = dayKey(action.now ?? Date.now());
       if (!action.testing && state.bonusDay === today) return state;
-      const game = withMode(createGame(prepareBonusStage(action.dessert)), action.relaxed ?? false);
+      const game = withQuickOrders(withMode(createGame(prepareBonusStage(action.dessert)), action.relaxed ?? false), state.quickOrders);
       const bonusDay = action.testing ? state.bonusDay : today;
       return { ...state, screen: 'game', heartPaidFrom: undefined, bonus: { dessert: action.dessert, nextStageId: action.nextStageId }, bonusDay, game };
     }
@@ -219,8 +227,10 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       let game = reduceGame(state.game, action.action, getStage(state.game.stageId));
       if (game === state.game) return state;
       const relaxed = state.game.relaxed ?? false;
-      if (restart) game = withMode(withoutUnearnableRewards(withoutSpentRewards(game, state.rewardedStages), canEarnHearts(state.hearts, now, heartsFastUntil(state))), relaxed);
+      if (restart) game = withQuickOrders(withMode(withoutUnearnableRewards(withoutSpentRewards(game, state.rewardedStages), earnable(state, now)), relaxed), state.quickOrders);
       if (game.stageId === practiceStage.id) return { ...state, game };
+      // The held quick order follows the attempt: picked up from a queue, or used on the customers.
+      const quickOrders = game.quickOrders ?? state.quickOrders;
       // Each tray clear used in play comes out of the owned pool while any are left (an ad covers the rest);
       // pass holders keep theirs.
       const usedClears = restart || passActive ? 0 : Math.max(0, state.game.trayClearsLeft - game.trayClearsLeft);
@@ -232,7 +242,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
         if (!rewardedStages.includes(game.stageId)) rewardedStages = [...rewardedStages, game.stageId];
         for (const reward of earned) if (reward === 'heart') rewardHearts = addHeart(rewardHearts, now, heartsFastUntil(state));
       }
-      state = { ...state, hearts: rewardHearts, rewardedStages };
+      state = { ...state, hearts: rewardHearts, rewardedStages, quickOrders };
       const newlyCleared = game.status === 'clear' && state.game.status !== 'clear';
       if (isBonusStage(game.stageId)) {
         // A bonus clear adds a heart (up to five); it leaves stars and tray clears alone.

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import type { DonutToken } from '../game/types';
+import type { DonutToken, RewardKind } from '../game/types';
+import { QuickOrderIcon } from './ItemIcons';
 import { Donut } from './Donut/Donut';
 import { useMessages } from '../i18n/language';
 import { RewardHeart } from './RewardHeart';
@@ -70,7 +71,7 @@ export function DonutQueue({ queues, disabled, locked = false, revealed = false,
     else onReject?.(column, element);
   }
 
-  const rewardName = (reward: 'heart' | 'trayClear') => reward === 'heart' ? t.rewardSlotHeart : t.rewardSlotTrayClear;
+  const rewardName = (reward: RewardKind) => reward === 'heart' ? t.rewardSlotHeart : reward === 'quickOrder' ? t.rewardSlotQuickOrder : t.rewardSlotTrayClear;
   const depth = Math.max(1, ...queues.map(queue => queue.length));
   return <section ref={section} className="queue-section" aria-label={t.queueSection}>
     {hintColumns.length > 0 && <svg className="sr-only" aria-hidden="true">
@@ -112,6 +113,7 @@ export function DonutQueue({ queues, disabled, locked = false, revealed = false,
         data-token-id={donut.id}
         style={{ zIndex: position, visibility: returning.has(donut.id) ? 'hidden' : undefined }}>
         {donut.reward === 'heart' ? <span className="donut reward-tile reward-tile--heart"><RewardHeart /></span>
+          : donut.reward === 'quickOrder' ? <span className="donut reward-tile reward-tile--quickOrder"><QuickOrderIcon /></span>
           : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><Icon name="basket" /></span> : donut.hidden && !revealed && position > 0 ? <span className="donut donut--mystery">?</span> : <Donut type={donut.type} />}
       </span>)}
     </button>)}</div>

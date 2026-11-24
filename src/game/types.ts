@@ -1,7 +1,7 @@
 export const DONUT_TYPES = ['strawberryDonut', 'chocolateDonut', 'vanillaDonut', 'raspberryCroffle', 'lemonCake', 'tiramisu', 'purpleRollCake', 'lemonPosset', 'mintBrownie', 'pretzel', 'cherryPie', 'greenRollCake', 'hamSandwich', 'canele', 'croissant', 'strawberryCake', 'caramelPudding', 'cinnamonCroffle', 'matchaCroffle', 'chocolateCake', 'matchaPudding', 'raspberryMacaron', 'lemonMacaron', 'blueberryCupcake', 'chocolateCupcake', 'strawberryTart', 'blueberryTart', 'chocolateCroissant', 'chocolateCookie', 'whiteCookie', 'berryScone', 'matchaScone', 'vanillaIceCream', 'chocolateIceCream'] as const;
 export type DonutType = typeof DONUT_TYPES[number];
 // A reward takes its own slot in a queue and is collected (never sent to the tray) when tapped at the front.
-export type RewardKind = 'heart' | 'trayClear';
+export type RewardKind = 'heart' | 'trayClear' | 'quickOrder';
 // hidden: shown as "?" until the token reaches the front of its queue.
 // reward: this slot is a reward, not a dessert; its type only copies a neighbour's and is never used.
 export interface DonutToken { id: string; type: DonutType; hidden?: boolean; reward?: RewardKind }
@@ -31,4 +31,6 @@ export interface GameState {
   peeked?: boolean;
   /** The pass's +5 seconds was used this attempt. */
   timeBonusUsed?: boolean;
+  /** Quick orders the player can use in this attempt: the owned one (at most one), plus any picked up from the queues. */
+  quickOrders?: number;
 }

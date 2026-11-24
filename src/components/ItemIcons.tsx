@@ -18,3 +18,10 @@ export function AddTimeIcon() {
     <text x="12" y="16.3" textAnchor="middle" fontSize="8" fontFamily="Jua, sans-serif" fill="currentColor" lang="en">+5s</text>
   </svg>;
 }
+
+/** Quick order: a lightning bolt, for serving every waiting customer at once. */
+export function QuickOrderIcon() {
+  return <svg className="quick-order-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M13.8 1.8 4.6 13.4h6.1l-1.5 8.8 9.2-11.6h-6.1l1.5-8.8Z" fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+  </svg>;
+}

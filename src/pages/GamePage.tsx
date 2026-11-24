@@ -12,7 +12,8 @@ import { DonutTray } from '../components/DonutTray';
 import { DonutQueue } from '../components/DonutQueue';
 import { getStage, isBonusStage, practiceStage, STAGE_COUNT } from '../game/stages';
 import { HeartIcon } from '../components/HeartIcon';
-import { getQueueHintColumns, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray } from '../game/engine';
+import { canQuickOrder, getQueueHintColumns, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray, quickOrder } from '../game/engine';
+import { QuickOrderIcon } from '../components/ItemIcons';
 import type { DonutType, GameState, RewardKind } from '../game/types';
 import type { GameAction } from '../game/reducer';
 import { getGameTimeLimit, getTimeStars } from '../game/stageTime';
@@ -189,12 +190,17 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       ? selectDonut(current, currentStage, action.queueIndex, action.expectedDonutId, true)
       : action.type === 'TRAY_READY' ? matchTray(current, currentStage, action.donutId, true)
       : action.type === 'PICKUP_TRAY' ? pickupTray(current, currentStage, action.readyOrders, action.parallel)
-      : action.type === 'CLEAR_TRAY' ? clearTray(current, currentStage) : null;
+      : action.type === 'CLEAR_TRAY' ? clearTray(current, currentStage)
+      : action.type === 'QUICK_ORDER' ? quickOrder(current, currentStage) : null;
     if (!result) { dispatch(action); return; }
     if (result.state === current || !root.current) return;
     if (action.type === 'CLEAR_TRAY') {
       haptic('select');
       if (soundEnabled) playSound('clearTray');
+    }
+    if (action.type === 'QUICK_ORDER') {
+      haptic('order');
+      if (soundEnabled) playSound('reward');
     }
     if (result.state.status === 'blocked' && current.status !== 'blocked') {
       setPausedTimeMs(remaining);
@@ -224,7 +230,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     const moved = result.events.find(event => event.type === 'moved');
     const deliveries = result.events.flatMap(event => {
       if (event.type !== 'consumed') return [];
-      const token = current.tray.find(donut => donut.id === event.donutId);
+      // A quick order also serves desserts straight from the queues.
+      const token = current.tray.find(donut => donut.id === event.donutId)
+        ?? current.queues.flat().find(donut => donut.id === event.donutId);
       return token ? [{ orderId: event.orderId, type: token.type }] : [];
     });
     const animateDelivery = document.visibilityState === 'visible' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -243,7 +251,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       if (soundEnabled) playSound(orderDone ? 'order' : 'delivery');
     });
     flushSync(() => {
-      if (action.type === 'CLEAR_TRAY' && remaining !== undefined) {
+      if ((action.type === 'CLEAR_TRAY' || action.type === 'QUICK_ORDER') && remaining !== undefined) {
         setDeadline(now + remaining);
         setRemainingTimeMs(remaining);
         setPausedTimeMs(undefined);
@@ -326,6 +334,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     if (clearNeedsAd) void actAfterRewardedAd('trayClear', { type: 'CLEAR_TRAY' });
     else act({ type: 'CLEAR_TRAY' });
   }
+  // Practice has no quick order; elsewhere the held one shows beside the tray clear.
+  const quickOrders = practice ? undefined : state.quickOrders ?? 0;
   const boardVisible = playing || status === 'blocked' || status === 'paused';
   const [presentedResult, setPresentedResult] = useState<GameState | null>(null);
   const waitingForGoodbye = showGoodbye && presentedResult !== state;
@@ -454,8 +464,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
     </filter></svg>
     {rewardPops.map(pop => <span key={pop.id} className={`reward-pop reward-pop--${pop.reward}`} role="status" style={{ left: pop.x, top: pop.y }}>
-      {pop.reward === 'heart' ? <HeartIcon /> : <span className="reward-pop-basket"><Icon name="basket" /></span>}<span aria-hidden="true">+1</span>
-      <span className="sr-only">{pop.reward === 'heart' ? t.rewardHeart : t.rewardTrayClear}</span>
+      {pop.reward === 'heart' ? <HeartIcon /> : pop.reward === 'quickOrder' ? <QuickOrderIcon /> : <span className="reward-pop-basket"><Icon name="basket" /></span>}<span aria-hidden="true">+1</span>
+      <span className="sr-only">{pop.reward === 'heart' ? t.rewardHeart : pop.reward === 'quickOrder' ? t.rewardQuickOrder : t.rewardTrayClear}</span>
     </span>)}
     <p className="sr-only" role="status" aria-live="polite">{t.status(state.completedOrders, state.tray.length, state.trayCapacity)} {returning.size > 0 && t.returned}</p>
     {showResult && <section className="glass-popup result-panel" aria-labelledby="result-heading">
@@ -492,7 +502,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     }) : state.orders} stageId={state.stageId} onOrderReady={onOrderReady} />
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
       canClear={playing && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
-      onClear={requestTrayClear} />
+      onClear={requestTrayClear}
+      quickOrders={quickOrders} onQuickOrder={() => act({ type: 'QUICK_ORDER' })}
+      canQuickOrder={playing && canQuickOrder(state) && !waitingForGoodbye && !showIntro && inFlight.size === 0 && returning.size === 0} />
     <DonutQueue key={round} queues={state.queues} revealed={state.peeked} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}
     <dialog className="glass-popup tray-full-dialog pause-dialog" ref={pauseDialog} aria-labelledby="pause-heading" onCancel={event => { event.preventDefault(); act({ type: 'RESUME' }); }}>
@@ -510,6 +522,10 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={requestTrayClear} aria-label={clearNeedsAd ? t.clearTrayAdLabel : t.clearTrayLabel(clearsOwned)}>
           <Icon name="basket" />{t.clearTray} <span className="tray-clear-count" lang={clearNeedsAd ? 'en' : undefined} aria-hidden="true">{clearNeedsAd ? 'AD' : clearsOwned}</span>
         </button>
+        {!!quickOrders && <button type="button" data-sfx="none" className="primary-button popup-primary-button quick-order-button" onClick={() => act({ type: 'QUICK_ORDER' })}
+          disabled={!canQuickOrder(state)} aria-label={t.quickOrderLabel(quickOrders)}>
+          <QuickOrderIcon />{t.quickOrder} <span className="tray-clear-count" aria-hidden="true">{quickOrders}</span>
+        </button>}
         <button type="button" className="secondary-button" onClick={retry}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={() => act({ type: 'GIVE_UP' })}>{t.giveUp}</button>
       </div>

@@ -1,5 +1,5 @@
 import { ORDER_SLOTS } from './constants';
-import { DONUT_TYPES, type ActiveOrder, type DonutToken, type GameState, type RewardKind, type StageDefinition } from './types';
+import { DONUT_TYPES, type ActiveOrder, type DonutToken, type DonutType, type GameState, type RewardKind, type StageDefinition } from './types';
 import { validateStage } from './validation';
 
 export type GameEvent =
@@ -142,6 +142,7 @@ function collectReward(state: GameState, stage: StageDefinition, queueIndex: num
     ...state, queues, transitionId: state.transitionId + 1,
     collectedRewards: [...(state.collectedRewards ?? []), reward],
     ...(reward === 'trayClear' ? { trayClearsLeft: state.trayClearsLeft + 1 } : {}),
+    ...(reward === 'quickOrder' ? { quickOrders: Math.min(MAX_QUICK_ORDERS, (state.quickOrders ?? 0) + 1) } : {}),
   };
   const events: GameEvent[] = [{ type: 'rewardCollected', reward, donutId: front.id, queueIndex }];
   updateStatus(next, stage, events);
@@ -236,6 +237,63 @@ export function clearTray(state: GameState, stage: StageDefinition): TransitionR
     events.push({ type: 'returned', donutId: token.id, queueIndex });
   }
   const next: GameState = { ...state, queues, tray: [], trayClearsLeft: state.trayClearsLeft - 1, transitionId: state.transitionId + 1 };
+  updateStatus(next, stage, events);
+  return { state: next, events };
+}
+
+/** A player holds at most one quick order. */
+export const MAX_QUICK_ORDERS = 1;
+
+/** Whether a quick order can be used now: one is held, play is settled, and a shown customer still waits for something. */
+export function canQuickOrder(state: GameState): boolean {
+  const settled = state.status === 'blocked' || (state.status === 'playing' && !state.pendingMatchIds?.length);
+  return settled && (state.quickOrders ?? 0) > 0
+    && state.orders.some(order => order && Object.values(order.remaining).some(count => count > 0));
+}
+
+/**
+ * Quick order: every customer on screen gets the rest of their order at once, from the tray first and then from the
+ * queues (nearest the front first, middle positions included). Customers who arrive after those leave are not served.
+ */
+export function quickOrder(state: GameState, stage: StageDefinition): TransitionResult {
+  if (!canQuickOrder(state) || state.stageId !== stage.id) return { state, events: [] };
+  const next = structuredClone(state);
+  next.quickOrders = (state.quickOrders ?? 0) - 1;
+  next.transitionId += 1;
+  const events: GameEvent[] = [];
+  const ordered = next.orders.filter((o): o is ActiveOrder => o !== null).sort((a, b) => a.sequence - b.sequence);
+  const take = (type: DonutType): DonutToken | undefined => {
+    const index = next.tray.findIndex(token => token.type === type);
+    if (index >= 0) return next.tray.splice(index, 1)[0];
+    let best: { column: number; position: number } | undefined;
+    next.queues.forEach((queue, column) => {
+      const position = queue.findIndex(token => !token.reward && token.type === type);
+      if (position >= 0 && (!best || position < best.position)) best = { column, position };
+    });
+    return best && next.queues[best.column]!.splice(best.position, 1)[0];
+  };
+  for (const order of ordered) {
+    for (const type of DONUT_TYPES) {
+      while ((order.remaining[type] ?? 0) > 0) {
+        const token = take(type);
+        if (!token) break;
+        order.remaining[type] = (order.remaining[type] ?? 0) - 1;
+        events.push({ type: 'consumed', donutId: token.id, orderId: order.definitionId });
+      }
+    }
+  }
+  // Served customers leave and the next ones step up; the quick order doesn't carry on to them.
+  next.orders.forEach((order, slot) => {
+    if (!order || Object.values(order.remaining).some(count => count > 0)) return;
+    next.completedOrders += 1;
+    events.push({ type: 'orderCompleted', orderId: order.definitionId });
+    const replacement = orderFrom(stage, next.nextOrderIndex);
+    next.orders[slot] = replacement;
+    if (replacement) {
+      next.nextOrderIndex += 1;
+      events.push({ type: 'orderAdded', orderId: replacement.definitionId, slot });
+    }
+  });
   updateStatus(next, stage, events);
   return { state: next, events };
 }

@@ -4,6 +4,10 @@ import { isFeaturePreviewStage } from '../constants';
 // Features that join the campaign as it goes on. Rewards are laid over stored layouts at load time,
 // so the generator and its saved solutions stay unchanged.
 export const REWARDS_FROM_STAGE = 25;
+// A quick order takes the place of a stage's reward about once every 10 to 15 stages from here.
+export const QUICK_ORDER_FROM_STAGE = 30;
+const QUICK_ORDER_GAP_MIN = 10;
+const QUICK_ORDER_GAP_MAX = 15;
 // A reward slot never sits within a queue's first few desserts, so it takes some digging to reach.
 const REWARD_MIN_DEPTH = 3;
 
@@ -24,16 +28,27 @@ export function decorateStage(stage: StageDefinition): StageDefinition {
       index >= REWARD_MIN_DEPTH && !token.hidden ? [[column, index] as const] : []));
     if (spots.length) {
       const [column, index] = spots[random(spots.length)]!;
-      queues = withReward(queues, stage.id, column, index, random(2) === 0 ? 'heart' : 'trayClear');
+      const reward = random(2) === 0 ? 'heart' : 'trayClear';
+      queues = withReward(queues, stage.id, column, index, isQuickOrderStage(stage.id) ? 'quickOrder' : reward);
     }
   }
   return { ...stage, queues };
 }
 
-// Playtest layout: from stage 25, both rewards sit second in a queue.
+// Stages that carry a quick order, walked from the first one with gaps of 10 to 15 stages; grown as needed.
+const quickOrderStages = [QUICK_ORDER_FROM_STAGE];
+const quickOrderGap = randomFor(0x9e3779b9);
+export function isQuickOrderStage(id: number): boolean {
+  while (quickOrderStages.at(-1)! < id) {
+    quickOrderStages.push(quickOrderStages.at(-1)! + QUICK_ORDER_GAP_MIN + quickOrderGap(QUICK_ORDER_GAP_MAX - QUICK_ORDER_GAP_MIN + 1));
+  }
+  return quickOrderStages.includes(id);
+}
+
+// Playtest layout: from stage 25, every reward sits second in a queue.
 function previewStage(stage: StageDefinition): StageDefinition {
   if (stage.id < REWARDS_FROM_STAGE) return stage;
-  const queues = withReward(withReward(stage.queues, stage.id, 1, 1, 'heart'), stage.id, 3, 1, 'trayClear');
+  const queues = withReward(withReward(withReward(stage.queues, stage.id, 1, 1, 'heart'), stage.id, 3, 1, 'trayClear'), stage.id, 5, 1, 'quickOrder');
   return { ...stage, queues };
 }
 
