@@ -623,24 +623,6 @@
   color: #eab2bd;
   box-shadow: inset 0 -4px #edc2ca, 0 2px 3px #aa6b3b15;
 }
-.tray-clear-shortcut-count {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  display: grid;
-  place-items: center;
-  min-width: 22px;
-  height: 22px;
-  padding-inline: 5px;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: #fff2e6;
-  color: #723f2b;
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1;
-  box-shadow: 0 1px 3px #8c3f3d50;
-}
 .tray-row {
   // The square buttons beside the tray are as wide as the tray is tall: a slot plus its padding and border.
   --tray-button: calc(clamp(24px, 4.2dvh, 36px) + 11px);
@@ -813,25 +795,6 @@
 .tray-clear-button { position: relative; }
 .glass-popup .quick-order-button { position: relative; background: linear-gradient(#ffd98a, #ef9a2c); text-shadow: 0 1px 2px #9a5a1080; }
 .quick-order-button .quick-order-icon { width: 1.25em; height: 1.25em; }
-.tray-clear-count {
-  position: absolute;
-  top: -8px;
-  right: -6px;
-  display: grid;
-  place-items: center;
-  min-width: 24px;
-  height: 24px;
-  padding-inline: 6px;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: #e45471;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1;
-  text-shadow: none;
-  box-shadow: 0 1px 3px #8c3f3d50;
-}
 
 .result-panel {
   flex: 0 1 auto;
@@ -1144,9 +1107,13 @@
   display: grid;
   place-items: center;
   background: rgb(76 42 28 / .28);
-  animation: bonus-intro-backdrop 1800ms ease both;
+  // Fades in, holds for the whole opening (--intro-ms: the title plus any item effects), then fades out.
+  animation: intro-backdrop-in 270ms ease both, intro-backdrop-out 450ms ease calc(var(--intro-ms, 1800ms) - 450ms) forwards;
 }
-.stage-intro span {
+.stage-intro > * { grid-area: 1 / 1; }
+@keyframes intro-backdrop-in { from { opacity: 0; } }
+@keyframes intro-backdrop-out { to { opacity: 0; } }
+.stage-intro-title {
   color: white;
   font-family: var(--stage-script);
   font-size: clamp(44px, 13vw, 64px);
@@ -1154,8 +1121,7 @@
   text-shadow: 0 3px 0 #8a4a2c, 0 6px 14px #5a322199;
   animation: bonus-intro-title 1800ms cubic-bezier(.22,.72,.26,1) both;
 }
-.stage-intro--bonus span { text-shadow: 0 3px 0 #c42a58, 0 6px 14px #5a322199; }
-@keyframes bonus-intro-backdrop { 0%, 100% { opacity: 0; } 15%, 75% { opacity: 1; } }
+.stage-intro--bonus .stage-intro-title { text-shadow: 0 3px 0 #c42a58, 0 6px 14px #5a322199; }
 @keyframes bonus-intro-title {
   0% { opacity: 0; scale: .4; }
   20% { opacity: 1; scale: 1.12; }
@@ -1165,28 +1131,21 @@
 
 .stage-clock-wrap { position: relative; flex: none; z-index: 5; }
 .time-bonus-pop {
-  position: absolute;
-  z-index: 10;
-  top: calc(100% - 4px);
-  right: 4px;
-  // Room around the glyphs for their white outline and shadow, which would otherwise be cut at the sides.
-  padding: 6px 12px;
   color: #ec6a86;
   font-family: Jua, sans-serif;
-  font-size: 24px;
+  font-size: clamp(56px, 18vw, 84px);
   line-height: 1;
-  -webkit-text-stroke: 5px #fff;
+  -webkit-text-stroke: 8px #fff;
   paint-order: stroke fill;
-  filter: drop-shadow(0 2px 3px #aa3b5a50);
-  pointer-events: none;
+  text-shadow: 0 4px 0 #c43c5e, 0 8px 16px #5a322199;
   animation: time-bonus-pop 1.3s ease-out both;
 }
-// Pops in under the clock's time and keeps rising onto it as it fades.
+// Pops in big in the middle, then keeps rising as it fades.
 @keyframes time-bonus-pop {
-  0% { opacity: 0; transform: translateY(10px) scale(.5); }
-  18% { opacity: 1; transform: translateY(0) scale(1.15); }
-  35% { opacity: 1; transform: translateY(-12px) scale(1); }
-  100% { opacity: 0; transform: translateY(-56px) scale(1); }
+  0% { opacity: 0; transform: scale(.3); }
+  20% { opacity: 1; transform: scale(1.2); }
+  35% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: translateY(-70px) scale(1); }
 }
 // Peek: hidden desserts blink as "?" once the stage title has gone, then show what they are.
 .peek-reveal { display: grid; place-items: center; width: 100%; }
@@ -1273,27 +1232,29 @@
 .fake-ad h2 { margin: 6px 0 10px; font-size: 22px; }
 .fake-ad-tag { margin: 0; font-size: 12px; font-weight: 900; letter-spacing: .12em; color: #8a6fb3; }
 .fake-ad-timer { margin: 0 0 16px; font-size: 15px; }
-// One AD badge everywhere an ad pays for something: yellow, white rim, on the top right of its button or icon.
-.ad-badge {
+// Every count badge (tray clear, quick order, items left) looks like the spare-hearts badge on the heart counter:
+// a small red pill on the top right of its button or icon. Where an ad pays instead, the same pill is yellow with AD.
+.tray-clear-shortcut-count, .tray-clear-count, .start-item-count, .ad-badge {
   position: absolute;
-  top: -7px;
-  right: -7px;
+  top: -6px;
+  right: -6px;
   z-index: 1;
   display: grid;
   place-items: center;
-  min-width: 28px;
-  height: 22px;
-  padding: 1px 6px 0;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: #ffe27a;
-  color: #723f2b;
-  font-size: 10px;
-  font-weight: 900;
+  min-width: 18px;
+  height: 18px;
+  padding: 2px 4px 0;
+  border-radius: 9px;
+  background: #e5262f;
+  color: #fff;
+  font-family: Jua, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
   line-height: 1;
   text-shadow: none;
-  box-shadow: 0 1px 3px #8c3f3d50;
+  box-shadow: 0 1px 2px #7a1a1a59;
 }
+.ad-badge { background: #ffe27a; color: #723f2b; box-shadow: 0 1px 2px #7a4a1a59; }
 
 // Item icons. Peek: "?" and a dessert take turns; +5 seconds: a stopwatch with "+5s" inside.
 .peek-icon { display: grid; width: 32px; height: 32px; }
@@ -1323,24 +1284,26 @@
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 14px 8px 12px;
   border: 2px solid #f1d5c4;
   border-radius: 18px;
   background: #fffaf4;
-  color: #9a6a52;
+  color: #813f29;
   font: inherit;
   cursor: pointer;
   transition: transform .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 .start-item:active { transform: scale(.96); }
+// Chosen, the whole card turns pink and its icon sits on a white disc.
 .start-item[aria-pressed='true'] {
-  border-color: #ec6a86;
-  background: linear-gradient(#fff3f5, #ffdfe6);
-  color: #813f29;
-  box-shadow: 0 0 0 3px #ec6a8633, 0 4px 10px #ec6a8640;
+  border-color: #e45471;
+  background: linear-gradient(#ff9bb0, #ec6a86);
+  color: #fff;
+  box-shadow: inset 0 -3px #cf4d6c, 0 4px 10px #ec6a8640;
   transform: translateY(-2px);
 }
+// Items are pink from the start, so a card that isn't chosen still reads as ready to pick.
 .start-item-icon {
   position: relative;
   display: grid;
@@ -1348,51 +1311,15 @@
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: #fbe9da;
-  color: #b0785a;
+  background: linear-gradient(#ff9bb0, #ec6a86);
+  color: #fff;
+  box-shadow: inset 0 -3px #cf4d6c;
   transition: background-color .15s ease, color .15s ease;
 }
-.start-item[aria-pressed='true'] .start-item-icon { background: linear-gradient(#ff9bb0, #ec6a86); color: #fff; box-shadow: inset 0 -3px #cf4d6c; }
+.start-item[aria-pressed='true'] .start-item-icon { background: #fff; color: #ec6a86; box-shadow: inset 0 -3px #f3c3cf; }
 .start-item-name { font-size: 15px; font-weight: 800; }
-.start-item-left { font-size: 12px; }
-// What's left of an item sits on its icon's top right, like the tray button badges; with none left from the pass, AD.
-.start-item-count {
-  position: absolute;
-  top: -5px;
-  right: -9px;
-  display: grid;
-  place-items: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 1px 5px 0;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: #fff2e6;
-  color: #723f2b;
-  font-size: 11px;
-  font-weight: 900;
-  line-height: 1;
-  box-shadow: 0 1px 3px #8c3f3d50;
-}
+.start-item[aria-pressed='true'] .start-item-name { text-shadow: 0 1px 2px #87314680; }
 // The stopwatch's face sits low in its box; lift it to the middle of the circle.
 .start-item-icon .add-time-icon { translate: 0 -2px; }
-// Chosen, the "?" turns white on the pink circle instead of keeping its cream disc.
-.start-item[aria-pressed='true'] .peek-icon-mystery { border-color: #fff; background: transparent; color: #fff; }
-.start-item-check {
-  position: absolute;
-  top: -9px;
-  right: -9px;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background: #f1d5c4;
-  color: #fff;
-  box-shadow: 0 2px 4px #85384030;
-  transition: background-color .15s ease, transform .2s cubic-bezier(.3, 1.6, .5, 1);
-  transform: scale(.85);
-}
-.start-item-check svg { width: 16px; height: 16px; }
-.start-item[aria-pressed='true'] .start-item-check { background: #ec6a86; transform: scale(1); }
+// The "?" takes its disc's colours: white on the pink icon, pink once chosen (white disc).
+.start-item-icon .peek-icon-mystery { border-color: currentColor; background: transparent; color: inherit; }
