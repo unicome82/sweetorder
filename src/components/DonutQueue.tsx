@@ -57,8 +57,11 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
       <filter id="queue-dessert-glow" x="-50%" y="-50%" width="200%" height="200%">
         <feMorphology in="SourceAlpha" operator="dilate" radius="2" result="expanded" />
         <feComposite in="expanded" in2="SourceAlpha" operator="out" result="outline" />
+        <feGaussianBlur in="expanded" stdDeviation="3" result="blurred" />
+        <feComposite in="blurred" in2="expanded" operator="out" result="shadow" />
+        <feMerge result="edges"><feMergeNode in="shadow" /><feMergeNode in="outline" /></feMerge>
         <feFlood className="queue-dessert-glow-color" floodColor="#e52b70" />
-        <feComposite in2="outline" operator="in" result="glow" />
+        <feComposite in2="edges" operator="in" result="glow" />
         <feMerge><feMergeNode in="SourceGraphic" /><feMergeNode in="glow" /></feMerge>
       </filter>
     </svg>}
