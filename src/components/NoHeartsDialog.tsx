@@ -5,7 +5,8 @@ import { useNow } from '../hooks/useNow';
 import { useMessages } from '../i18n/language';
 import { HeartIcon } from './HeartIcon';
 
-export function NoHeartsDialog({ hearts, onClose, onCharge }: { hearts: Hearts; onClose: () => void; onCharge: () => void }) {
+/** bonusToday: whether the daily bonus stage is still unused today; it is offered only when no bonus heart can refill instead. */
+export function NoHeartsDialog({ hearts, bonusToday, onClose, onCharge, onBonus }: { hearts: Hearts; bonusToday: boolean; onClose: () => void; onCharge: () => void; onBonus: () => void }) {
   const t = useMessages();
   const now = useNow();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -21,8 +22,10 @@ export function NoHeartsDialog({ hearts, onClose, onCharge }: { hearts: Hearts; 
     <h2 id="no-hearts-heading"><HeartIcon className="heart-icon--empty" /><span>{t.noHearts}</span></h2>
     {nextInMs !== null && <p className="no-hearts-wait">{t.nextHeart(formatWait(nextInMs))}</p>}
     {chargeable > 0 && <p className="no-hearts-wait">{t.bonusHeartsLeft(hearts.bonus)}</p>}
-    <div className={`result-actions${chargeable > 0 ? ' charge-hearts-actions' : ''}`}>
+    {chargeable === 0 && !bonusToday && <p className="no-hearts-wait">{t.bonusTomorrow}</p>}
+    <div className={`result-actions${chargeable > 0 || bonusToday ? ' charge-hearts-actions' : ''}`}>
       {chargeable > 0 && <button type="button" className="secondary-button" onClick={onCharge}>{t.chargeButton}</button>}
+      {chargeable === 0 && bonusToday && <button type="button" className="secondary-button" onClick={onBonus}>{t.bonusStageButton}</button>}
       <button type="button" className="primary-button popup-primary-button" onClick={onClose}>{t.ok}</button>
     </div>
   </dialog>;

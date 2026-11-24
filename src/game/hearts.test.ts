@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addHeart, chargeAmount, chargeFromBonus, describeHearts, fullHearts, HEART_REFILL_MS, MAX_HEARTS, parseHearts, refillHearts, spendHeart, type Hearts } from './hearts';
-import { canAffordAttempt, createSession, reduceSession } from './session';
+import { canAffordAttempt, canPlayBonusToday, createSession, reduceSession } from './session';
 import { BONUS_STAGE_ID } from './constants';
 import { getStage, loadStage } from './stages';
 import { createBonusStage } from './stages/bonus';
@@ -118,5 +118,28 @@ describe('보너스 스테이지', () => {
     expect(session.hearts).toMatchObject({ count: 5, bonus: 1 });
     expect(session.bonus?.nextStageId).toBe(7);
     expect(session.stars).toEqual({});
+  });
+});
+
+describe('보너스 스테이지 하루 1회', () => {
+  const at = (iso: string) => new Date(iso).getTime();
+
+  it('입장할 때 그날 횟수를 쓰고, 같은 날에는 다시 들어갈 수 없으며 자정이 지나면 다시 열린다', () => {
+    const empty = { ...createSession(), hearts: { count: 0, bonus: 0, refillFrom: at('2026-11-24T09:00:00') } };
+    const morning = at('2026-11-24T09:00:00');
+    expect(canPlayBonusToday(empty, morning)).toBe(true);
+    const entered = reduceSession(empty, { type: 'START_BONUS', dessert: 'pretzel', nextStageId: 7, now: morning });
+    expect(entered.screen).toBe('game');
+    expect(canPlayBonusToday(entered, morning)).toBe(false);
+    const left = reduceSession(entered, { type: 'STAGES' });
+    expect(reduceSession(left, { type: 'START_BONUS', dessert: 'pretzel', nextStageId: 7, now: at('2026-11-24T23:59:00') })).toBe(left);
+    expect(canPlayBonusToday(left, at('2026-11-25T00:00:00'))).toBe(true);
+    expect(reduceSession(left, { type: 'START_BONUS', dessert: 'pretzel', nextStageId: 7, now: at('2026-11-25T00:00:00') }).screen).toBe('game');
+  });
+
+  it('테스트 입장은 그날 횟수를 쓰지 않는다', () => {
+    const tested = reduceSession(createSession(), { type: 'START_BONUS', dessert: 'pretzel', nextStageId: 1, testing: true, now: 0 });
+    expect(tested.screen).toBe('game');
+    expect(canPlayBonusToday(tested, 0)).toBe(true);
   });
 });

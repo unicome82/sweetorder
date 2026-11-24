@@ -39,8 +39,10 @@ interface Props {
   settings: SettingsProps; state: GameState; dispatch: (action: GameAction) => void; onStages: () => void; onNext: () => void;
   /** Whether a heart is available for another attempt; when not, onOutOfHearts runs instead of the restart. */
   canRestart: () => boolean; onOutOfHearts: () => void;
+  /** The player's owned tray clears, shown on the tray-clear badges. */
+  trayClearsOwned: number;
 }
-export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts }: Props) {
+export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned }: Props) {
   const t = useMessages();
   const { soundEnabled } = settings;
   // Settings opened mid-play pause the game behind them and resume it when closed.
@@ -304,6 +306,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     gameover: state.trayClearsLeft > 0 ? t.tryAgain : state.blockedReason === 'stuck' ? t.noMoves : t.trayFull,
   };
   const failed = status === 'gameover';
+  // Practice keeps its own single tray clear; elsewhere the badges show the owned pool.
+  const clearsOwned = state.stageId === practiceStage.id ? state.trayClearsLeft : trayClearsOwned;
   const boardVisible = playing || status === 'blocked' || status === 'paused';
   const [presentedResult, setPresentedResult] = useState<GameState | null>(null);
   const waitingForGoodbye = showGoodbye && presentedResult !== state;
@@ -464,7 +468,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       }
       return { ...order, remaining };
     }) : state.orders} stageId={state.stageId} onOrderReady={onOrderReady} />
-    <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft}
+    <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned}
       canClear={playing && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
       onClear={() => act({ type: 'CLEAR_TRAY' })} />
     <DonutQueue key={round} queues={state.queues} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
@@ -481,8 +485,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <img className="popup-cat" src={popupCat} alt="" draggable={false} />
       <h2 id="tray-full-heading">{resultTitles.blocked}</h2>
       <div className="result-actions">
-        <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={() => act({ type: 'CLEAR_TRAY' })} aria-label={t.clearTrayLabel(state.trayClearsLeft)}>
-          <Icon name="basket" />{t.clearTray} <span className="tray-clear-count" aria-hidden="true">{state.trayClearsLeft}</span>
+        <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={() => act({ type: 'CLEAR_TRAY' })} aria-label={t.clearTrayLabel(clearsOwned)}>
+          <Icon name="basket" />{t.clearTray} <span className="tray-clear-count" aria-hidden="true">{clearsOwned}</span>
         </button>
         <button type="button" className="secondary-button" onClick={() => act({ type: 'RESTART' })}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={() => act({ type: 'GIVE_UP' })}>{t.giveUp}</button>

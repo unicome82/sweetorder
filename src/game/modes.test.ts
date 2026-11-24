@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createSession, MAX_TRAY_CLEARS, reduceSession, RELAXED_TRAY_CLEARS, STARTING_TRAY_CLEARS, type SessionState } from './session';
+import { createSession, reduceSession, RELAXED_TRAY_CLEARS, STARTING_TRAY_CLEARS, TIMED_TRAY_CLEARS_PER_GAME, type SessionState } from './session';
 import { loadStage } from './stages';
 import { getGameTimeLimit } from './stageTime';
 import type { GameState, StageDefinition } from './types';
@@ -29,7 +29,7 @@ const start = (stageId: number, relaxed: boolean, session = createSession(true))
   reduceSession(session, { type: 'START', stageId, relaxed, now: 0 });
 
 describe('여유 모드', () => {
-  it('타이머와 VIP, 트레이 비우기 보상이 없고 트레이 비우기는 1번만 무료로 준다', async () => {
+  it('타이머와 VIP, 트레이 비우기 보상이 없고 트레이 비우기는 판당 1번까지 쓴다', async () => {
     const stage = await stageWithReward('trayClear');
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const session = start(stage.id, true);
@@ -45,16 +45,20 @@ describe('여유 모드', () => {
     expect(start(heartStage.id, true, lowHearts).game.queues.flat().some(token => token.reward === 'heart')).toBe(true);
   });
 
-  it('트레이 비우기를 써도 보유 개수는 그대로이고, 다시 하기도 여유 모드로 시작한다', async () => {
+  it('트레이 비우기는 보유분에서 차감되고, 보유가 없으면 쓸 수 없으며, 다시 하기도 여유 모드로 시작한다', async () => {
     const stage = await loadStage(30);
-    const session = start(stage.id, true, { ...createSession(true), trayClears: 0 });
+    expect(start(stage.id, true, { ...createSession(true), trayClears: 0 }).game.trayClearsLeft).toBe(0);
+    const session = start(stage.id, true, { ...createSession(true), trayClears: 3 });
     expect(session.game.trayClearsLeft).toBe(1);
-    const used = reduceSession(session, { type: 'GAME', action: { type: 'CLEAR_TRAY' } });
-    expect(used.trayClears).toBe(0);
+    const game = structuredClone(session.game);
+    game.tray = game.queues[0]!.splice(0, 1);
+    const used = reduceSession({ ...session, game }, { type: 'GAME', action: { type: 'CLEAR_TRAY' } });
+    expect(used.game.trayClearsLeft).toBe(0);
+    expect(used.trayClears).toBe(2);
     const restarted = reduceSession({ ...used, game: { ...used.game, status: 'gameover' } }, { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
     expect(restarted.game.relaxed).toBe(true);
     expect(restarted.game.trayClearsLeft).toBe(1);
-    expect(restarted.trayClears).toBe(0);
+    expect(restarted.trayClears).toBe(2);
   });
 
   it('클리어하면 별 없이 기록하고 다음 스테이지를 연다', async () => {
@@ -72,27 +76,15 @@ describe('여유 모드', () => {
 });
 
 describe('타이머 모드', () => {
-  it('보유한 트레이 비우기를 모두 쓸 수 있다', async () => {
+  it('보유가 많아도 판당 2회까지만 쓸 수 있다', async () => {
     const session = start(30, false, { ...createSession(true), trayClears: 5 });
     expect(session.game.relaxed).toBeUndefined();
-    expect(session.game.trayClearsLeft).toBe(5);
+    expect(session.game.trayClearsLeft).toBe(TIMED_TRAY_CLEARS_PER_GAME);
   });
 
-  it('트레이 비우기는 처음 클리어할 때만 +1이고 최대 5개까지 쌓인다', async () => {
+  it('클리어해도 트레이 비우기는 늘지 않는다', async () => {
     const stage = await loadStage(1);
     const first = finishing(start(1, false, createSession()), stage);
-    expect(first.trayClears).toBe(STARTING_TRAY_CLEARS + 1);
-    const again = finishing(start(1, false, { ...first, screen: 'stages' }), stage);
-    expect(again.trayClears).toBe(STARTING_TRAY_CLEARS + 1);
-    const capped = finishing(start(1, false, { ...createSession(), trayClears: MAX_TRAY_CLEARS }), stage);
-    expect(capped.trayClears).toBe(MAX_TRAY_CLEARS);
-  });
-
-  it('보유 트레이 비우기가 가득하면 트레이 비우기 보상이 나오지 않는다', async () => {
-    const stage = await stageWithReward('trayClear');
-    const has = (trayClears: number) => start(stage.id, false, { ...createSession(true), trayClears })
-      .game.queues.flat().some(token => token.reward === 'trayClear');
-    expect(has(MAX_TRAY_CLEARS - 1)).toBe(true);
-    expect(has(MAX_TRAY_CLEARS)).toBe(false);
+    expect(first.trayClears).toBe(STARTING_TRAY_CLEARS);
   });
 });

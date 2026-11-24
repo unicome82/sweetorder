@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { LanguageContext, readLanguagePreference, saveLanguagePreference } from '../i18n/language';
 import type { MouseEvent } from 'react';
 import { playSound, readSoundPreference, saveSoundPreference, setMusicScene, unlockSound } from '../effects/sound';
-import { canAffordAttempt, getCurrentStage } from '../game/session';
-import { canEarnHearts, MAX_HEARTS } from '../game/hearts';
-import { isBonusStage, isStageId, isStageLoaded, loadStage, practiceStage, preloadStage } from '../game/stages';
+import { canAffordAttempt, canPlayBonusToday, getCurrentStage } from '../game/session';
+import { MAX_HEARTS } from '../game/hearts';
+import { isBonusStage, isStageLoaded, loadStage, practiceStage, preloadStage } from '../game/stages';
 import { randomBonusDessert } from '../game/stages/bonus';
 import { BONUS_AT_STAGE_00_FOR_TESTING } from '../game/constants';
 import { NoHeartsDialog } from '../components/NoHeartsDialog';
@@ -17,9 +17,6 @@ import type { Language } from '../i18n/messages';
 import { StartPage } from '../pages/StartPage';
 import { GamePage } from '../pages/GamePage';
 import { StageSelectPage } from '../pages/StageSelectPage';
-
-const BONUS_CHANCE = 0.15;
-const BONUS_FIRST_AFTER = 3;
 
 export function App() {
   const { session, dispatch } = useGame();
@@ -58,32 +55,30 @@ export function App() {
   useEffect(() => setMusicScene(musicScene), [musicScene]);
   const currentStage = getCurrentStage(stars);
   const [loadingStage, setLoadingStage] = useState<number>();
-  const [outOfHearts, setOutOfHearts] = useState(false);
-  const closeOutOfHearts = useCallback(() => setOutOfHearts(false), []);
+  // The stage the player couldn't afford, while the out-of-hearts popup is open.
+  const [outOfHearts, setOutOfHearts] = useState<number>();
+  const closeOutOfHearts = useCallback(() => setOutOfHearts(undefined), []);
   const [chargeOpen, setChargeOpen] = useState(false);
-  function openCharge() { setOutOfHearts(false); setChargeOpen(true); }
+  function openCharge() { setOutOfHearts(undefined); setChargeOpen(true); }
+  // Out of hearts, the daily bonus stage can be entered once a day; it leads back to the stage that was wanted.
+  function startDailyBonus(nextStageId: number) {
+    setOutOfHearts(undefined);
+    dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId, relaxed, now: Date.now() });
+  }
   // Stage data arrives in 100-stage chunks; fetch the one a START needs before entering it.
   function start(stageId: number) {
     if (BONUS_AT_STAGE_00_FOR_TESTING && stageId === practiceStage.id) {
-      dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: currentStage, relaxed });
+      dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: currentStage, relaxed, testing: true });
       return;
     }
-    if (!canAffordAttempt(session, stageId)) { setOutOfHearts(true); return; }
+    if (!canAffordAttempt(session, stageId)) { setOutOfHearts(stageId); return; }
     if (isStageLoaded(stageId)) { dispatch({ type: 'START', stageId, relaxed }); return; }
     setLoadingStage(stageId);
     loadStage(stageId).then(() => dispatch({ type: 'START', stageId, relaxed }), () => undefined)
       .finally(() => setLoadingStage(previous => previous === stageId ? undefined : previous));
   }
-  // After a campaign clear a bonus stage sometimes appears on the way to the next stage; it can't be picked from the list.
-  // Like heart rewards, it only turns up while the player holds four hearts or fewer in all.
   function next() {
-    const target = isBonusStage(game.stageId) ? session.bonus?.nextStageId ?? currentStage : game.stageId + 1;
-    if (!isBonusStage(game.stageId) && isStageId(game.stageId) && game.stageId >= BONUS_FIRST_AFTER
-      && canEarnHearts(session.hearts, Date.now()) && Math.random() < BONUS_CHANCE) {
-      dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: target, relaxed });
-      return;
-    }
-    start(target);
+    start(isBonusStage(game.stageId) ? session.bonus?.nextStageId ?? currentStage : game.stageId + 1);
   }
   const settings: SettingsProps = { soundEnabled, onToggleSound: toggleSound, language, onLanguage: changeLanguage, mode, onMode: changeMode };
   // Warm the chunks the player is likely to open next.
@@ -95,10 +90,12 @@ export function App() {
       : screen === 'stages'
         ? <StageSelectPage stars={stars} hearts={displayedHearts} onChargeHearts={openCharge} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} />
         : <GamePage key={game.stageId} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
-          canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => setOutOfHearts(true)} />
+          trayClearsOwned={session.trayClears}
+          canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => setOutOfHearts(game.stageId)} />
     }
     {screen === 'start' && !modeChosen && <ModeChoiceDialog onChoose={changeMode} />}
-    {outOfHearts && <NoHeartsDialog hearts={displayedHearts} onClose={closeOutOfHearts} onCharge={openCharge} />}
+    {outOfHearts !== undefined && <NoHeartsDialog hearts={displayedHearts} bonusToday={canPlayBonusToday(session)} onClose={closeOutOfHearts} onCharge={openCharge}
+      onBonus={() => startDailyBonus(outOfHearts)} />}
     {chargeOpen && <ChargeHeartsDialog hearts={displayedHearts} onClose={() => setChargeOpen(false)}
       onCharge={amount => { dispatch({ type: 'CHARGE_HEARTS', amount, now: Date.now() }); setChargeOpen(false); }} />}
     {loadingStage !== undefined && <p className="stage-loading" role="status">Loading…</p>}

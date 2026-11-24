@@ -68,10 +68,10 @@ describe('대기열 보상', () => {
 
   it('보상 디저트를 1열에서 집으면 충전되고, 다시 하면 그 스테이지에는 보상이 없다', async () => {
     const ids: Partial<Record<string, number>> = {};
-    for (let id = REWARDS_FROM_STAGE; !(ids.heart && ids.trayClear); id += 1) {
+    for (let id = REWARDS_FROM_STAGE; !ids.heart; id += 1) {
       if (isFeaturePreviewStage(id)) continue;
       const spot = rewardSpot({ queues: (await loadStage(id)).queues } as GameState);
-      if (spot && !ids[spot.reward]) ids[spot.reward] = id;
+      if (spot?.reward === 'heart') ids.heart = id;
     }
     for (const [kind, id] of Object.entries(ids) as Array<[string, number]>) {
       let session = reduceSession({ ...createSession(true), hearts: { count: 3, bonus: 0, refillFrom: 0 } }, { type: 'START', stageId: id, now: 0 });
@@ -86,9 +86,8 @@ describe('대기열 보상', () => {
       }
       expect(session.game.collectedRewards).toEqual([kind]);
       expect(session.rewardedStages).toEqual([id]);
-      expect(session.hearts).toMatchObject({ count: 2, bonus: kind === 'heart' ? 1 : 0 });
-      expect(session.game.trayClearsLeft).toBe(kind === 'trayClear' ? clears + 1 : clears);
-      expect(session.trayClears).toBe(session.game.trayClearsLeft);
+      expect(session.hearts).toMatchObject({ count: 2, bonus: 1 });
+      expect(session.game.trayClearsLeft).toBe(clears);
 
       const retried = reduceSession(session, { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
       expect(rewardSpot(retried.game)).toBeUndefined();
@@ -124,6 +123,15 @@ describe.runIf(isFeaturePreviewStage(25))('기능 미리보기 (테스트용)', 
 });
 
 describe('보상 칸', () => {
+  it('트레이 비우기 보상 칸은 나오지 않는다 (추가 획득처 없음)', async () => {
+    let id = real(REWARDS_FROM_STAGE);
+    while (isFeaturePreviewStage(id) || rewardSpot({ queues: (await loadStage(id)).queues } as GameState)?.reward !== 'trayClear') id += 1;
+    for (const relaxed of [false, true]) {
+      const session = reduceSession(createSession(true), { type: 'START', stageId: id, relaxed, now: 0 });
+      expect(session.game.queues.flat().some(token => token.reward === 'trayClear')).toBe(false);
+    }
+  });
+
   it('트레이를 쓰지 않고, 트레이가 가득해도 맨 앞에 있으면 받을 수 있다', async () => {
     const stage = await loadStage(real(REWARDS_FROM_STAGE));
     const spot = rewardSpot({ queues: stage.queues } as GameState)!;
