@@ -114,7 +114,12 @@ export function DonutQueue({ queues, disabled, locked = false, revealed = false,
         style={{ zIndex: position, visibility: returning.has(donut.id) ? 'hidden' : undefined }}>
         {donut.reward === 'heart' ? <span className="donut reward-tile reward-tile--heart"><RewardHeart /></span>
           : donut.reward === 'quickOrder' ? <span className="donut reward-tile reward-tile--quickOrder"><QuickOrderIcon /></span>
-          : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><Icon name="basket" /></span> : donut.hidden && !revealed && position > 0 ? <span className="donut donut--mystery">?</span> : <Donut type={donut.type} />}
+          : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><Icon name="basket" /></span>
+          : donut.hidden && position > 0 ? revealed
+            // Peek: the "?" blinks as the game opens, then turns into its dessert.
+            ? <span className="peek-reveal"><span className="donut donut--mystery peek-reveal-mystery">?</span><Donut type={donut.type} className="peek-reveal-dessert" /></span>
+            : <span className="donut donut--mystery">?</span>
+          : <Donut type={donut.type} />}
       </span>)}
     </button>)}</div>
   </section>;

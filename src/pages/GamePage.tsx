@@ -456,6 +456,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         }} />} />}
     {(showClock || (timeLimit > 0 && waitingForGoodbye)) && <div className="stage-clock-wrap">
       <StageClock limitMs={timeLimit} remainingMs={pausedTimeMs ?? remainingTimeMs} />
+      {/* +5 seconds chosen before the start: a "+5s" pops beside the clock as the stage title clears. */}
+      {state.timeBonusUsed && !showIntro && <span className="time-bonus-pop" lang="en" aria-hidden="true">+5s</span>}
     </div>}
     {/* An even 2px white outline for masked icons, which can't carry a stroke or their own shadows. */}
     <svg className="sr-only" aria-hidden="true"><filter id="white-outline" x="-20%" y="-20%" width="140%" height="140%">
@@ -520,7 +522,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <h2 id="tray-full-heading">{resultTitles.blocked}</h2>
       <div className="result-actions">
         <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={requestTrayClear} aria-label={clearNeedsAd ? t.clearTrayAdLabel : t.clearTrayLabel(clearsOwned)}>
-          <Icon name="basket" />{t.clearTray} <span className="tray-clear-count" lang={clearNeedsAd ? 'en' : undefined} aria-hidden="true">{clearNeedsAd ? 'AD' : clearsOwned}</span>
+          <Icon name="basket" />{t.clearTray} <span className={`tray-clear-count${clearNeedsAd ? ' tray-clear-ad' : ''}`} lang={clearNeedsAd ? 'en' : undefined} aria-hidden="true">{clearNeedsAd ? 'AD' : clearsOwned}</span>
         </button>
         {!!quickOrders && <button type="button" data-sfx="none" className="primary-button popup-primary-button quick-order-button" onClick={() => act({ type: 'QUICK_ORDER' })}
           disabled={!canQuickOrder(state)} aria-label={t.quickOrderLabel(quickOrders)}>

@@ -641,7 +641,12 @@
   line-height: 1;
   box-shadow: 0 1px 3px #8c3f3d50;
 }
-.tray-row--quick-order { grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
+.tray-row--quick-order {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  // The second square button: as wide as the tray is tall (a slot plus padding and border), plus a gap, less the 2px the gaps shrank.
+  --tray-lent: calc(clamp(24px, 4.2dvh, 36px) + 11px + 6px - 2px);
+}
 // Quick order: amber, so it reads apart from the pink tray clear beside it.
 .quick-order-shortcut {
   border-color: #f0b54a;
@@ -682,7 +687,8 @@
 .tray-donut {
   translate: 0 -4px;
   // Size against a 12-slot row so desserts look the same at every capacity.
-  width: min(calc(100cqw / 12 * 1.4), 44px);
+  // The quick order button takes width from the tray; --tray-lent adds it back so desserts keep their size.
+  width: min(calc((100cqw + var(--tray-lent, 0px)) / 12 * 1.4), 44px);
   justify-self: center;
   position: relative;
   z-index: 1;
@@ -1117,6 +1123,10 @@
 // Jua sits about 1px high; the padding lines the title up with the heart.
 .no-hearts-dialog h2 > span { padding-top: 3px; line-height: 1; }
 .no-hearts-dialog .result-actions { margin-top: 18px; }
+.charge-stepper { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 14px; }
+.charge-stepper-button { font-family: Jua, sans-serif; font-size: 26px; line-height: 1; }
+.charge-stepper-button span { padding-top: 2px; }
+.charge-stepper-value { min-width: 2ch; color: var(--secondary-text); font-family: Jua, sans-serif; font-size: 40px; line-height: 1; text-align: center; font-variant-numeric: tabular-nums; padding-top: 3px; }
 .charge-hearts-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; }
 .no-hearts-wait { color: var(--muted); font-size: 15px; text-align: center; }
 
@@ -1148,6 +1158,50 @@
 }
 
 .stage-clock-wrap { position: relative; flex: none; z-index: 5; }
+.time-bonus-pop {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 2px);
+  right: 14px;
+  color: #ec6a86;
+  font-family: Jua, sans-serif;
+  font-size: 24px;
+  line-height: 1;
+  -webkit-text-stroke: 5px #fff;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 2px 3px #aa3b5a50);
+  pointer-events: none;
+  animation: time-bonus-pop 1.8s cubic-bezier(.22, .72, .26, 1) both;
+}
+// Pops in under the clock's time, then rises onto it and fades.
+@keyframes time-bonus-pop {
+  0% { opacity: 0; transform: scale(.4); }
+  15% { opacity: 1; transform: scale(1.3); }
+  28% { transform: scale(1); }
+  65% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-110%); }
+}
+// Peek: hidden desserts blink as "?" once the stage title has gone, then show what they are.
+.peek-reveal { display: grid; place-items: center; width: 100%; }
+.peek-reveal > * { grid-area: 1 / 1; }
+.peek-reveal-mystery { animation: peek-reveal-blink 1.3s ease-in-out 1.5s both; }
+.peek-reveal-dessert { animation: peek-reveal-show 1.3s ease-out 1.5s both; }
+@keyframes peek-reveal-blink {
+  0%, 26%, 52% { opacity: 1; }
+  13%, 39%, 65% { opacity: .2; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes peek-reveal-show {
+  0%, 72% { opacity: 0; transform: scale(.5); }
+  88% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .peek-reveal-mystery { display: none; }
+  .peek-reveal-dessert, .time-bonus-pop { animation: none; }
+  .time-bonus-pop { display: none; }
+}
 
 // A reward takes a dessert-sized slot in its queue. The tray clear copies the active tray-clear
 // button; the heart is a raised heart in the same pink.
@@ -1212,7 +1266,8 @@
 .fake-ad h2 { margin: 6px 0 10px; font-size: 22px; }
 .fake-ad-tag { margin: 0; font-size: 12px; font-weight: 900; letter-spacing: .12em; color: #8a6fb3; }
 .fake-ad-timer { margin: 0 0 16px; font-size: 15px; }
-.tray-clear-ad { background: #ffe27a; font-size: 10px; }
+// Every AD badge shares the yellow of the ad tags.
+.tray-clear-ad, .tray-clear-count.tray-clear-ad { background: #ffe27a; color: #723f2b; font-size: 10px; }
 
 // Item icons. Peek: "?" and a dessert take turns; +5 seconds: a stopwatch with "+5s" inside.
 .peek-icon { display: grid; width: 32px; height: 32px; }
@@ -1261,6 +1316,7 @@
   transform: translateY(-2px);
 }
 .start-item-icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 50px;
@@ -1273,6 +1329,30 @@
 .start-item[aria-pressed='true'] .start-item-icon { background: linear-gradient(#ff9bb0, #ec6a86); color: #fff; box-shadow: inset 0 -3px #cf4d6c; }
 .start-item-name { font-size: 15px; font-weight: 800; }
 .start-item-left { font-size: 12px; }
+// What's left of an item sits on its icon's top right, like the tray button badges; with none left from the pass, AD.
+.start-item-count {
+  position: absolute;
+  top: -5px;
+  right: -9px;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 1px 5px 0;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #fff2e6;
+  color: #723f2b;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 1px 3px #8c3f3d50;
+}
+.start-item-count.start-item-ad { background: #ffe27a; font-size: 10px; }
+// The stopwatch's face sits low in its box; lift it to the middle of the circle.
+.start-item-icon .add-time-icon { translate: 0 -2px; }
+// Chosen, the "?" turns white on the pink circle instead of keeping its cream disc.
+.start-item[aria-pressed='true'] .peek-icon-mystery { border-color: #fff; background: transparent; color: #fff; }
 .start-item-ad { padding: 1px 5px; border-radius: 6px; background: #ffe27a; color: #723f2b; font-size: 10px; font-weight: 900; }
 .start-item-check {
   position: absolute;

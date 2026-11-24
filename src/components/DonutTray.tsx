@@ -29,9 +29,10 @@ export function DonutTray({ donuts, capacity, difficulty, inFlight, clearsLeft, 
     <div className="tray"><ol className="tray-slots" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>{Array.from({ length: capacity }, (_, i) => <li key={i} data-tray-slot={i} data-token-id={donuts[i]?.id} aria-label={donuts[i] ? t.items[donuts[i].type] : t.emptySlot(i + 1)}>{donuts[i] ? <span className="tray-donut" style={{ visibility: inFlight?.has(donuts[i].id) ? 'hidden' : undefined }}><Donut type={donuts[i].type} /></span> : null}</li>)}</ol></div>
   </section>
     <button type="button" data-sfx="none" className="tray-clear-shortcut" onClick={onClear} disabled={!canClear || clearsLeft <= 0} aria-label={needsAd ? t.clearTrayAdLabel : t.clearTrayLabel(owned)}>
-      <Icon name="basket" />{needsAd
-        ? <span className="tray-clear-shortcut-count tray-clear-ad" lang="en" aria-hidden="true">AD</span>
-        : <span className="tray-clear-shortcut-count" aria-hidden="true">{owned}</span>}
+      {/* Once this game's clears are used up an ad can't buy another, so the AD badge goes. */}
+      <Icon name="basket" />{!needsAd
+        ? <span className="tray-clear-shortcut-count" aria-hidden="true">{owned}</span>
+        : clearsLeft > 0 && <span className="tray-clear-shortcut-count tray-clear-ad" lang="en" aria-hidden="true">AD</span>}
     </button>
     {quickOrders !== undefined && <button type="button" data-sfx="none" className="tray-clear-shortcut quick-order-shortcut" onClick={onQuickOrder} disabled={!canQuickOrder || quickOrders <= 0} aria-label={t.quickOrderLabel(quickOrders)}>
       <QuickOrderIcon /><span className="tray-clear-shortcut-count" aria-hidden="true">{quickOrders}</span>

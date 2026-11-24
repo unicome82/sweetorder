@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LanguageContext, readLanguagePreference, saveLanguagePreference } from '../i18n/language';
 import type { MouseEvent } from 'react';
 import { playSound, readSoundPreference, saveSoundPreference, setMusicScene, unlockSound } from '../effects/sound';
-import { canAffordAttempt, canPlayBonusToday, getCurrentStage, heartsFastUntil, itemsBeforeStart, peekFromPass, spareHearts, type ItemChoice } from '../game/session';
+import { canAffordAttempt, canPlayBonusToday, chargeableSpareHearts, getCurrentStage, heartsFastUntil, itemsBeforeStart, peekFromPass, spareHearts, type ItemChoice } from '../game/session';
 import { StartItemsDialog } from '../components/StartItemsDialog';
 import { ads } from '../monetization/ads';
 import { getStage } from '../game/stages';
@@ -14,6 +14,7 @@ import { isPassActive } from '../monetization/pass';
 import { billing } from '../monetization/billing';
 import { FakeAdHost } from '../components/FakeAdHost';
 import { NoHeartsDialog } from '../components/NoHeartsDialog';
+import { ChargeHeartsDialog } from '../components/ChargeHeartsDialog';
 import { useGame } from '../hooks/useGame';
 import { useNow } from '../hooks/useNow';
 import { hasModePreference, readModePreference, saveModePreference, type PlayMode } from './modePreference';
@@ -72,10 +73,15 @@ export function App() {
   async function watchHeartAd() {
     if (await ads.showRewarded('hearts')) dispatch({ type: 'AD_HEARTS', now: Date.now() });
   }
-  // Out of hearts, the daily bonus stage can be entered once a day; it leads back to the stage that was wanted.
-  function startDailyBonus(nextStageId: number) {
-    setOutOfHearts(undefined);
-    dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId, relaxed, now: Date.now() });
+  const [chargeOpen, setChargeOpen] = useState(false);
+  /**
+   * Out of hearts for a stage: pass spare hearts are offered to charge first, then the daily bonus stage opens at once
+   * (it leads back to the stage that was wanted), and once both are used up a rewarded ad can give a heart.
+   */
+  function handleOutOfHearts(stageId: number) {
+    if (chargeableSpareHearts(session) > 0) setChargeOpen(true);
+    else if (canPlayBonusToday(session)) dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: stageId, relaxed, now: Date.now() });
+    else setOutOfHearts(stageId);
   }
   // Items are chosen before each attempt (retries included), when the stage can use one; the last choice is kept.
   const [preStart, setPreStart] = useState<{ stageId: number; available: Required<ItemChoice> }>();
@@ -105,7 +111,7 @@ export function App() {
       dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId: currentStage, relaxed, testing: true });
       return;
     }
-    if (!canAffordAttempt(session, stageId)) { setOutOfHearts(stageId); return; }
+    if (!canAffordAttempt(session, stageId)) { handleOutOfHearts(stageId); return; }
     if (isStageLoaded(stageId)) { enter(stageId); return; }
     setLoadingStage(stageId);
     loadStage(stageId).then(() => enter(stageId), () => undefined)
@@ -134,11 +140,12 @@ export function App() {
         ? <StageSelectPage stars={stars} hearts={displayedHearts} spareHearts={session.unlimitedHearts ? 0 : spareHearts(session, passNow)} heartsFastUntil={fastUntil} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} />
         : <GamePage key={`${game.stageId}:${attempt}`} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
           trayClearsOwned={session.trayClears} passActive={passActive} onRetry={() => start(game.stageId)}
-          canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => setOutOfHearts(game.stageId)} />
+          canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => handleOutOfHearts(game.stageId)} />
     }
     {screen === 'start' && !modeChosen && <ModeChoiceDialog onChoose={changeMode} />}
-    {outOfHearts !== undefined && <NoHeartsDialog hearts={displayedHearts} fastUntil={fastUntil} bonusToday={canPlayBonusToday(session)} onClose={closeOutOfHearts}
-      onBonus={() => startDailyBonus(outOfHearts)} onWatchAd={() => void watchHeartAd()} />}
+    {outOfHearts !== undefined && <NoHeartsDialog hearts={displayedHearts} fastUntil={fastUntil} onClose={closeOutOfHearts} onWatchAd={() => void watchHeartAd()} />}
+    {chargeOpen && <ChargeHeartsDialog max={chargeableSpareHearts(session)} spare={spareHearts(session)} onClose={() => setChargeOpen(false)}
+      onCharge={amount => { dispatch({ type: 'CHARGE_SPARE', amount, now: Date.now() }); setChargeOpen(false); }} />}
     {preStart && <StartItemsDialog pass={passActive ? session.pass : undefined} available={preStart.available} peekNeedsAd={!peekFromPass(session.pass)}
       dessert={getStage(preStart.stageId).queues.flat().find(token => token.hidden && !token.reward)?.type}
       initial={itemChoice} onStart={choice => void startWithItems(choice)} onClose={() => setPreStart(undefined)} />}
