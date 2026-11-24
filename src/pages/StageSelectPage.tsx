@@ -20,7 +20,7 @@ const JUMP_SIZE = 500;
 const blockStart = (block: number) => block * JUMP_SIZE + 1;
 const optionId = (index: number) => index === 0 ? practiceStage.id : index;
 
-export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, spareHearts, heartsFastUntil, unlockAllStages, settings }: { onGame: (id: number) => void; onChargeHearts: () => void; stars: Record<number, number>; hearts: Hearts; spareHearts: number; heartsFastUntil?: number; unlockAllStages: boolean; settings: SettingsProps }) {
+export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFastUntil, unlockAllStages, settings }: { onGame: (id: number) => void; stars: Record<number, number>; hearts: Hearts; spareHearts: number; heartsFastUntil?: number; unlockAllStages: boolean; settings: SettingsProps }) {
   const relaxed = settings.mode === 'relaxed';
   const t = useMessages();
   const openThrough = unlockedThrough(stars, unlockAllStages);
@@ -65,7 +65,7 @@ export function StageSelectPage({ onGame, onChargeHearts, stars, hearts, spareHe
 
   return <main className="stage-page">
     <nav className="stage-navigation" aria-label={t.stageMenu}>
-      <HeartCounter hearts={hearts} spare={spareHearts} fastUntil={heartsFastUntil} onCharge={onChargeHearts} />
+      <HeartCounter hearts={hearts} spare={spareHearts} fastUntil={heartsFastUntil} />
       <SettingsButton {...settings} />
     </nav>
     <div className="stage-hero" aria-hidden="true" />

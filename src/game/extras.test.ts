@@ -37,7 +37,7 @@ describe('대기열 보상', () => {
       if (spot?.reward === 'heart') ids.heart = id;
     }
     for (const [kind, id] of Object.entries(ids) as Array<[string, number]>) {
-      let session = reduceSession({ ...createSession(true), hearts: { count: 3, bonus: 0, refillFrom: 0 } }, { type: 'START', stageId: id, now: 0 });
+      let session = reduceSession({ ...createSession(true), hearts: { count: 3, refillFrom: 0 } }, { type: 'START', stageId: id, now: 0 });
       expect(session.hearts.count).toBe(2);
       const clears = session.game.trayClearsLeft;
       const { column, index } = rewardSpot(session.game)!;
@@ -49,7 +49,7 @@ describe('대기열 보상', () => {
       }
       expect(session.game.collectedRewards).toEqual([kind]);
       expect(session.rewardedStages).toEqual([id]);
-      expect(session.hearts).toMatchObject({ count: 2, bonus: 1 });
+      expect(session.hearts.count).toBe(3);
       expect(session.game.trayClearsLeft).toBe(clears);
 
       const retried = reduceSession(session, { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
@@ -59,17 +59,16 @@ describe('대기열 보상', () => {
     }
   });
 
-  it('하트 보상은 하트 총합이 4개 이하로 시작할 때만 나온다', async () => {
+  it('하트 보상은 하트가 4개 이하로 시작할 때만 나온다', async () => {
     let id = real(REWARDS_FROM_STAGE);
     while (isFeaturePreviewStage(id) || rewardSpot({ queues: (await loadStage(id)).queues } as GameState)?.reward !== 'heart') id += 1;
-    const startWith = (count: number, bonus: number) =>
-      reduceSession({ ...createSession(true), hearts: { count, bonus, refillFrom: 0 } }, { type: 'START', stageId: id, now: 0 });
-    expect(rewardSpot(startWith(4, 0).game)?.reward).toBe('heart');
-    expect(rewardSpot(startWith(3, 1).game)?.reward).toBe('heart');
-    expect(rewardSpot(startWith(5, 0).game)).toBeUndefined();
-    expect(rewardSpot(startWith(2, 3).game)).toBeUndefined();
-    const failed = startWith(5, 0);
-    const retried = reduceSession({ ...failed, hearts: { count: 3, bonus: 0, refillFrom: 0 }, game: { ...failed.game, status: 'gameover' } },
+    const startWith = (count: number) =>
+      reduceSession({ ...createSession(true), hearts: { count, refillFrom: 0 } }, { type: 'START', stageId: id, now: 0 });
+    expect(rewardSpot(startWith(4).game)?.reward).toBe('heart');
+    expect(rewardSpot(startWith(1).game)?.reward).toBe('heart');
+    expect(rewardSpot(startWith(5).game)).toBeUndefined();
+    const failed = startWith(5);
+    const retried = reduceSession({ ...failed, hearts: { count: 3, refillFrom: 0 }, game: { ...failed.game, status: 'gameover' } },
       { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
     expect(rewardSpot(retried.game)?.reward).toBe('heart');
   });

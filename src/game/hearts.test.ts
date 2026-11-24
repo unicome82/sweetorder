@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addHeart, chargeAmount, chargeFromBonus, describeHearts, fullHearts, HEART_REFILL_MS, MAX_HEARTS, parseHearts, rebaseRefill, refillHearts, spendHeart, type Hearts } from './hearts';
+import { addHeart, describeHearts, fullHearts, HEART_REFILL_MS, MAX_HEARTS, parseHearts, rebaseRefill, refillHearts, spendHeart, type Hearts } from './hearts';
 import { PASS_MS, PASS_SPARE_HEARTS } from '../monetization/pass';
 import { canAffordAttempt, canPlayBonusToday, createSession, reduceSession } from './session';
 import { BONUS_STAGE_ID } from './constants';
@@ -12,43 +12,28 @@ const minutes = (n: number) => n * 60_000;
 
 describe('하트', () => {
   it('도전마다 1개를 쓰고, 5개 미만이 된 때부터 30분마다 1개씩 최대 5개까지 찬다', () => {
-    const spent = spendHeart(fullHearts(), 1_000)!.hearts;
-    expect(spent).toEqual({ count: 4, bonus: 0, refillFrom: 1_000 });
+    const spent = spendHeart(fullHearts(), 1_000)!;
+    expect(spent).toEqual({ count: 4, refillFrom: 1_000 });
     expect(refillHearts(spent, 1_000 + HEART_REFILL_MS - 1).count).toBe(4);
     expect(refillHearts(spent, 1_000 + HEART_REFILL_MS).count).toBe(5);
-    expect(refillHearts({ count: 0, bonus: 0, refillFrom: 0 }, minutes(500)).count).toBe(MAX_HEARTS);
-    expect(spendHeart({ count: 0, bonus: 0, refillFrom: 0 }, minutes(29))).toBeNull();
+    expect(refillHearts({ count: 0, refillFrom: 0 }, minutes(500)).count).toBe(MAX_HEARTS);
+    expect(spendHeart({ count: 0, refillFrom: 0 }, minutes(29))).toBeNull();
   });
 
-  it('보너스 하트는 바로 쓰이지 않고, 충전하면 일반 하트를 최대 5개까지 채운다', () => {
-    const hearts: Hearts = { count: 0, bonus: 7, refillFrom: 0 };
-    expect(spendHeart(hearts, 0)).toBeNull();
-    expect(chargeAmount(hearts, 0)).toBe(5);
-    expect(chargeFromBonus(hearts, 0)).toMatchObject({ count: 5, bonus: 2 });
-    expect(chargeFromBonus({ count: 3, bonus: 1, refillFrom: 0 }, 0)).toMatchObject({ count: 4, bonus: 0 });
-    expect(chargeFromBonus({ count: 5, bonus: 3, refillFrom: 0 }, 0)).toMatchObject({ count: 5, bonus: 3 });
-    // A chosen amount is moved as asked, but never past five.
-    expect(chargeFromBonus(hearts, 0, 2)).toMatchObject({ count: 2, bonus: 5 });
-    expect(chargeFromBonus({ count: 4, bonus: 3, refillFrom: 0 }, 0, 3)).toMatchObject({ count: 5, bonus: 2 });
-    expect(refillHearts({ count: 0, bonus: 2, refillFrom: 0 }, minutes(500))).toMatchObject({ count: 5, bonus: 2 });
+  it('보상 하트는 바로 하트에 더해지고 5개를 넘지 않는다', () => {
+    expect(addHeart({ count: 0, refillFrom: 0 }, 0)).toMatchObject({ count: 1 });
+    expect(addHeart(fullHearts(), 0)).toMatchObject({ count: MAX_HEARTS });
   });
 
-  it('일반 하트가 0개면 보너스 하트가 있어도 시작할 수 없고, 충전한 뒤에 시작된다', async () => {
-    await loadStage(1);
-    const session = { ...createSession(), hearts: { count: 0, bonus: 3, refillFrom: 0 } };
-    expect(reduceSession(session, { type: 'START', stageId: 1, now: 0 })).toBe(session);
-    const charged = reduceSession(session, { type: 'CHARGE_HEARTS', now: 0 });
-    expect(charged.hearts).toMatchObject({ count: 3, bonus: 0 });
-    expect(reduceSession(charged, { type: 'START', stageId: 1, now: 0 }).hearts.count).toBe(2);
+  it('충전 대기 시간을 보여 준다', () => {
+    expect(describeHearts({ count: 3, refillFrom: 0 }, minutes(10))).toEqual({ count: 3, nextInMs: minutes(20) });
+    expect(describeHearts(fullHearts(), 0).nextInMs).toBeNull();
   });
 
-  it('충전 대기 시간과 보너스 하트 수를 따로 보여 준다', () => {
-    expect(describeHearts({ count: 3, bonus: 0, refillFrom: 0 }, minutes(10))).toMatchObject({ count: 3, bonus: 0, nextInMs: minutes(20) });
-    expect(describeHearts(addHeart(fullHearts(), 0, 'bonus'), 0)).toMatchObject({ count: 5, bonus: 1, nextInMs: null });
-  });
-
-  it('예전 저장값(5개 초과분)은 보너스 하트로 옮긴다', () => {
-    expect(parseHearts({ count: 7, refillFrom: 5 })).toEqual({ count: 5, bonus: 2, refillFrom: 5 });
+  it('예전 저장값의 보너스 하트(따로 둔 것이나 5개 초과분)는 하트에 합치고 5개를 넘지 않는다', () => {
+    expect(parseHearts({ count: 7, refillFrom: 5 })).toEqual({ count: 5, refillFrom: 5 });
+    expect(parseHearts({ count: 1, bonus: 2, refillFrom: 5 })).toEqual({ count: 3, refillFrom: 5 });
+    expect(parseHearts({ count: 4, bonus: 9, refillFrom: 5 })).toEqual({ count: 5, refillFrom: 5 });
   });
 
   it('클리어하면 하트를 돌려받고, 실패하면 1개가 줄어든 채로 남는다', async () => {
@@ -72,7 +57,7 @@ describe('하트', () => {
 
   it('테스트 모드에서는 하트가 없어도 시작과 재도전에 저장된 하트를 쓰지 않는다', async () => {
     await loadStage(1);
-    const hearts = { count: 0, bonus: 3, refillFrom: 0 };
+    const hearts = { count: 0, refillFrom: 0 };
     const session = { ...createSession(false, true), hearts };
     expect(canAffordAttempt(session, 1, 0)).toBe(true);
 
@@ -89,7 +74,7 @@ describe('하트', () => {
 
   it('하트가 없으면 캠페인 스테이지를 시작하거나 다시 할 수 없다', async () => {
     await loadStage(1);
-    const empty = { ...createSession(), hearts: { count: 0, bonus: 0, refillFrom: 0 } };
+    const empty = { ...createSession(), hearts: { count: 0, refillFrom: 0 } };
     expect(reduceSession(empty, { type: 'START', stageId: 1, now: minutes(1) })).toBe(empty);
     expect(reduceSession(empty, { type: 'START', stageId: 1, now: minutes(31) }).screen).toBe('game');
   });
@@ -109,10 +94,10 @@ describe('패스 하트 혜택', () => {
   };
 
   it('패스 기간에는 2배 빠르게 차고, 기간이 끝나는 시점부터는 원래 속도로 찬다', () => {
-    const hearts: Hearts = { count: 0, bonus: 0, refillFrom: 0 };
+    const hearts: Hearts = { count: 0, refillFrom: 0 };
     expect(refillHearts(hearts, HEART_REFILL_MS / 2 - 1, Infinity).count).toBe(0);
-    expect(refillHearts(hearts, HEART_REFILL_MS / 2, Infinity)).toEqual({ count: 1, bonus: 0, refillFrom: HEART_REFILL_MS / 2 });
-    expect(describeHearts({ count: 3, bonus: 0, refillFrom: 0 }, minutes(5), Infinity).nextInMs).toBe(minutes(10));
+    expect(refillHearts(hearts, HEART_REFILL_MS / 2, Infinity)).toEqual({ count: 1, refillFrom: HEART_REFILL_MS / 2 });
+    expect(describeHearts({ count: 3, refillFrom: 0 }, minutes(5), Infinity).nextInMs).toBe(minutes(10));
     // 10 fast minutes count as 20; the last 10 run at normal speed.
     const endsAt = minutes(10);
     expect(refillHearts(hearts, minutes(20) - 1, endsAt).count).toBe(0);
@@ -121,17 +106,17 @@ describe('패스 하트 혜택', () => {
   });
 
   it('패스를 사거나 끝내면 충전 진행분은 그대로 두고 남은 시간만 속도가 바뀐다', () => {
-    const half = { count: 2, bonus: 0, refillFrom: 0 };
+    const half = { count: 2, refillFrom: 0 };
     const bought = rebaseRefill(half, minutes(20), undefined, minutes(20) + PASS_MS);
     expect(describeHearts(bought, minutes(20), minutes(20) + PASS_MS).nextInMs).toBe(minutes(5));
-    const ended = rebaseRefill({ count: 2, bonus: 0, refillFrom: 0 }, minutes(5), minutes(5), undefined);
+    const ended = rebaseRefill({ count: 2, refillFrom: 0 }, minutes(5), minutes(5), undefined);
     expect(describeHearts(ended, minutes(5)).nextInMs).toBe(minutes(20));
   });
 
   it('일반 하트가 0일 때만 스페어 하트를 쓰고, 클리어하면 스페어 하트로 돌려받는다', async () => {
     await loadStage(1);
     const bought = reduceSession(createSession(), { type: 'BUY_PASS', now: 0 });
-    const withOne = { ...bought, hearts: { count: 1, bonus: 0, refillFrom: 0 } };
+    const withOne = { ...bought, hearts: { count: 1, refillFrom: 0 } };
     const regular = reduceSession(withOne, { type: 'START', stageId: 1, now: 0 });
     expect(regular.hearts.count).toBe(0);
     expect(regular.pass!.spareHearts).toBe(PASS_SPARE_HEARTS);
@@ -152,13 +137,13 @@ describe('패스 하트 혜택', () => {
 
   it('스페어 하트는 패스가 끝나면 쓸 수 없다', async () => {
     await loadStage(1);
-    const session = { ...reduceSession(createSession(), { type: 'BUY_PASS', now: 0 }), hearts: { count: 0, bonus: 0, refillFrom: PASS_MS } };
+    const session = { ...reduceSession(createSession(), { type: 'BUY_PASS', now: 0 }), hearts: { count: 0, refillFrom: PASS_MS } };
     expect(canAffordAttempt(session, 1, PASS_MS)).toBe(false);
     expect(reduceSession(session, { type: 'START', stageId: 1, now: PASS_MS })).toBe(session);
   });
 
   it('광고를 끝까지 보면 일반 하트 1개를 받는다', () => {
-    const empty = { ...createSession(), hearts: { count: 0, bonus: 0, refillFrom: 0 } };
+    const empty = { ...createSession(), hearts: { count: 0, refillFrom: 0 } };
     expect(reduceSession(empty, { type: 'AD_HEARTS', now: minutes(1) }).hearts).toMatchObject({ count: 1, refillFrom: 0 });
     const full = createSession();
     expect(reduceSession(full, { type: 'AD_HEARTS', now: 0 }).hearts.count).toBe(MAX_HEARTS);
@@ -172,9 +157,9 @@ describe('보너스 스테이지', () => {
     expect(stage.queues.flat()).toHaveLength(120);
   });
 
-  it('하트 없이 시작하고, 누르는 대로 다 클리어되며, 하트 +1(5개 초과 가능)을 준다', () => {
-    let session = reduceSession(createSession(), { type: 'START_BONUS', dessert: 'pretzel', nextStageId: 7 });
-    expect(session.hearts.count).toBe(5);
+  it('하트 없이 시작하고, 누르는 대로 다 클리어되며, 하트 +1을 바로 준다', () => {
+    let session = reduceSession({ ...createSession(), hearts: { count: 0, refillFrom: Date.now() } }, { type: 'START_BONUS', dessert: 'pretzel', nextStageId: 7 });
+    expect(session.hearts.count).toBe(0);
     expect(session.game.stageId).toBe(BONUS_STAGE_ID);
     const stage = getStage(BONUS_STAGE_ID);
     for (let guard = 0; session.game.status === 'playing' && guard < 500; guard += 1) {
@@ -186,7 +171,7 @@ describe('보너스 스테이지', () => {
       session = reduceSession(session, { type: 'GAME', action: { type: 'PICKUP_TRAY', readyOrders: orders, parallel: true }, now: 0 });
     }
     expect(session.game.status).toBe('clear');
-    expect(session.hearts).toMatchObject({ count: 5, bonus: 1 });
+    expect(session.hearts.count).toBe(1);
     expect(session.bonus?.nextStageId).toBe(7);
     expect(session.stars).toEqual({});
   });
@@ -196,7 +181,7 @@ describe('보너스 스테이지 하루 1회', () => {
   const at = (iso: string) => new Date(iso).getTime();
 
   it('입장할 때 그날 횟수를 쓰고, 같은 날에는 다시 들어갈 수 없으며 자정이 지나면 다시 열린다', () => {
-    const empty = { ...createSession(), hearts: { count: 0, bonus: 0, refillFrom: at('2026-11-24T09:00:00') } };
+    const empty = { ...createSession(), hearts: { count: 0, refillFrom: at('2026-11-24T09:00:00') } };
     const morning = at('2026-11-24T09:00:00');
     expect(canPlayBonusToday(empty, morning)).toBe(true);
     const entered = reduceSession(empty, { type: 'START_BONUS', dessert: 'pretzel', nextStageId: 7, now: morning });

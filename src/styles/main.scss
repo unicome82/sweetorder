@@ -1065,7 +1065,7 @@
 }
 // Jua draws about 1px high, so the numbers get a little top padding to sit level with the heart.
 .heart-counter-count { padding-top: 2.5px; font-size: 18px; }
-.heart-counter-bonus {
+.heart-counter-spare {
   position: absolute;
   top: -6px;
   right: -6px;
@@ -1079,23 +1079,6 @@
   color: white;
   font-size: 11px;
   box-shadow: 0 1px 2px #7a1a1a59;
-}
-// Pass spare hearts: gold, on the opposite corner from the bonus badge.
-.heart-counter-spare {
-  position: absolute;
-  top: -6px;
-  left: -6px;
-  display: grid;
-  place-items: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 2px 4px 0;
-  border: 1px solid #fff9f3;
-  border-radius: 9px;
-  background: #f2b632;
-  color: #6b3a12;
-  font-size: 11px;
-  box-shadow: 0 1px 2px #7a4a1a59;
 }
 .no-hearts-ad-button { position: relative; white-space: nowrap; padding-inline: 8px; }
 .no-hearts-ad-button .start-item-ad { position: absolute; top: -7px; left: 6px; box-shadow: 0 1px 2px #7a4a1a40; }
@@ -1117,13 +1100,7 @@
 // Jua sits about 1px high; the padding lines the title up with the heart.
 .no-hearts-dialog h2 > span { padding-top: 3px; line-height: 1; }
 .no-hearts-dialog .result-actions { margin-top: 18px; }
-.charge-stepper { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 14px; }
-.charge-stepper-button { font-family: Jua, sans-serif; font-size: 26px; line-height: 1; }
-.charge-stepper-button span { padding-top: 2px; }
-.charge-stepper-value { min-width: 2ch; color: var(--secondary-text); font-family: Jua, sans-serif; font-size: 40px; line-height: 1; text-align: center; font-variant-numeric: tabular-nums; padding-top: 3px; }
 .charge-hearts-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; }
-.heart-counter--chargeable { cursor: pointer; font: inherit; }
-.heart-counter--chargeable:active { transform: translateY(2px); }
 .no-hearts-wait { color: var(--muted); font-size: 15px; text-align: center; }
 
 // Stage opening title: pops in, holds, then floats away before play starts (GamePage INTRO_MS).

@@ -39,7 +39,7 @@ describe('여유 모드', () => {
       expect(session.game.trayClearsLeft).toBe(RELAXED_TRAY_CLEARS);
     }
     const heartStage = await stageWithReward('heart');
-    const lowHearts = { ...createSession(true), hearts: { count: 3, bonus: 0, refillFrom: 0 } };
+    const lowHearts = { ...createSession(true), hearts: { count: 3, refillFrom: 0 } };
     expect(start(heartStage.id, true, lowHearts).game.queues.flat().some(token => token.reward === 'heart')).toBe(true);
   });
 
