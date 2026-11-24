@@ -16,7 +16,7 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
   useEffect(() => {
     if (hintColumn < 0) return;
     const board = section.current?.closest('.game-board');
-    const hintTarget = section.current?.querySelector<HTMLElement>(`[data-queue-index="${hintColumn}"]`);
+    const hintTarget = section.current?.querySelector<HTMLElement>(`[data-queue-index="${hintColumn}"] .queue-front img.donut`);
     if (!board || !hintTarget) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let animation: Animation | undefined;
@@ -25,12 +25,8 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
       animation?.cancel();
       if (document.hidden) return;
       timer = setTimeout(() => {
-        const glow = { borderColor: '#a9510b', boxShadow: 'inset 0 0 0 3px #ffbd38', backgroundColor: '#ffe5a6' };
-        const resting = {
-          borderColor: getComputedStyle(hintTarget).borderColor,
-          boxShadow: 'inset 0 0 0 0 transparent',
-          backgroundColor: getComputedStyle(hintTarget).backgroundColor,
-        };
+        const glow = { filter: 'brightness(1.1) drop-shadow(0 0 2px #fff5c9) drop-shadow(0 0 5px #ffb52f)' };
+        const resting = { filter: 'brightness(1) drop-shadow(0 0 2px transparent) drop-shadow(0 0 5px transparent)' };
         const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         animation = hintTarget.animate(reducedMotion ? [
           { ...glow, offset: 0, easing: 'steps(1, end)' },
@@ -43,7 +39,7 @@ export function DonutQueue({ queues, disabled, locked = false, returning, hintCo
           { ...resting, offset: 0.4 },
           { ...resting, offset: 1 },
         ], { duration: 5000, iterations: Infinity });
-      }, 4000);
+      }, 500);
     };
     restartHint();
     board.addEventListener('pointerdown', restartHint);
