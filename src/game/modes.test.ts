@@ -29,14 +29,12 @@ const start = (stageId: number, relaxed: boolean, session = createSession(true))
   reduceSession(session, { type: 'START', stageId, relaxed, now: 0 });
 
 describe('여유 모드', () => {
-  it('타이머와 VIP, 트레이 비우기 보상이 없고 트레이 비우기는 판당 1번까지 쓴다', async () => {
+  it('타이머와 트레이 비우기 보상이 없고 트레이 비우기는 판당 1번까지 쓴다', async () => {
     const stage = await stageWithReward('trayClear');
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const session = start(stage.id, true);
       expect(session.game.relaxed).toBe(true);
       expect(getGameTimeLimit(session.game, stage)).toBe(0);
-      expect(session.game.vipOrderIds).toBeUndefined();
-      expect(session.game.orders.some(order => order?.vip)).toBe(false);
       expect(session.game.queues.flat().some(token => token.reward === 'trayClear')).toBe(false);
       expect(session.game.trayClearsLeft).toBe(RELAXED_TRAY_CLEARS);
     }

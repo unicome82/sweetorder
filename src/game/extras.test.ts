@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { createGame, selectDonut } from './engine';
 import { createSession, reduceSession } from './session';
 import { loadStage } from './stages';
-import { REWARDS_FROM_STAGE, VIP_CHANCE, VIP_FROM_STAGE, VIP_SKIP_FIRST, VIP_SKIP_LAST, vipCount } from './stages/extras';
+import { REWARDS_FROM_STAGE } from './stages/extras';
 import type { GameState } from './types';
-import { BONUS_STAGE_ID, isFeaturePreviewStage } from './constants';
+import { isFeaturePreviewStage } from './constants';
 
-// While the playtest flag is on, stages 15 and 25 use the preview layout; check the rules one stage later.
+// While the playtest flag is on, stage 25 uses the preview layout; check the rules one stage later.
 const real = (id: number) => isFeaturePreviewStage(id) ? id + 1 : id;
 
 function rewardSpot(state: GameState) {
@@ -16,43 +16,6 @@ function rewardSpot(state: GameState) {
   }
   return undefined;
 }
-
-describe('VIP 손님', () => {
-  const vipsOf = (state: GameState) => state.vipOrderIds ?? [];
-  const sequence = (...values: number[]) => () => values.shift() ?? 0;
-
-  it(`${VIP_FROM_STAGE}번부터 나오고 수가 점점 늘며, 보너스 스테이지에는 없다`, async () => {
-    expect(vipsOf(createGame(await loadStage(VIP_FROM_STAGE - 1), () => 0))).toEqual([]);
-    for (const id of [real(VIP_FROM_STAGE), 55, 95, 400]) expect(vipsOf(createGame(await loadStage(id), () => 0))).toHaveLength(vipCount(id));
-    expect([vipCount(15), vipCount(55), vipCount(95), vipCount(9000), vipCount(BONUS_STAGE_ID)]).toEqual([1, 2, 3, 3, 0]);
-  });
-
-  it('처음 네 손님과 마지막 두 손님은 VIP가 되지 않는다', async () => {
-    const stage = await loadStage(400);
-    const allowed = stage.orders.slice(VIP_SKIP_FIRST, stage.targetOrders - VIP_SKIP_LAST).map(order => order.id);
-    for (const pick of [0, 0.5, 0.999]) {
-      const vips = vipsOf(createGame(stage, sequence(0, pick, 0, pick, 0, pick)));
-      expect(vips.every(id => allowed.includes(id))).toBe(true);
-    }
-  });
-
-  it('확률로 등장하고, 도전할 때마다 다시 뽑는다', async () => {
-    const stage = await loadStage(400);
-    expect(vipsOf(createGame(stage, () => VIP_CHANCE))).toEqual([]);
-    expect(vipsOf(createGame(stage, sequence(0, 0, 0.99, 0.99)))).toHaveLength(1);
-    const first = vipsOf(createGame(stage, sequence(0, 0, 0, 0, 0, 0)));
-    const second = vipsOf(createGame(stage, sequence(0, 0.99, 0, 0.99, 0, 0.99)));
-    expect(first).not.toEqual(second);
-  });
-
-  it('VIP로 뽑힌 손님은 주문판에 VIP로 나온다', async () => {
-    const stage = await loadStage(400);
-    const game = createGame(stage, () => 0);
-    expect(stage.orders.some(order => order.vip)).toBe(false);
-    const shown = game.orders.flatMap(order => order?.vip ? [order.definitionId] : []);
-    expect(shown.every(id => vipsOf(game).includes(id))).toBe(true);
-  });
-});
 
 describe('대기열 보상', () => {
   it(`${REWARDS_FROM_STAGE}번부터 스테이지마다 하나씩, 맨 앞 세 칸 밖의 보이는 디저트에 붙는다`, async () => {
@@ -113,11 +76,10 @@ describe('대기열 보상', () => {
 });
 
 describe.runIf(isFeaturePreviewStage(25))('기능 미리보기 (테스트용)', () => {
-  it('25번은 잠겨 있어도 열리고, 첫 손님이 VIP이며 보상 2종이 둘째 칸에 있다', async () => {
+  it('25번은 잠겨 있어도 열리고, 보상 2종이 둘째 칸에 있다', async () => {
     const at25 = reduceSession(createSession(), { type: 'START', stageId: 25, now: 0 });
     expect(at25.game.stageId).toBe(25);
     const stage25 = await loadStage(25);
-    expect(stage25.orders[0]?.vip).toBe(true);
     expect([stage25.queues[1]![1]!.reward, stage25.queues[3]![1]!.reward]).toEqual(['heart', 'trayClear']);
   });
 });

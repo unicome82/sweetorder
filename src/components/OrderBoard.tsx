@@ -73,10 +73,9 @@ function CustomerOrder({ order, slot, portraitOffset, onOrderReady }: {
     };
   }, [onOrderReady, orderId, sequence]);
 
-  return <article ref={root} className={`order-card${order.vip ? ' order-card--vip' : ''}`} style={{ gridColumn: slot + 1, gridRow: 1 }}
-    data-order-id={orderId} data-order-slot={slot} aria-label={order.vip ? t.vipOrderLabel(sequence) : t.orderLabel(sequence)}>
+  return <article ref={root} className="order-card" style={{ gridColumn: slot + 1, gridRow: 1 }}
+    data-order-id={orderId} data-order-slot={slot} aria-label={t.orderLabel(sequence)}>
     <div className="customer-visit"><div className="customer-scene"><Customer sequence={order.sequence + portraitOffset} />
-      {order.vip && <span className="vip-badge" aria-hidden="true"><span>{t.vipBadge}</span><small>{t.vipBonus}</small></span>}
       <span className="order-delivery" aria-hidden="true" /></div><div className="speech-bubble"><ul className="order-items">{DONUT_TYPES.filter(type => (order.remaining[type] ?? 0) > 0).map(type => <li key={type} data-order-item={type} aria-label={t.orderItem(t.items[type], order.remaining[type] ?? 0)}><Donut type={type} /><strong>{order.remaining[type]}</strong></li>)}</ul>
     </div></div>
   </article>;

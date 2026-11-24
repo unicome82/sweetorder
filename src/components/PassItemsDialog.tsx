@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type { PassItemChoice } from '../game/session';
 import type { Pass } from '../monetization/pass';
 import { useMessages } from '../i18n/language';
-import { Icon } from './Icon';
+import { AddTimeIcon, PeekIcon } from './ItemIcons';
 
 /**
  * Before a pass holder's attempt: switch on peek and/or +5 seconds for it. Only the items this stage can use
@@ -26,12 +26,12 @@ export function PassItemsDialog({ pass, available, initial, onStart, onClose }: 
     <p id="pass-items-hint" className="no-hearts-wait">{t.passItemsHint}</p>
     <div className="pass-items">
       {available.peek && <button type="button" className="pass-item" aria-pressed={!!choice.peek} onClick={() => toggle('peek')}>
-        <span className="pass-item-icon"><Icon name="visibility" /></span>
+        <span className="pass-item-icon"><PeekIcon /></span>
         <span className="pass-item-name">{t.passItemPeek}</span>
         <span className="pass-item-left">{t.passItemsLeft(pass.peeks)}</span>
       </button>}
       {available.addTime && <button type="button" className="pass-item" aria-pressed={!!choice.addTime} onClick={() => toggle('addTime')}>
-        <span className="pass-item-icon pass-item-icon--time" lang="en" aria-hidden="true">+5</span>
+        <span className="pass-item-icon"><AddTimeIcon /></span>
         <span className="pass-item-name">{t.passItemAddTime}</span>
         <span className="pass-item-left">{t.passItemsLeft(pass.timeBonuses)}</span>
       </button>}

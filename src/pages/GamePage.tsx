@@ -14,7 +14,6 @@ import { getStage, isBonusStage, practiceStage, STAGE_COUNT } from '../game/stag
 import { HeartIcon } from '../components/HeartIcon';
 import { getQueueHintColumns, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray } from '../game/engine';
 import type { DonutType, GameState, RewardKind } from '../game/types';
-import { VIP_BONUS_MS } from '../game/stages/extras';
 import type { GameAction } from '../game/reducer';
 import { getGameTimeLimit, getTimeStars } from '../game/stageTime';
 import { StageClock } from '../components/StageClock';
@@ -26,6 +25,7 @@ import { SettingsButton, type SettingsProps } from '../components/SettingsButton
 import { ads, type RewardedPlacement } from '../monetization/ads';
 import { PASS_TIME_BONUS_MS, type Pass } from '../monetization/pass';
 import { hasHiddenDesserts } from '../game/reducer';
+import { AddTimeIcon, PeekIcon } from '../components/ItemIcons';
 
 // Keep the standard pickup cadence independent of visual effect duration.
 const TRAY_READY_DELAY = 235;
@@ -227,17 +227,6 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         if (event.type === 'orderCompleted') nextPickupAt.current.delete(event.orderId);
       }
     }
-    // Each VIP order finished in this step puts time back on the clock (up to the stage's limit).
-    const vipDone = result.events.filter(event => event.type === 'orderCompleted'
-      && current.orders.some(order => order?.definitionId === event.orderId && order.vip)).length;
-    const timeBonus = vipDone > 0 && remaining !== undefined && remaining > 0;
-    if (timeBonus) {
-      remaining = Math.min(clockMax(current), remaining! + vipDone * VIP_BONUS_MS);
-      setDeadline(now + remaining);
-      setRemainingTimeMs(remaining);
-      if (soundEnabled) playSound('timeBonus');
-      showPop(id => setTimeBonusPops(previous => [...previous, id]), id => setTimeBonusPops(previous => previous.filter(pop => pop !== id)));
-    }
     for (const event of result.events) {
       if (event.type !== 'rewardCollected') continue;
       const column = root.current.querySelector(`[data-queue-index="${event.queueIndex}"]`)?.getBoundingClientRect();
@@ -414,19 +403,21 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const lastStage = state.stageId === STAGE_COUNT;
   // Helper items sit at the top left: peek on stages with "?" desserts, +5 seconds for pass holders in timed play.
   const itemsUsable = playing && !waitingForGoodbye && !showIntro && !adPlaying;
-  const stageHasHidden = useMemo(() => stage.queues.some(queue => queue.some(token => token.hidden)), [stage]);
+  // The peek icon shows one of the stage's hidden desserts.
+  const hiddenDessert = useMemo(() => stage.queues.flat().find(token => token.hidden && !token.reward)?.type, [stage]);
+  const stageHasHidden = hiddenDessert !== undefined;
   const showPeek = !practice && stageHasHidden;
   const showAddTime = !practice && !isBonusStage(state.stageId) && passActive && timeLimit > 0;
   const items = (showPeek || showAddTime) && <>
     {showPeek && <button type="button" className="icon-button header-item" onClick={requestPeek}
       disabled={!itemsUsable || !hasHiddenDesserts(state)} aria-label={peekNeedsAd ? t.peekAdLabel : t.peekLabel(passPeeks)}>
-      <Icon name="visibility" />
+      <PeekIcon dessert={hiddenDessert} />
       <span className={`tray-clear-shortcut-count${peekNeedsAd ? ' tray-clear-ad' : ''}`} lang={peekNeedsAd ? 'en' : undefined} aria-hidden="true">{peekNeedsAd ? 'AD' : passPeeks}</span>
     </button>}
-    {showAddTime && <button type="button" data-sfx="none" className="icon-button header-item header-item--time" onClick={() => act({ type: 'ADD_TIME' })}
+    {showAddTime && <button type="button" data-sfx="none" className="icon-button header-item" onClick={() => act({ type: 'ADD_TIME' })}
       disabled={!itemsUsable || state.timeBonusUsed || pass.timeBonuses <= 0}
       aria-label={t.addTimeLabel(pass.timeBonuses)}>
-      <span lang="en" aria-hidden="true">+5</span>
+      <AddTimeIcon />
       <span className="tray-clear-shortcut-count" aria-hidden="true">{pass.timeBonuses}</span>
     </button>}
   </>;

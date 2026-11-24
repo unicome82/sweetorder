@@ -5,9 +5,8 @@ export type RewardKind = 'heart' | 'trayClear';
 // hidden: shown as "?" until the token reaches the front of its queue.
 // reward: this slot is a reward, not a dessert; its type only copies a neighbour's and is never used.
 export interface DonutToken { id: string; type: DonutType; hidden?: boolean; reward?: RewardKind }
-// vip: finishing this customer's order adds time to the stage clock.
-export interface OrderDefinition { id: string; sequence: number; items: Partial<Record<DonutType, number>>; vip?: boolean }
-export interface ActiveOrder { definitionId: string; sequence: number; remaining: Partial<Record<DonutType, number>>; vip?: boolean }
+export interface OrderDefinition { id: string; sequence: number; items: Partial<Record<DonutType, number>> }
+export interface ActiveOrder { definitionId: string; sequence: number; remaining: Partial<Record<DonutType, number>> }
 export type StageDifficulty = 'easy' | 'normal' | 'hard';
 export interface StageDefinition {
   difficulty?: StageDifficulty;
@@ -20,11 +19,9 @@ export interface GameState {
   orders: Array<ActiveOrder | null>; nextOrderIndex: number;
   queues: DonutToken[][]; tray: DonutToken[]; trayCapacity: number;
   pendingMatchIds?: string[];
-  /** Relaxed mode: no clock, stars or VIPs, and one free tray clear instead of the carried ones. */
+  /** Relaxed mode: no clock or stars, and one free tray clear instead of the carried ones. */
   relaxed?: boolean;
   clearStars?: number;
-  /** Customers who are VIPs on this attempt; rolled afresh each time the stage starts. */
-  vipOrderIds?: string[];
   // Why play stopped while blocked or lost: the tray filled, or no reachable dessert can be picked up.
   blockedReason?: 'full' | 'stuck';
   completedOrders: number; trayClearsLeft: number; transitionId: number;

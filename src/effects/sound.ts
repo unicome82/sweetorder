@@ -177,7 +177,7 @@ const cueBuilders = {
     noises: [{ at: 0.1, freq: 8000, dur: 0.25, level: 0.04, attack: 0.02, q: 0.8, filter: 'highpass' }],
     echo: true,
   }),
-  // VIP order done: a quick rising G–C–E chime as time is added.
+  // +5 seconds: a quick rising G–C–E chime as time is added.
   timeBonus: (): Cue => ({
     tones: [
       { at: 0, freq: 783.99, dur: 0.2, level: 0.1, attack: 0.006, partials: bell },

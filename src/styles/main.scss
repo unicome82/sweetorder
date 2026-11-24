@@ -101,7 +101,6 @@
 .material-symbol--basket { --symbol: url('../assets/icons/shopping_basket.svg'); }
 .material-symbol--lock { --symbol: url('../assets/icons/lock.svg'); }
 .material-symbol--settings { --symbol: url('../assets/icons/settings.svg'); }
-.material-symbol--visibility { --symbol: url('../assets/icons/visibility.svg'); }
 .pause-button {
   position: absolute;
   top: calc(12px + var(--safe-top));
@@ -1135,35 +1134,8 @@
   100% { opacity: 0; scale: 1.05; translate: 0 -40px; }
 }
 
-// VIP customers wear a gold tag; finishing their order adds five seconds.
+// +5 seconds floats up from the clock.
 .stage-clock-wrap { position: relative; flex: none; z-index: 5; }
-.vip-badge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 2;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  width: 40px;
-  aspect-ratio: 1;
-  border: 2px solid #fff6d8;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff1a8, #f7c443 55%, #e79a1f);
-  box-shadow: inset 0 -3px #c97a12, 0 2px 4px #8a4d1040;
-  color: #6b3407;
-  font-family: Jua, sans-serif;
-  font-size: 13px;
-  line-height: 1;
-  pointer-events: none;
-  animation: vip-glow 1.6s ease-in-out infinite;
-}
-.vip-badge small { margin-top: 1px; font-size: 11px; }
-.order-card--vip .customer { filter: drop-shadow(0 0 6px #ffd56acc); }
-@keyframes vip-glow {
-  0%, 100% { box-shadow: inset 0 -3px #c97a12, 0 2px 4px #8a4d1040, 0 0 0 #ffd56a00; }
-  50% { box-shadow: inset 0 -3px #c97a12, 0 2px 4px #8a4d1040, 0 0 10px #ffd56acc; }
-}
 .time-bonus-pop {
   position: absolute;
   top: 50%;
@@ -1217,9 +1189,6 @@
   70% { opacity: 1; transform: translateY(-18px) scale(1); }
   100% { opacity: 0; transform: translateY(-30px) scale(1); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .vip-badge { animation: none; }
-}
 
 // Stand-in ad from the fake ad service (playtesting only).
 .fake-ad {
@@ -1241,7 +1210,31 @@
 .game-header-items { grid-column: 1; grid-row: 1; justify-self: start; display: flex; gap: 10px; }
 .header-item { position: relative; }
 .header-item .tray-clear-shortcut-count { top: -6px; right: -8px; min-width: 20px; height: 20px; font-size: 11px; }
-.header-item--time { font-family: Jua, sans-serif; font-size: 17px; line-height: 1; }
+// Peek: "?" and a dessert take turns; +5 seconds: a stopwatch with "+5s" inside.
+.peek-icon { display: grid; width: 28px; height: 28px; }
+.peek-icon > * { grid-area: 1 / 1; display: grid; place-items: center; }
+.peek-icon-mystery {
+  border: 2px dashed #d7a98b;
+  border-radius: 50%;
+  background: #fbe9da;
+  color: #b0785a;
+  font-family: Jua, sans-serif;
+  font-size: 17px;
+  line-height: 1;
+  animation: peek-mystery 2.4s ease-in-out infinite;
+}
+.peek-icon-dessert { opacity: 0; animation: peek-dessert 2.4s ease-in-out infinite; }
+.peek-icon-dessert .donut { width: 100%; }
+@keyframes peek-mystery { 0%, 38%, 100% { opacity: 1; } 50%, 88% { opacity: 0; } }
+@keyframes peek-dessert { 0%, 38%, 100% { opacity: 0; } 50%, 88% { opacity: 1; } }
+// Used up or not usable now: the "?" holds still.
+.header-item:disabled .peek-icon > * { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .peek-icon > * { animation: none; }
+}
+.add-time-icon { display: block; width: 30px; height: 30px; overflow: visible; }
+.pass-item-icon .peek-icon { width: 32px; height: 32px; }
+.pass-item-icon .add-time-icon { width: 32px; height: 32px; }
 
 // Pass holders switch items on for the next game before it starts.
 .pass-items { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; margin: 4px 0 16px; }
@@ -1264,10 +1257,9 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #f1d5c4;
-  color: #fff;
+  background: #fbe9da;
+  color: #b0785a;
 }
 .pass-item[aria-pressed='true'] .pass-item-icon { background: linear-gradient(#ff9bb0, #ec6a86); }
-.pass-item-icon--time { font-family: Jua, sans-serif; font-size: 18px; }
 .pass-item-name { font-size: 15px; font-weight: 800; }
 .pass-item-left { font-size: 12px; }

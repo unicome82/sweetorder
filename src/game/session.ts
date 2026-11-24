@@ -59,20 +59,13 @@ export const TIMED_TRAY_CLEARS_PER_GAME = 2;
 export const RELAXED_TRAY_CLEARS = 1;
 export const trayClearsPerGame = (relaxed: boolean) => relaxed ? RELAXED_TRAY_CLEARS : TIMED_TRAY_CLEARS_PER_GAME;
 /**
- * Sets an attempt up for its mode (relaxed drops VIPs). trayClearsLeft is the per-game cap: each use comes out of the
+ * Sets an attempt up for its mode. trayClearsLeft is the per-game cap: each use comes out of the
  * owned pool, or, with none left, is paid for with a rewarded ad (pass holders use them freely).
  */
 function withMode(game: GameState, relaxed: boolean): GameState {
   if (game.stageId === practiceStage.id) return game;
   const trayClearsLeft = trayClearsPerGame(relaxed);
-  if (!relaxed) return { ...game, trayClearsLeft };
-  const next: GameState = {
-    ...game, relaxed: true, trayClearsLeft,
-    orders: game.orders.map(order => order && { ...order, vip: undefined }),
-  };
-  delete next.vipOrderIds;
-  for (const order of next.orders) if (order) delete order.vip;
-  return next;
+  return relaxed ? { ...game, relaxed: true, trayClearsLeft } : { ...game, trayClearsLeft };
 }
 function createSessionGame(stageId: number, rewardedStages: readonly number[], relaxed: boolean, heartReward: boolean): GameState {
   return withMode(withoutUnearnableRewards(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), heartReward), relaxed);

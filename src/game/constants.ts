@@ -18,7 +18,7 @@ export const BONUS_AT_STAGE_00_FOR_TESTING = true;
 export const BONUS_STAGE_ID = 100_000;
 
 // Set to true to open the stages below at once for playtesting, with their new features up front:
-// the first customer is a VIP, and in stage 25 a heart and a tray clear sit second in two queues.
+// in stage 25 a heart and a tray clear sit second in two queues.
 // Their rewards can be collected on every attempt.
 export const FEATURE_PREVIEW_FOR_TESTING = false;
 export const FEATURE_PREVIEW_STAGES: readonly number[] = [25];
