@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { canQuickOrder, createGame, quickOrder, selectDonut } from './engine';
 import { createSession, reduceSession, type SessionState } from './session';
 import { loadAllStages, practiceStage } from './stages';
-import { isQuickOrderStage, QUICK_ORDER_FROM_STAGE } from './stages/extras';
+import { PASS_QUICK_ORDERS, purchasePass } from '../monetization/pass';
+import { QUICK_ORDER_FROM_STAGE, rewardFor } from './stages/extras';
 import { isFeaturePreviewStage } from './constants';
 import type { DonutType, GameState, StageDefinition } from './types';
 
@@ -37,13 +38,10 @@ function playTurns(state: GameState, stage: StageDefinition, turns: number): Gam
 }
 
 describe('퀵오더 등장', () => {
-  it(`${QUICK_ORDER_FROM_STAGE}번부터 10~15스테이지 간격으로 한 번씩, 그 스테이지의 보상 칸으로 나온다`, () => {
-    const ids = stages.map(stage => stage.id).filter(isQuickOrderStage);
-    expect(ids[0]).toBe(QUICK_ORDER_FROM_STAGE);
-    for (let i = 1; i < ids.length; i += 1) {
-      expect(ids[i]! - ids[i - 1]!).toBeGreaterThanOrEqual(10);
-      expect(ids[i]! - ids[i - 1]!).toBeLessThanOrEqual(15);
-    }
+  it(`${QUICK_ORDER_FROM_STAGE}번부터, 그 스테이지의 보상 칸으로 나온다`, () => {
+    const ids = stages.map(stage => stage.id).filter(id => rewardFor(id) === 'quickOrder');
+    expect(ids.length).toBeGreaterThan(0);
+    expect(Math.min(...ids)).toBeGreaterThanOrEqual(QUICK_ORDER_FROM_STAGE);
     expect(quickStages.map(stage => stage.id)).toEqual(ids.filter(id => !isFeaturePreviewStage(id)));
     for (const stage of quickStages) expect(stage.queues.flat().filter(token => token.reward)).toHaveLength(1);
   });
@@ -152,5 +150,41 @@ describe('퀵오더 보관', () => {
     expect(bonus.game.quickOrders).toBe(1);
     const practice = reduceSession({ ...base, quickOrders: 1 }, { type: 'START', stageId: practiceStage.id, now: 0 });
     expect(practice.game.quickOrders).toBeUndefined();
+  });
+});
+
+describe('패스 퀵오더', () => {
+  const use = (session: SessionState) => reduceSession(session, { type: 'GAME', action: { type: 'QUICK_ORDER' }, now: 0 });
+  const withPass = (quickOrders: number): SessionState => ({ ...createSession(true), quickOrders, pass: purchasePass(undefined, 0) });
+
+  it(`패스가 있으면 판마다 1개를 더 쓸 수 있고, 쓰면 패스에서 ${PASS_QUICK_ORDERS}개 중 하나가 줄어든다`, () => {
+    const started = reduceSession(withPass(0), { type: 'START', stageId: 40, now: 0 });
+    expect(started.game).toMatchObject({ quickOrders: 1, passQuickOrders: 1 });
+    const used = use(started);
+    expect(used.game).toMatchObject({ quickOrders: 0, passQuickOrders: 0 });
+    expect(used.quickOrders).toBe(0);
+    expect(used.pass!.quickOrders).toBe(PASS_QUICK_ORDERS - 1);
+    // A retry brings the pass's one back while the pass still has some.
+    const retried = reduceSession(used, { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
+    expect(retried.game).toMatchObject({ quickOrders: 1, passQuickOrders: 1 });
+    expect(retried.pass!.quickOrders).toBe(PASS_QUICK_ORDERS - 1);
+  });
+
+  it('가진 퀵오더를 먼저 쓰고, 그다음 패스 것을 쓴다', () => {
+    const started = reduceSession(withPass(1), { type: 'START', stageId: 40, now: 0 });
+    expect(started.game).toMatchObject({ quickOrders: 2, passQuickOrders: 1 });
+    const first = use(started);
+    expect(first.quickOrders).toBe(0);
+    expect(first.pass!.quickOrders).toBe(PASS_QUICK_ORDERS);
+    // The game moves on after a quick order; check the pass's turn on a fresh copy of the attempt.
+    const passTurn = use({ ...first, game: { ...started.game, quickOrders: 1 } });
+    expect(passTurn.quickOrders).toBe(0);
+    expect(passTurn.pass!.quickOrders).toBe(PASS_QUICK_ORDERS - 1);
+  });
+
+  it('패스가 없거나 패스 퀵오더를 다 쓰면 패스 몫은 없다', () => {
+    expect(reduceSession({ ...createSession(true), quickOrders: 0 }, { type: 'START', stageId: 40, now: 0 }).game).toMatchObject({ quickOrders: 0, passQuickOrders: 0 });
+    const spent = { ...withPass(0), pass: { ...purchasePass(undefined, 0), quickOrders: 0 } };
+    expect(reduceSession(spent, { type: 'START', stageId: 40, now: 0 }).game).toMatchObject({ quickOrders: 0, passQuickOrders: 0 });
   });
 });

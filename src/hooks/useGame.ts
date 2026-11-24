@@ -1,5 +1,5 @@
 import { useEffect, useReducer } from 'react';
-import { createSession, MAX_TRAY_CLEARS, reduceSession } from '../game/session';
+import { createSession, MAX_TRAY_CLEARS, reduceSession, type DailyRewards } from '../game/session';
 import { UNLIMITED_HEARTS_FOR_TESTING, UNLOCK_ALL_STAGES_FOR_TESTING } from '../game/constants';
 import { isStageId } from '../game/stages';
 import { parseHearts } from '../game/hearts';
@@ -33,10 +33,19 @@ function loadSession() {
     session.pass = parsePass(saved.pass);
     if (Number.isSafeInteger(saved.quickOrders) && saved.quickOrders > 0) session.quickOrders = Math.min(MAX_QUICK_ORDERS, saved.quickOrders);
     if (typeof saved.bonusDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(saved.bonusDay)) session.bonusDay = saved.bonusDay;
+    session.dailyRewards = parseDailyRewards(saved.dailyRewards);
   } catch {
     return session;
   }
   return session;
+}
+
+function parseDailyRewards(saved: unknown): DailyRewards | undefined {
+  if (!saved || typeof saved !== 'object') return undefined;
+  const { day, heart, trayClear, quickOrder } = saved as Record<string, unknown>;
+  const count = (n: unknown): n is number => Number.isSafeInteger(n) && (n as number) >= 0;
+  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day) || !count(heart) || !count(trayClear) || !count(quickOrder)) return undefined;
+  return { day, heart, trayClear, quickOrder };
 }
 
 export function encodeStars(stars: Record<number, number>): string {
@@ -47,13 +56,13 @@ export function encodeStars(stars: Record<number, number>): string {
 
 export function useGame() {
   const [session, dispatch] = useReducer(reduceSession, undefined, loadSession);
-  const { stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders } = session;
+  const { stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, dailyRewards } = session;
   useEffect(() => {
     try {
-      localStorage.setItem(progressKey, JSON.stringify({ stars: encodeStars(stars), score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, clearsVersion: 2, progressVersion: 3 }));
+      localStorage.setItem(progressKey, JSON.stringify({ stars: encodeStars(stars), score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, dailyRewards, clearsVersion: 2, progressVersion: 3 }));
     } catch {
       // Play can continue when browser storage is unavailable.
     }
-  }, [stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders]);
+  }, [stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, dailyRewards]);
   return { session, dispatch };
 }

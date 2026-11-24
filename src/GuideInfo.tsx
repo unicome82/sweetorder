@@ -5,13 +5,13 @@ import { BASE_TRAY_CAPACITY, MAX_ORDER_QUANTITY, ORDER_SLOTS, QUEUE_COUNT } from
 import { HEART_REFILL_MS, MAX_HEARTS } from './game/hearts';
 import { MAX_QUICK_ORDERS } from './game/engine';
 import {
-  MAX_TRAY_CLEARS, POINTS_PER_ORDER, RELAXED_TRAY_CLEARS, STARTING_TRAY_CLEARS, TIMED_TRAY_CLEARS_PER_GAME,
+  DAILY_REWARD_LIMITS, MAX_TRAY_CLEARS, POINTS_PER_ORDER, RELAXED_TRAY_CLEARS, STARTING_TRAY_CLEARS, TIMED_TRAY_CLEARS_PER_GAME,
 } from './game/session';
-import { QUICK_ORDER_FROM_STAGE, QUICK_ORDER_GAP_MAX, QUICK_ORDER_GAP_MIN, REWARD_MIN_DEPTH, REWARDS_FROM_STAGE } from './game/stages/extras';
+import { QUICK_ORDER_FROM_STAGE, REWARD_MIN_DEPTH, REWARD_SPLIT_PERCENT, REWARD_STAGE_PERCENT, REWARDS_FROM_STAGE } from './game/stages/extras';
 import { STAGE_COUNT, firstHiddenCount, hiddenDessertsAfterStage, maxHiddenCount } from './game/stages/schedule';
 import { TRAY_CAPACITY_BY_DIFFICULTY } from './game/trayCapacity';
 import {
-  PASS_DAYS, PASS_PEEKS, PASS_REMINDER_MS, PASS_SPARE_HEARTS, PASS_TIME_BONUS_MS, PASS_TIME_BONUSES,
+  PASS_DAYS, PASS_PEEKS, PASS_QUICK_ORDERS, PASS_REMINDER_MS, PASS_SPARE_HEARTS, PASS_TIME_BONUS_MS, PASS_TIME_BONUSES,
 } from './monetization/pass';
 
 // Game facts for the guide. Numbers come straight from the game's constants, so the page follows any change to them.
@@ -63,11 +63,11 @@ const items = <ul className="info-items">
   </li>
   <li>
     <span className="info-item-icon"><img src={basket} alt="" /></span>
-    <div><h3>트레이 비우기</h3><p>트레이의 디저트를 대기열로 돌려보내요. 시작 시 {STARTING_TRAY_CLEARS}개 지급, 한 판에 타이머 {TIMED_TRAY_CLEARS_PER_GAME}회 · 릴랙스 {RELAXED_TRAY_CLEARS}회까지. 보유 0개면 광고로 사용.</p></div>
+    <div><h3>트레이 비우기</h3><p>트레이의 디저트를 대기열로 돌려보내요. 시작 시 {STARTING_TRAY_CLEARS}개 지급, 스테이지 보상으로 최대 {MAX_TRAY_CLEARS}개까지 보유, 한 판에 타이머 {TIMED_TRAY_CLEARS_PER_GAME}회 · 릴랙스 {RELAXED_TRAY_CLEARS}회까지. 보유 0개면 광고로 사용.</p></div>
   </li>
   <li>
     <span className="info-item-icon info-item-icon--quick"><QuickOrderIcon /></span>
-    <div><h3>퀵오더</h3><p>화면의 손님 주문을 한 번에 채워요 (트레이 → 대기열 순). 최대 {MAX_QUICK_ORDERS}개 보유, 스테이지 보상으로만 획득.</p></div>
+    <div><h3>퀵오더</h3><p>화면의 손님 주문을 한 번에 채워요 (트레이 → 대기열 순). 최대 {MAX_QUICK_ORDERS}개 보유, 스테이지 보상으로 획득. 패스가 있으면 한 판에 1개 더.</p></div>
   </li>
   <li>
     <span className="info-item-icon info-item-icon--text" aria-hidden="true">?</span>
@@ -90,17 +90,18 @@ const settings = <>
   <Table head={['아이템', '시작', '최대 보유', '한 판 사용', '없을 때']} rows={[
     ['하트', MAX_HEARTS, MAX_HEARTS, '입장 1개', `${minutes(HEART_REFILL_MS)}분 충전 · 광고`],
     ['트레이 비우기', STARTING_TRAY_CLEARS, MAX_TRAY_CLEARS, `${TIMED_TRAY_CLEARS_PER_GAME} (릴랙스 ${RELAXED_TRAY_CLEARS})`, '광고'],
-    ['퀵오더', 0, MAX_QUICK_ORDERS, '보유분', '없음'],
+    ['퀵오더', 0, MAX_QUICK_ORDERS, '보유분 (+ 패스 1)', '패스'],
     ['미리보기', '—', '—', '1', '광고'],
     ['+5초', '—', '—', '1', '패스 전용'],
   ]} />
   <h3 className="info-subheading">스테이지 보상</h3>
   <Table head={['항목', '값']} rows={[
-    ['보상 시작', `${REWARDS_FROM_STAGE}스테이지부터, 스테이지당 1개`],
+    ['보상 시작', `${REWARDS_FROM_STAGE}스테이지부터, 스테이지의 ${REWARD_STAGE_PERCENT}%에 1개씩`],
     ['보상 위치', `대기열 ${REWARD_MIN_DEPTH + 1}번째 이후`],
-    ['하트 / 트레이 비우기', '50 : 50 배치 (트레이 비우기는 현재 지급되지 않음)'],
-    ['퀵오더', `${QUICK_ORDER_FROM_STAGE}스테이지부터 ${QUICK_ORDER_GAP_MIN}~${QUICK_ORDER_GAP_MAX}스테이지마다 (그 스테이지 보상을 대신함)`],
-    ['받지 못하는 경우', '하트가 꽉 찼을 때 · 퀵오더를 이미 보유했을 때 · 이미 받은 스테이지'],
+    ['보상 종류 비율', `하트 ${REWARD_SPLIT_PERCENT.heart} : 트레이 비우기 ${REWARD_SPLIT_PERCENT.trayClear} : 퀵오더 ${REWARD_SPLIT_PERCENT.quickOrder} (퀵오더는 ${QUICK_ORDER_FROM_STAGE}스테이지부터, 그 전엔 하트)`],
+    ['스테이지당 확률', `하트 ${REWARD_STAGE_PERCENT * REWARD_SPLIT_PERCENT.heart / 100}% · 트레이 비우기 ${REWARD_STAGE_PERCENT * REWARD_SPLIT_PERCENT.trayClear / 100}% · 퀵오더 ${REWARD_STAGE_PERCENT * REWARD_SPLIT_PERCENT.quickOrder / 100}%`],
+    ['하루 한도', `하트 ${DAILY_REWARD_LIMITS.heart} · 트레이 비우기 ${DAILY_REWARD_LIMITS.trayClear} · 퀵오더 ${DAILY_REWARD_LIMITS.quickOrder} (기기 날짜 기준)`],
+    ['나오지 않는 경우', '하루 한도에 닿았을 때 · 보유가 가득할 때 · 이미 받은 스테이지 (앞의 두 경우는 다음에 다시 나옴)'],
     ['보너스 스테이지', '하루 1회, 클리어 시 하트 1개'],
   ]} />
 </>;
@@ -113,7 +114,7 @@ const pass = <div className="info-pass">
     ['트레이 비우기', `보유분 → 광고`, '무료 (한 판 한도 안에서)'],
     ['미리보기', '광고', `${PASS_PEEKS}회`],
     ['+5초', '사용 불가', `${PASS_TIME_BONUSES}회`],
-    ['퀵오더', '보상으로만', '보상으로만'],
+    ['퀵오더', '보상으로만', `+ ${PASS_QUICK_ORDERS}개 (한 판에 1개)`],
     ['만료 알림', '—', `만료 ${days(PASS_REMINDER_MS)}일 전부터`],
   ]} />
 </div>;
