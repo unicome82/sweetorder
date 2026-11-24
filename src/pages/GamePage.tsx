@@ -73,23 +73,27 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const introMs = hasIntro ? INTRO_MS : 0;
   const [introRound, setIntroRound] = useState<number | null>(hasIntro ? 0 : null);
   const showIntro = introRound === round;
-  const [deadline, setDeadline] = useState(() => performance.now() + timeLimit + introMs);
+  // +5 seconds may take the clock past the stage's limit, by those 5 seconds at most.
+  const clockMax = (game: GameState) => timeLimit + (game.timeBonusUsed ? PASS_TIME_BONUS_MS : 0);
+  const currentClockMax = clockMax(state);
+  // Chosen before the start, +5 seconds is on the clock from the first moment.
+  const [deadline, setDeadline] = useState(() => performance.now() + currentClockMax + introMs);
   const [pausedTimeMs, setPausedTimeMs] = useState<number>();
-  const [remainingTimeMs, setRemainingTimeMs] = useState(timeLimit);
+  const [remainingTimeMs, setRemainingTimeMs] = useState(currentClockMax);
   const timerRunning = timeLimit > 0 && state.status === 'playing';
   const showClock = timerRunning || (timeLimit > 0 && (state.status === 'blocked' || state.status === 'paused'));
   // The clock stops at 0:00 and play goes on; a clear from then on earns one star.
   useLayoutEffect(() => {
     if (!timerRunning) return;
     const updateClock = () => {
-      const remaining = Math.min(timeLimit, Math.max(0, deadline - performance.now()));
+      const remaining = Math.min(currentClockMax, Math.max(0, deadline - performance.now()));
       setRemainingTimeMs(remaining);
       if (remaining === 0) clearInterval(interval);
     };
     const interval = setInterval(updateClock, 100);
     const deadlineTimer = setTimeout(updateClock, Math.max(0, Math.ceil(deadline - performance.now())));
     return () => { clearInterval(interval); clearTimeout(deadlineTimer); };
-  }, [deadline, timerRunning]);
+  }, [deadline, timerRunning, currentClockMax]);
   const nextPickupAt = useRef(new Map<string, number>());
   const onOrderReady = useCallback((id: string) => {
     setReadyOrders(previous => previous.includes(id) ? previous : [...previous, id]);
@@ -158,7 +162,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     const current = latest.current;
     const now = performance.now();
     let remaining = timeLimit > 0
-      ? (current.status === 'blocked' || current.status === 'paused' ? pausedTimeMs : undefined) ?? Math.min(timeLimit, Math.max(0, deadline - now))
+      ? (current.status === 'blocked' || current.status === 'paused' ? pausedTimeMs : undefined) ?? Math.min(clockMax(current), Math.max(0, deadline - now))
       : undefined;
     if (action.type === 'TRAY_READY' && current.status === 'paused') {
       deferredMatches.current.push(action.donutId);
@@ -187,7 +191,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     }
     if (action.type === 'ADD_TIME') {
       if (current.status !== 'playing' || current.timeBonusUsed || remaining === undefined) return;
-      remaining = Math.min(timeLimit, remaining + PASS_TIME_BONUS_MS);
+      remaining += PASS_TIME_BONUS_MS;
       setDeadline(now + remaining);
       setRemainingTimeMs(remaining);
       haptic('select');
@@ -228,7 +232,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       && current.orders.some(order => order?.definitionId === event.orderId && order.vip)).length;
     const timeBonus = vipDone > 0 && remaining !== undefined && remaining > 0;
     if (timeBonus) {
-      remaining = Math.min(timeLimit, remaining! + vipDone * VIP_BONUS_MS);
+      remaining = Math.min(clockMax(current), remaining! + vipDone * VIP_BONUS_MS);
       setDeadline(now + remaining);
       setRemainingTimeMs(remaining);
       if (soundEnabled) playSound('timeBonus');
@@ -420,8 +424,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <span className={`tray-clear-shortcut-count${peekNeedsAd ? ' tray-clear-ad' : ''}`} lang={peekNeedsAd ? 'en' : undefined} aria-hidden="true">{peekNeedsAd ? 'AD' : passPeeks}</span>
     </button>}
     {showAddTime && <button type="button" data-sfx="none" className="icon-button header-item header-item--time" onClick={() => act({ type: 'ADD_TIME' })}
-      // Usable once 5 seconds have run, so none of them is lost to the stage's limit.
-      disabled={!itemsUsable || state.timeBonusUsed || pass.timeBonuses <= 0 || remainingTimeMs > timeLimit - PASS_TIME_BONUS_MS}
+      disabled={!itemsUsable || state.timeBonusUsed || pass.timeBonuses <= 0}
       aria-label={t.addTimeLabel(pass.timeBonuses)}>
       <span lang="en" aria-hidden="true">+5</span>
       <span className="tray-clear-shortcut-count" aria-hidden="true">{pass.timeBonuses}</span>

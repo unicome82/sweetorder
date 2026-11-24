@@ -1,6 +1,6 @@
 import { createGame, getStars } from './engine';
 import { getStage, isBonusStage, isStageId, practiceStage, prepareBonusStage, STAGE_COUNT } from './stages';
-import { reduceGame, type GameAction } from './reducer';
+import { hasHiddenDesserts, reduceGame, type GameAction } from './reducer';
 import { addHeart, canEarnHearts, chargeFromBonus, fullHearts, refillHearts, spendHeart, type HeartSource, type Hearts } from './hearts';
 import type { DonutType, GameState } from './types';
 import { isFeaturePreviewStage } from './constants';
@@ -34,7 +34,8 @@ export interface SessionState {
 export type SessionAction =
   | { type: 'HOME' }
   | { type: 'STAGES' }
-  | { type: 'START'; stageId: number; now?: number; relaxed?: boolean }
+  /** passItems: pass benefits chosen in the pre-start popup, applied as the attempt begins. */
+  | { type: 'START'; stageId: number; now?: number; relaxed?: boolean; passItems?: PassItemChoice }
   /** testing: the Stage 00 playtest entry, which leaves the daily bonus stage unused. */
   | { type: 'START_BONUS'; dessert: DonutType; nextStageId: number; relaxed?: boolean; now?: number; testing?: boolean }
   | { type: 'GAME'; action: GameAction; now?: number }
@@ -42,6 +43,9 @@ export type SessionAction =
   | { type: 'BUY_PASS'; now?: number }
   /** Playtesting only: drops the pass as if it had run out. */
   | { type: 'END_PASS' };
+
+/** Pass benefits a pass holder can switch on before an attempt starts. */
+export interface PassItemChoice { peek?: boolean; addTime?: boolean }
 
 export function createSession(unlockAllStages = false, unlimitedHearts = false): SessionState {
   return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, unlimitedHearts, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [] };
@@ -99,6 +103,30 @@ function spendPassItems(pass: Pass | undefined, before: GameState, after: GameSt
   const peeks = after.peeked && !before.peeked && pass.peeks > 0 ? 1 : 0;
   return timeBonuses || peeks ? { ...pass, timeBonuses: pass.timeBonuses - timeBonuses, peeks: pass.peeks - peeks } : pass;
 }
+/** Which pass benefits can be switched on before this attempt: each needs one left and a use on this stage. */
+export function availablePassItems(game: GameState, pass: Pass | undefined, now: number): Required<PassItemChoice> {
+  const active = isPassActive(pass, now) && game.stageId !== practiceStage.id && !isBonusStage(game.stageId);
+  return {
+    peek: active && pass!.peeks > 0 && hasHiddenDesserts(game),
+    addTime: active && pass!.timeBonuses > 0 && !game.relaxed,
+  };
+}
+/** The pass benefits the pre-start popup can offer for this stage; the stage must be loaded. */
+export function passItemsBeforeStart(state: SessionState, stageId: number, relaxed: boolean, now = Date.now()): Required<PassItemChoice> {
+  return availablePassItems({ ...createGame(getStage(stageId)), relaxed }, state.pass, now);
+}
+/** Applies pre-start pass choices: peek opens with the "?" desserts shown, +5 seconds starts on the clock. */
+function applyPassItems(game: GameState, pass: Pass | undefined, choice: PassItemChoice | undefined, now: number): { game: GameState; pass?: Pass } {
+  if (!choice || !pass) return { game, pass };
+  const available = availablePassItems(game, pass, now);
+  const peek = !!choice.peek && available.peek;
+  const addTime = !!choice.addTime && available.addTime;
+  if (!peek && !addTime) return { game, pass };
+  return {
+    game: { ...game, ...(peek ? { peeked: true } : {}), ...(addTime ? { timeBonusUsed: true } : {}) },
+    pass: { ...pass, peeks: pass.peeks - (peek ? 1 : 0), timeBonuses: pass.timeBonuses - (addTime ? 1 : 0) },
+  };
+}
 /** A heart picked up from the queues always goes to the bonus pool. */
 function grantHeart(hearts: Hearts, now: number): Hearts {
   return addHeart(hearts, now, 'bonus');
@@ -149,8 +177,9 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const now = action.now ?? Date.now();
       const payment = payForAttempt(state, action.stageId, now);
       if (!payment) return state;
-      const game = createSessionGame(action.stageId, state.rewardedStages, action.relaxed ?? false, canEarnHearts(state.hearts, now));
-      return { ...state, ...payment, bonus: undefined, screen: 'game', game };
+      const created = createSessionGame(action.stageId, state.rewardedStages, action.relaxed ?? false, canEarnHearts(state.hearts, now));
+      const { game, pass } = applyPassItems(created, state.pass, action.passItems, now);
+      return { ...state, ...payment, pass, bonus: undefined, screen: 'game', game };
     }
     case 'BUY_PASS': return { ...state, pass: purchasePass(state.pass, action.now ?? Date.now()) };
     case 'END_PASS': return { ...state, pass: undefined };

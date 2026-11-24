@@ -12,7 +12,8 @@ function formatTime(ms: number) {
 
 export function StageClock({ remainingMs, limitMs }: { remainingMs: number; limitMs: number }) {
   const t = useMessages();
-  const remainingPercent = remainingMs / limitMs * 100;
+  // +5 seconds can run past the limit; the bar stays full until it is back under.
+  const remainingPercent = Math.min(100, remainingMs / limitMs * 100);
   const stars = getTimeStars(remainingMs, limitMs);
   return <div className="stage-clock" role="progressbar" aria-label={t.timeLeft}
     aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(remainingPercent)}

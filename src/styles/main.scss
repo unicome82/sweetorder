@@ -1242,3 +1242,32 @@
 .header-item { position: relative; }
 .header-item .tray-clear-shortcut-count { top: -6px; right: -8px; min-width: 20px; height: 20px; font-size: 11px; }
 .header-item--time { font-family: Jua, sans-serif; font-size: 17px; line-height: 1; }
+
+// Pass holders switch items on for the next game before it starts.
+.pass-items { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; margin: 4px 0 16px; }
+.pass-item {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 8px 10px;
+  border: 2px solid #f1d5c4;
+  border-radius: 18px;
+  background: #fffaf4;
+  color: #9a6a52;
+  font: inherit;
+  cursor: pointer;
+}
+.pass-item[aria-pressed='true'] { border-color: #ec6a86; background: #ffeef1; color: #813f29; box-shadow: 0 2px 6px #ec6a8640; }
+.pass-item-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #f1d5c4;
+  color: #fff;
+}
+.pass-item[aria-pressed='true'] .pass-item-icon { background: linear-gradient(#ff9bb0, #ec6a86); }
+.pass-item-icon--time { font-family: Jua, sans-serif; font-size: 18px; }
+.pass-item-name { font-size: 15px; font-weight: 800; }
+.pass-item-left { font-size: 12px; }

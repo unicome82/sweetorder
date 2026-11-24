@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hasHiddenDesserts } from './reducer';
-import { createSession, reduceSession, type SessionState } from './session';
+import { createSession, passItemsBeforeStart, reduceSession, type SessionState } from './session';
 import { loadAllStages } from './stages';
 import { createGame } from './engine';
 import { PASS_PEEKS, PASS_TIME_BONUSES } from '../monetization/pass';
@@ -65,5 +65,28 @@ describe('타이머 +5초', () => {
     expect(game(empty, 'ADD_TIME')).toBe(empty);
     const relaxed = start(withPass, plainStage.id, true);
     expect(game(relaxed, 'ADD_TIME')).toBe(relaxed);
+  });
+});
+
+describe('시작 전 패스 아이템 선택', () => {
+  it('고르면 엿보기는 물음표가 공개된 채로, +5초는 쓴 채로 시작하고 각각 1회 차감한다', () => {
+    const session = { ...withPass, unlockAllStages: true };
+    expect(passItemsBeforeStart(session, hiddenStage.id, false, 1)).toEqual({ peek: true, addTime: true });
+    const started = reduceSession(session, { type: 'START', stageId: hiddenStage.id, now: 1, passItems: { peek: true, addTime: true } });
+    expect(started.game).toMatchObject({ peeked: true, timeBonusUsed: true });
+    expect(started.pass).toMatchObject({ peeks: PASS_PEEKS - 1, timeBonuses: PASS_TIME_BONUSES - 1 });
+    // Already used this attempt, so the in-game buttons do nothing more.
+    expect(game(started, 'ADD_TIME')).toBe(started);
+    expect(game(started, 'PEEK')).toBe(started);
+  });
+
+  it('스테이지에서 쓸 수 없는 아이템은 골라도 적용·차감하지 않는다', () => {
+    const session = { ...withPass, unlockAllStages: true };
+    expect(passItemsBeforeStart(session, plainStage.id, true, 1)).toEqual({ peek: false, addTime: false });
+    const started = reduceSession(session, { type: 'START', stageId: plainStage.id, relaxed: true, now: 1, passItems: { peek: true, addTime: true } });
+    expect(started.game.peeked).toBeUndefined();
+    expect(started.game.timeBonusUsed).toBeUndefined();
+    expect(started.pass).toEqual(withPass.pass);
+    expect(passItemsBeforeStart({ ...createSession(), unlockAllStages: true }, hiddenStage.id, false, 1)).toEqual({ peek: false, addTime: false });
   });
 });

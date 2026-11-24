@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { LanguageContext, readLanguagePreference, saveLanguagePreference } from '../i18n/language';
 import type { MouseEvent } from 'react';
 import { playSound, readSoundPreference, saveSoundPreference, setMusicScene, unlockSound } from '../effects/sound';
-import { canAffordAttempt, canPlayBonusToday, getCurrentStage } from '../game/session';
+import { canAffordAttempt, canPlayBonusToday, getCurrentStage, passItemsBeforeStart, type PassItemChoice } from '../game/session';
+import { PassItemsDialog } from '../components/PassItemsDialog';
 import { MAX_HEARTS } from '../game/hearts';
 import { isBonusStage, isStageLoaded, loadStage, practiceStage, preloadStage } from '../game/stages';
 import { randomBonusDessert } from '../game/stages/bonus';
@@ -72,6 +73,20 @@ export function App() {
     setOutOfHearts(undefined);
     dispatch({ type: 'START_BONUS', dessert: randomBonusDessert(), nextStageId, relaxed, now: Date.now() });
   }
+  // Pass holders choose peek / +5 seconds for the attempt first, when the stage can use either; the last choice is kept.
+  const [preStart, setPreStart] = useState<{ stageId: number; available: Required<PassItemChoice> }>();
+  const [passChoice, setPassChoice] = useState<PassItemChoice>({});
+  function enter(stageId: number) {
+    const available = passItemsBeforeStart(session, stageId, relaxed);
+    if (available.peek || available.addTime) setPreStart({ stageId, available });
+    else dispatch({ type: 'START', stageId, relaxed });
+  }
+  function startWithPassItems(choice: PassItemChoice) {
+    if (!preStart) return;
+    setPassChoice(choice);
+    setPreStart(undefined);
+    dispatch({ type: 'START', stageId: preStart.stageId, relaxed, passItems: choice });
+  }
   // Stage data arrives in 100-stage chunks; fetch the one a START needs before entering it.
   function start(stageId: number) {
     if (BONUS_AT_STAGE_00_FOR_TESTING && stageId === practiceStage.id) {
@@ -79,9 +94,9 @@ export function App() {
       return;
     }
     if (!canAffordAttempt(session, stageId)) { setOutOfHearts(stageId); return; }
-    if (isStageLoaded(stageId)) { dispatch({ type: 'START', stageId, relaxed }); return; }
+    if (isStageLoaded(stageId)) { enter(stageId); return; }
     setLoadingStage(stageId);
-    loadStage(stageId).then(() => dispatch({ type: 'START', stageId, relaxed }), () => undefined)
+    loadStage(stageId).then(() => enter(stageId), () => undefined)
       .finally(() => setLoadingStage(previous => previous === stageId ? undefined : previous));
   }
   function next() {
@@ -111,6 +126,8 @@ export function App() {
       onBonus={() => startDailyBonus(outOfHearts)} />}
     {chargeOpen && <ChargeHeartsDialog hearts={displayedHearts} onClose={() => setChargeOpen(false)}
       onCharge={amount => { dispatch({ type: 'CHARGE_HEARTS', amount, now: Date.now() }); setChargeOpen(false); }} />}
+    {preStart && session.pass && <PassItemsDialog pass={session.pass} available={preStart.available} initial={passChoice}
+      onStart={startWithPassItems} onClose={() => setPreStart(undefined)} />}
     <FakeAdHost />
     {loadingStage !== undefined && <p className="stage-loading" role="status">Loading…</p>}
   </div></LanguageContext>;
