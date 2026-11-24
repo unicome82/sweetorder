@@ -118,7 +118,10 @@ export function App() {
     if (await billing.purchasePass()) dispatch({ type: 'BUY_PASS', now: Date.now() });
   }
   const testPass = FAKE_MONETIZATION_FOR_TESTING
-    ? { pass: session.pass, onBuy: () => void buyPass(), onEnd: () => dispatch({ type: 'END_PASS' }) }
+    ? {
+      pass: session.pass, onBuy: () => void buyPass(), onEnd: () => dispatch({ type: 'END_PASS' }),
+      onFillHearts: () => dispatch({ type: 'TEST_HEARTS', full: true }), onEmptyHearts: () => dispatch({ type: 'TEST_HEARTS', full: false, now: Date.now() }),
+    }
     : undefined;
   const settings: SettingsProps = { soundEnabled, onToggleSound: toggleSound, language, onLanguage: changeLanguage, mode, onMode: changeMode, testPass };
   // Warm the chunks the player is likely to open next.

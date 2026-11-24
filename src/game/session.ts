@@ -46,7 +46,9 @@ export type SessionAction =
   | { type: 'AD_HEARTS'; now?: number }
   | { type: 'BUY_PASS'; now?: number }
   /** Playtesting only: drops the pass as if it had run out. */
-  | { type: 'END_PASS' };
+  | { type: 'END_PASS' }
+  /** Playtesting only: fills the regular hearts to five, or empties them with the refill starting now. */
+  | { type: 'TEST_HEARTS'; full: boolean; now?: number };
 
 /** Items switched on in the pre-start popup; they can't be used once the attempt is under way. */
 export interface ItemChoice { peek?: boolean; addTime?: boolean }
@@ -208,6 +210,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const endedAt = state.pass && Math.min(state.pass.expiresAt, now);
       return { ...state, pass: undefined, hearts: rebaseRefill(state.hearts, now, endedAt, undefined) };
     }
+    case 'TEST_HEARTS': return { ...state, hearts: action.full ? fullHearts() : { count: 0, refillFrom: action.now ?? Date.now() } };
     case 'AD_HEARTS': return { ...state, hearts: addHeart(state.hearts, action.now ?? Date.now(), heartsFastUntil(state)) };
     case 'START_BONUS': {
       // Entering uses up the day's bonus stage, so leaving and coming back can't repeat it.

@@ -12,7 +12,7 @@ export interface SettingsProps {
   language: Language; onLanguage: (language: Language) => void;
   mode: PlayMode; onMode: (mode: PlayMode) => void;
   /** Playtesting only: the fake pass and a switch for it. */
-  testPass?: { pass?: Pass; onBuy: () => void; onEnd: () => void };
+  testPass?: { pass?: Pass; onBuy: () => void; onEnd: () => void; onFillHearts: () => void; onEmptyHearts: () => void };
 }
 
 function Segmented<T extends string>({ label, value, options, onChange, disabled }: {
@@ -24,7 +24,7 @@ function Segmented<T extends string>({ label, value, options, onChange, disabled
   </div>;
 }
 
-function TestPass({ pass, onBuy, onEnd }: NonNullable<SettingsProps['testPass']>) {
+function TestPass({ pass, onBuy, onEnd, onFillHearts, onEmptyHearts }: NonNullable<SettingsProps['testPass']>) {
   const t = useMessages();
   const daysLeft = passDaysLeft(pass, useNow());
   return <>
@@ -32,6 +32,11 @@ function TestPass({ pass, onBuy, onEnd }: NonNullable<SettingsProps['testPass']>
     <div className="settings-segmented" role="group" aria-label={t.testPass}>
       <button type="button" onClick={onBuy}>{t.testPassBuy}</button>
       <button type="button" disabled={!pass} onClick={onEnd}>{t.testPassEnd}</button>
+    </div>
+    <p className="settings-hint">{t.testHearts}</p>
+    <div className="settings-segmented" role="group" aria-label={t.testHearts}>
+      <button type="button" onClick={onFillHearts}>{t.testHeartsFill}</button>
+      <button type="button" onClick={onEmptyHearts}>{t.testHeartsEmpty}</button>
     </div>
   </>;
 }
