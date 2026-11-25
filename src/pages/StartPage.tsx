@@ -21,13 +21,29 @@ const posters = Object.entries(posterSources).map(([path, src]) => ({
   src,
   background: posterBackgrounds[path.split('/').at(-1)?.replace('.webp', '') ?? ''],
 }));
+const diagnosticKey = 'sweetorder:pwa-diagnostic';
 
 export function StartPage({ stage, onGame, onStages, settings }: {
   stage: number; onGame: () => void; onStages: () => void; settings: SettingsProps;
 }) {
   const t = useMessages();
   const [poster] = useState(() => posters[Math.floor(Math.random() * posters.length)]);
-  const [diagnostic, setDiagnostic] = useState('default');
+  const [diagnostic, setDiagnostic] = useState(() => {
+    try { return localStorage.getItem(diagnosticKey) ?? 'default'; }
+    catch { return 'default'; }
+  });
+  const changeDiagnostic = (next: string) => {
+    const reload = (diagnostic === 'status-bar') !== (next === 'status-bar');
+    try { localStorage.setItem(diagnosticKey, next); }
+    catch {
+      if (reload) {
+        window.alert('이 옵션을 적용하려면 브라우저 저장소를 사용할 수 있어야 합니다.');
+        return;
+      }
+    }
+    if (reload) window.location.reload();
+    else setDiagnostic(next);
+  };
   const page = useRef<HTMLElement>(null);
   const stageSelect = useRef<HTMLButtonElement>(null);
   const diagnosticResult = useRef<HTMLOutputElement>(null);
@@ -51,13 +67,14 @@ export function StartPage({ stage, onGame, onStages, settings }: {
     <h1 className="sr-only">Sweet Order</h1>
     <img className="start-poster" src={poster?.src} width={800} height={1800} alt="" draggable={false} fetchPriority="high" />
     <div className="pwa-diagnostic">
-      <select aria-label="iOS PWA 진단" value={diagnostic} onChange={event => setDiagnostic(event.target.value)}>
+      <select aria-label="iOS PWA 진단" value={diagnostic} onChange={event => changeDiagnostic(event.target.value)}>
         <option value="default">진단 · 기본 상태</option>
         <option value="filters">필터 끄기</option>
         <option value="screen-height">화면 높이 보정 끄기</option>
         <option value="viewport">높이를 100dvh로 고정</option>
         <option value="safe-area">상단 safe-area 끄기</option>
         <option value="stripes">줄무늬 배경</option>
+        <option value="status-bar">상태바 뒤 배경 끄기</option>
       </select>
       <output ref={diagnosticResult} />
     </div>
