@@ -596,18 +596,18 @@
   aspect-ratio: 1;
   height: 100%;
   padding: 0 0 4px;
-  border: 1px solid #308ad5;
+  border: 1px solid #7fa1b3;
   border-radius: 15px;
-  background: linear-gradient(#72caff, #318fdf);
+  background: linear-gradient(#a9c8d7, #7199b0);
   color: #fff;
-  box-shadow: inset 0 -4px #256fb9, 0 2px 3px #aa6b3b15;
+  box-shadow: inset 0 -4px #5d8198, 0 2px 3px #aa6b3b15;
 }
-.tray-clear-shortcut:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 -2px #256fb9, 0 1px 2px #aa6b3b15; }
+.tray-clear-shortcut:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 -2px #5d8198, 0 1px 2px #aa6b3b15; }
 .tray-clear-shortcut:disabled {
-  border-color: #bedcf5;
-  background: linear-gradient(#eef8ff, #dbedfc);
+  border-color: #cfdee4;
+  background: linear-gradient(#f1f7f8, #e4edf0);
   color: #9ec6e8;
-  box-shadow: inset 0 -4px #bbd9f3, 0 2px 3px #aa6b3b15;
+  box-shadow: inset 0 -4px #ccdce3, 0 2px 3px #aa6b3b15;
 }
 .tray-row {
   // The square buttons beside the tray are as wide as the tray is tall: a slot plus its padding and border.
@@ -634,7 +634,7 @@
 // Button glyphs use a solid white fill when available and a faint tint when disabled.
 .item-button-icon { display: block; flex: none; width: 24px; height: 24px; color: #fff; }
 .tray-clear-shortcut:disabled > .item-button-icon {
-  color: #448cbf;
+  color: #648da1;
   opacity: .38;
 }
 .quick-order-shortcut:disabled > .item-button-icon { color: #c18a31; }
@@ -698,6 +698,12 @@
 .queue-front, .queue-back { display: grid; place-items: center; pointer-events: none; width: 100%; min-width: 0; }
 .queue-front .donut { width: min(100%, 40px); }
 .queue-back .donut { width: min(92%, 36px); }
+.queue-column .mystery-icon {
+  background: #fff2dd;
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: 0 0 0 1px #e4c7a5, 0 1px 2px #80512e24;
+}
 
 [data-hint-target] .queue-front img.donut { filter: url(#queue-dessert-glow); }
 .queue-dessert-glow-color { flood-opacity: .8; }
@@ -787,9 +793,9 @@
 .glass-popup button .material-symbol { width: 1.25em; height: 1.25em; }
 .glass-popup .tray-clear-button {
   position: relative;
-  background: linear-gradient(#72caff, #318fdf);
-  box-shadow: inset 0 2px #c9ebffaa, inset 0 -3px #256fb980, 0 3px #28629843, 0 5px 9px #28629836;
-  text-shadow: 0 1px 2px #275c9680;
+  background: linear-gradient(#a9c8d7, #7199b0);
+  box-shadow: inset 0 2px #c9ebffaa, inset 0 -3px #5d819880, 0 3px #58768743, 0 5px 9px #58768736;
+  text-shadow: 0 1px 2px #45647680;
 }
 .glass-popup .quick-order-button { position: relative; background: linear-gradient(#ffd98a, #ef9a2c); text-shadow: 0 1px 2px #9a5a1080; }
 .glass-popup .quick-order-button:disabled { background: linear-gradient(#fff5e2, #fbe6c4); color: #8b7357; text-shadow: none; }
@@ -1208,7 +1214,7 @@
   animation: float-pop 1000ms ease-out both;
 }
 .reward-pop :is(.heart-icon, .quick-order-icon, .tray-clear-icon) { width: 21px; height: 21px; --reward-icon-effect: url(#white-outline); }
-.reward-pop--trayClear { color: #318fdf; }
+.reward-pop--trayClear { color: #527990; }
 .reward-pop--quickOrder { color: #e8941f; }
 @keyframes float-pop {
   0% { opacity: 0; transform: translateY(6px) scale(.6); }
@@ -1296,13 +1302,12 @@
 .start-item-count--chosen { padding: 0; width: 22px; height: 22px; border-radius: 50%; background: #34b65a; box-shadow: 0 1px 2px #1a5a2a59; }
 .start-item-count--chosen svg { width: 15px; height: 15px; }
 // Pass offer: the popup, and the small "Pass" links in the popups where it helps (tray clear, hearts, +5 seconds).
-.pass-offer-dialog { padding-top: 30px; }
+.pass-offer-dialog { padding-top: 44px; }
 .pass-offer-crown {
-  position: absolute; left: 50%; top: 0; translate: -50% -50%;
-  display: grid; place-items: center; width: 52px; height: 52px; border: 3px solid #fff7f5; border-radius: 50%;
-  background: linear-gradient(#8a68e8, #6d4ad1); color: #ffe27a; box-shadow: 0 3px 8px #4a2a9a55;
+  position: absolute; left: 50%; top: 4px; translate: -50% 0;
+  display: grid; place-items: center; color: #805abe;
 }
-.pass-offer-crown svg { width: 28px; height: 28px; }
+.pass-offer-crown svg { width: 37px; height: 37px; }
 .pass-offer-dialog h2 { margin-bottom: 0; }
 .pass-offer-lead { margin: 6px 0 0; color: #a5552f; font-size: 15px; font-weight: 800; text-align: center; }
 .pass-offer-benefits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 12px; padding: 0; list-style: none; }
@@ -1311,19 +1316,14 @@
   background: #fffaf4; color: var(--secondary-text); font-size: 13px; line-height: 1.25; text-align: left; word-break: keep-all;
 }
 .pass-benefit-icon {
-  position: relative; display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%;
-  background: #fbe9da; color: #9a5f43;
+  position: relative; display: grid; place-items: center; flex: none; width: 36px; height: 36px;
 }
-.pass-benefit-icon > img { width: 22px; height: 22px; }
-:is(.pass-benefit--clears, .pass-benefit--quick) .pass-benefit-icon { background: transparent; }
-.pass-benefit-icon > :is(.tray-clear-icon, .quick-order-icon) { width: 29px; height: 29px; }
-.pass-benefit-icon .add-time-icon, .pass-benefit-icon .peek-icon { width: 26px; height: 26px; }
+.pass-benefit-icon > :is(img, svg, .peek-icon) { width: 100%; height: 100%; }
 .pass-benefit-count {
   position: absolute; top: -7px; right: -10px; min-width: 22px; padding: 3px 5px 1px; border-radius: 10px;
   background: #e5262f; color: #fff; font-family: Jua, sans-serif; font-size: 11px; line-height: 1.1; text-align: center;
   box-shadow: 0 1px 2px #7a1a1a59;
 }
-.pass-benefit--fast .pass-benefit-count { background: #6d4ad1; box-shadow: 0 1px 2px #3a1f8059; }
 .pass-offer-price { margin: 0; color: #743c27; font-size: 15px; text-align: center; }
 .pass-offer-price strong { font-family: Jua, sans-serif; font-size: 26px; font-weight: 400; color: #6d4ad1; }
 .pass-offer-note { margin: 2px 0 14px; color: #a0715a; font-size: 12px; text-align: center; }

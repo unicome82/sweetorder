@@ -5,6 +5,17 @@ import { PASS_PRICE } from '../monetization/billing';
 import { HeartIcon } from './HeartIcon';
 import { AddTimeIcon, PeekIcon, QuickOrderIcon, TrayClearIcon } from './ItemIcons';
 
+function HalfTimeIcon() {
+  return <svg className="half-time-icon" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+    <path d="M18 5a13 13 0 0 0 0 26Z" fill="#e5d6f2" />
+    <g stroke="#805abe" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 5a13 13 0 0 0 0 26" />
+      <path d="M18 5a13 13 0 0 1 0 26" strokeDasharray="2.4 4.7" />
+      <path d="M18 11v7h-5" />
+    </g>
+  </svg>;
+}
+
 /**
  * The pass and what it gives, offered where the player gets stuck without it (tray clear for an ad, out of hearts,
  * the locked +5 seconds, a failed stage) and from the stage list. Ads stay available there, so this is never the only way on.
@@ -17,10 +28,10 @@ export function PassOfferDialog({ onBuy, onClose }: { onBuy: () => void; onClose
     const element = dialog.current;
     if (element && !element.open) element.showModal();
   }, []);
-  // The count sits on the icon's top right (+10, x2); the label beside it says what it is.
+  // Inventory counts sit at the upper-right corner of the icon.
   const benefits: { key: string; icon: ReactNode; count?: string; text: string }[] = [
     { key: 'hearts', icon: <HeartIcon />, count: `+${PASS_SPARE_HEARTS}`, text: t.passOfferSpareHearts },
-    { key: 'fast', icon: <HeartIcon />, count: 'x2', text: t.passOfferFastHearts },
+    { key: 'fast', icon: <HalfTimeIcon />, text: t.passOfferFastHearts },
     { key: 'clears', icon: <TrayClearIcon />, text: t.passOfferFreeClears },
     { key: 'quick', icon: <QuickOrderIcon />, count: `+${PASS_QUICK_ORDERS}`, text: t.passOfferQuickOrders },
     { key: 'time', icon: <AddTimeIcon />, count: `+${PASS_TIME_BONUSES}`, text: t.passOfferTimeBonuses },

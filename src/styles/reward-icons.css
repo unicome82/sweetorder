@@ -2,6 +2,19 @@
   filter: brightness(.95) saturate(1.08) var(--reward-icon-effect, );
 }
 
+/* The visible art occupies 118 × 80 pixels within each square file. */
 .quick-order-icon {
-  scale: .92 1;
+  scale: .824 1.215;
+}
+
+.tray-clear-icon {
+  scale: .88 1.215;
+}
+
+.heart-icon {
+  filter: brightness(1.02) saturate(1.24) var(--reward-icon-effect, );
+}
+
+.mystery-icon {
+  filter: sepia(.58) hue-rotate(-53deg) saturate(1.26) brightness(1.15);
 }
