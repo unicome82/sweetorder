@@ -32,8 +32,7 @@ export function StartPage({ stage, onGame, onStages, settings }: {
     try { return localStorage.getItem(diagnosticKey) ?? 'default'; }
     catch { return 'default'; }
   });
-  const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  const diagnosticColor = themeColor?.dataset.diagnosticColor;
+  const diagnosticColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.dataset.diagnosticColor;
   const solidBackground = diagnostic === 'solid';
   const changeDiagnostic = (next: string) => {
     const reload = (diagnostic === 'status-bar') !== (next === 'status-bar');
@@ -51,6 +50,7 @@ export function StartPage({ stage, onGame, onStages, settings }: {
   const stageSelect = useRef<HTMLButtonElement>(null);
   const diagnosticResult = useRef<HTMLOutputElement>(null);
   useEffect(() => {
+    const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     const color = diagnostic === 'theme-color' ? diagnosticColor : themeColor?.dataset.defaultColor;
     if (themeColor && color) themeColor.content = color;
 
@@ -67,7 +67,7 @@ export function StartPage({ stage, onGame, onStages, settings }: {
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [diagnostic, diagnosticColor, themeColor]);
+  }, [diagnostic, diagnosticColor]);
 
   return <main ref={page} className="start-page" data-diagnostic={diagnostic} style={{
     backgroundColor: solidBackground ? diagnosticColor : undefined,
