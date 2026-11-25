@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LanguageContext, readLanguagePreference, saveLanguagePreference } from '../i18n/language';
 import type { MouseEvent } from 'react';
 import { playSound, readSoundPreference, saveSoundPreference, setMusicScene, unlockSound } from '../effects/sound';
-import { canAffordAttempt, canPlayBonusToday, chargeableSpareHearts, getCurrentStage, heartsFastUntil, itemsBeforeStart, peekFromPass, spareHearts, type ItemChoice } from '../game/session';
+import { addTimeFromPass, canAffordAttempt, canPlayBonusToday, chargeableSpareHearts, getCurrentStage, heartsFastUntil, itemsBeforeStart, peekFromPass, spareHearts, type ItemChoice } from '../game/session';
 import { StartItemsDialog } from '../components/StartItemsDialog';
 import { ads } from '../monetization/ads';
 import { getStage } from '../game/stages';
@@ -86,26 +86,30 @@ export function App() {
   }
   // Items are chosen before each attempt (retries included), when the stage can use one; the last choice is kept.
   // What it offers is worked out on each render, so buying the pass from it adds +5 seconds straight away.
-  const [preStart, setPreStart] = useState<{ stageId: number }>();
+  const [preStart, setPreStart] = useState<{ stageId: number; peekAdWatched?: boolean }>();
   const [itemChoice, setItemChoice] = useState<ItemChoice>({});
   // Every START is a fresh attempt, so the game page starts over even on the same stage.
   const [attempt, setAttempt] = useState(0);
-  function begin(stageId: number, items?: ItemChoice) {
+  function begin(stageId: number, items?: ItemChoice, addTimeAdWatched = false) {
     setAttempt(previous => previous + 1);
-    dispatch({ type: 'START', stageId, relaxed, items, now: Date.now() });
+    dispatch({ type: 'START', stageId, relaxed, items, addTimeAdWatched, now: Date.now() });
   }
   function enter(stageId: number) {
-    const available = itemsBeforeStart(session, stageId, relaxed);
+    const available = itemsBeforeStart(stageId, relaxed);
     if (available.peek || available.addTime) setPreStart({ stageId });
     else begin(stageId);
   }
   async function startWithItems(choice: ItemChoice) {
     if (!preStart) return;
-    // Without pass peeks, peek is paid for with a rewarded ad; skipping it leaves the popup open to choose again.
-    if (choice.peek && !peekFromPass(session.pass) && !await ads.showRewarded('peek')) return;
+    if (choice.peek && !peekFromPass(session.pass) && !preStart.peekAdWatched) {
+      if (!await ads.showRewarded('peek')) return;
+      setPreStart({ ...preStart, peekAdWatched: true });
+    }
+    const addTimeNeedsAd = !!choice.addTime && !addTimeFromPass(session.pass);
+    if (addTimeNeedsAd && !await ads.showRewarded('addTime')) return;
     setItemChoice(choice);
     setPreStart(undefined);
-    begin(preStart.stageId, choice);
+    begin(preStart.stageId, choice, addTimeNeedsAd);
   }
   // Stage data arrives in 100-stage chunks; fetch the one a START needs before entering it.
   function start(stageId: number) {
@@ -158,10 +162,10 @@ export function App() {
     {outOfHearts !== undefined && <NoHeartsDialog hearts={displayedHearts} fastUntil={fastUntil} onClose={closeOutOfHearts} onWatchAd={() => void watchHeartAd()} onShowPass={showPass} />}
     {chargeOpen && <ChargeHeartsDialog max={chargeableSpareHearts(session)} spare={spareHearts(session)} onClose={() => setChargeOpen(false)}
       onCharge={amount => { dispatch({ type: 'CHARGE_SPARE', amount, now: Date.now() }); setChargeOpen(false); }} />}
-    {preStart && <StartItemsDialog pass={passActive ? session.pass : undefined} available={itemsBeforeStart(session, preStart.stageId, relaxed, passNow)} peekNeedsAd={!peekFromPass(session.pass)}
+    {preStart && <StartItemsDialog pass={passActive ? session.pass : undefined} available={itemsBeforeStart(preStart.stageId, relaxed)}
+      peekNeedsAd={!peekFromPass(session.pass, passNow)} addTimeNeedsAd={!addTimeFromPass(session.pass, passNow)}
       dessert={getStage(preStart.stageId).queues.flat().find(token => token.hidden && !token.reward)?.type}
-      initial={itemChoice} onStart={choice => void startWithItems(choice)} onClose={() => setPreStart(undefined)}
-      onShowPass={showPass && !relaxed && !isBonusStage(preStart.stageId) ? showPass : undefined} />}
+      initial={itemChoice} onStart={choice => void startWithItems(choice)} onClose={() => setPreStart(undefined)} />}
     {passOfferOpen && <PassOfferDialog onBuy={() => void buyFromOffer()} onClose={() => setPassOfferOpen(false)} />}
     <FakeAdHost />
     {loadingStage !== undefined && <p className="stage-loading" role="status">Loading…</p>}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hasHiddenDesserts } from './reducer';
-import { createSession, itemsBeforeStart, peekFromPass, reduceSession, type ItemChoice, type SessionState } from './session';
+import { addTimeFromPass, createSession, itemsBeforeStart, peekFromPass, reduceSession, type ItemChoice, type SessionState } from './session';
 import { loadAllStages } from './stages';
 import { createGame } from './engine';
 import { PASS_PEEKS, PASS_TIME_BONUSES } from '../monetization/pass';
@@ -12,18 +12,17 @@ const DAY = 24 * 60 * 60_000;
 
 const withPass = { ...reduceSession(createSession(), { type: 'BUY_PASS', now: 0 }), unlockAllStages: true };
 const noPass = { ...createSession(), unlockAllStages: true };
-const start = (session: SessionState, stageId: number, items?: ItemChoice, { relaxed = false, now = 1 } = {}) =>
-  reduceSession(session, { type: 'START', stageId, relaxed, now, items });
+const start = (session: SessionState, stageId: number, items?: ItemChoice, { relaxed = false, now = 1, addTimeAdWatched = false } = {}) =>
+  reduceSession(session, { type: 'START', stageId, relaxed, now, items, addTimeAdWatched });
 
 describe('시작 전 아이템 선택', () => {
-  it('엿보기는 물음표 스테이지에서 누구나 고를 수 있고, +5초는 패스 · 타이머 모드에서만 고를 수 있다', () => {
-    expect(itemsBeforeStart(noPass, hiddenStage.id, false, 1)).toEqual({ peek: true, addTime: false });
-    expect(itemsBeforeStart(withPass, hiddenStage.id, false, 1)).toEqual({ peek: true, addTime: true });
-    expect(itemsBeforeStart(withPass, plainStage.id, false, 1)).toEqual({ peek: false, addTime: true });
-    expect(itemsBeforeStart(withPass, plainStage.id, true, 1)).toEqual({ peek: false, addTime: false });
-    expect(itemsBeforeStart(withPass, hiddenStage.id, false, 31 * DAY)).toEqual({ peek: true, addTime: false });
-    const noTime = { ...withPass, pass: { ...withPass.pass!, timeBonuses: 0 } };
-    expect(itemsBeforeStart(noTime, plainStage.id, false, 1).addTime).toBe(false);
+  it('엿보기는 물음표 스테이지, +5초는 타이머 모드에서 고를 수 있다', () => {
+    expect(itemsBeforeStart(hiddenStage.id, false)).toEqual({ peek: true, addTime: true });
+    expect(itemsBeforeStart(plainStage.id, false)).toEqual({ peek: false, addTime: true });
+    expect(itemsBeforeStart(plainStage.id, true)).toEqual({ peek: false, addTime: false });
+    expect(addTimeFromPass(noPass.pass, 1)).toBe(false);
+    expect(addTimeFromPass(withPass.pass, 1)).toBe(true);
+    expect(addTimeFromPass(withPass.pass, 31 * DAY)).toBe(false);
   });
 
   it('패스는 고른 아이템을 1회씩 차감하고, 엿보기는 물음표가 공개된 채로, +5초는 쓴 채로 시작한다', () => {
@@ -40,6 +39,18 @@ describe('시작 전 아이템 선택', () => {
     const used = { ...withPass, pass: { ...withPass.pass!, peeks: 0 } };
     expect(peekFromPass(used.pass, 1)).toBe(false);
     expect(start(used, hiddenStage.id, { peek: true }).pass).toEqual(used.pass);
+  });
+
+  it('광고를 끝까지 보면 패스 없이도 +5초를 쓰고 패스 보유분은 차감하지 않는다', () => {
+    const choice = { addTime: true };
+    const paid = { addTimeAdWatched: true };
+    expect(start(noPass, plainStage.id, choice, paid).game.timeBonusUsed).toBe(true);
+    const used = { ...withPass, pass: { ...withPass.pass!, timeBonuses: 0 } };
+    expect(addTimeFromPass(used.pass, 1)).toBe(false);
+    const started = start(used, plainStage.id, choice, paid);
+    expect(started.game.timeBonusUsed).toBe(true);
+    expect(started.pass).toEqual(used.pass);
+    expect(start(noPass, plainStage.id, choice, { ...paid, relaxed: true }).game.timeBonusUsed).toBeUndefined();
   });
 
   it('스테이지에서 쓸 수 없는 아이템은 골라도 적용 · 차감하지 않는다', () => {

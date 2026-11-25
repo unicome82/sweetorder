@@ -74,7 +74,7 @@ const items = <ul className="info-items">
   </li>
   <li>
     <span className="info-item-icon"><AddTimeIcon /></span>
-    <div><h3>+5초</h3><p>제한 시간을 {PASS_TIME_BONUS_MS / 1000}초 늘리고 시작해요. 시작 전 선택, <b>패스 전용</b> (타이머 모드).</p></div>
+    <div><h3>+5초</h3><p>제한 시간을 {PASS_TIME_BONUS_MS / 1000}초 늘리고 시작해요. 타이머 모드 시작 전 선택, 광고 또는 패스로 사용.</p></div>
   </li>
 </ul>;
 
@@ -91,7 +91,7 @@ const settings = <>
     ['트레이 비우기', STARTING_TRAY_CLEARS, MAX_TRAY_CLEARS, `${TIMED_TRAY_CLEARS_PER_GAME} (릴랙스 ${RELAXED_TRAY_CLEARS})`, '광고'],
     ['퀵오더', 0, MAX_QUICK_ORDERS, '보유분 (+ 패스 1)', '패스'],
     ['미리보기', '—', '—', '1', '광고'],
-    ['+5초', '—', '—', '1', '패스 전용'],
+    ['+5초', '—', '—', '1', '광고'],
   ]} />
   <h3 className="info-subheading">스테이지 보상</h3>
   <Table head={['항목', '값']} rows={[

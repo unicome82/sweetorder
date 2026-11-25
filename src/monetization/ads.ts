@@ -2,7 +2,7 @@
 // (see FakeAdHost); the AdMob version will replace it without the callers changing.
 
 /** Ads the player chooses to watch for a reward. */
-export type RewardedPlacement = 'trayClear' | 'peek' | 'hearts';
+export type RewardedPlacement = 'trayClear' | 'peek' | 'addTime' | 'hearts';
 /** Forced ads between stages. */
 export type InterstitialPlacement = 'stageEnd';
 

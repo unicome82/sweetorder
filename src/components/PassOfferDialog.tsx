@@ -4,6 +4,7 @@ import { PASS_DAYS, PASS_PEEKS, PASS_QUICK_ORDERS, PASS_SPARE_HEARTS, PASS_TIME_
 import { PASS_PRICE } from '../monetization/billing';
 import { HeartIcon } from './HeartIcon';
 import { AddTimeIcon, PeekIcon, QuickOrderIcon, TrayClearIcon } from './ItemIcons';
+import { PassCrown } from './PassButton';
 
 function HalfTimeIcon() {
   return <svg className="half-time-icon" viewBox="0 0 36 36" fill="none" aria-hidden="true">
@@ -30,24 +31,24 @@ export function PassOfferDialog({ onBuy, onClose }: { onBuy: () => void; onClose
   }, []);
   // Inventory counts sit at the upper-right corner of the icon.
   const benefits: { key: string; icon: ReactNode; count?: string; text: string }[] = [
-    { key: 'hearts', icon: <HeartIcon />, count: `+${PASS_SPARE_HEARTS}`, text: t.passOfferSpareHearts },
+    { key: 'hearts', icon: <HeartIcon />, count: `+${PASS_SPARE_HEARTS}`, text: t.passOfferSpareHearts(PASS_SPARE_HEARTS) },
     { key: 'fast', icon: <HalfTimeIcon />, text: t.passOfferFastHearts },
     { key: 'clears', icon: <TrayClearIcon />, text: t.passOfferFreeClears },
-    { key: 'quick', icon: <QuickOrderIcon />, count: `+${PASS_QUICK_ORDERS}`, text: t.passOfferQuickOrders },
-    { key: 'time', icon: <AddTimeIcon />, count: `+${PASS_TIME_BONUSES}`, text: t.passOfferTimeBonuses },
-    { key: 'peek', icon: <PeekIcon />, count: `+${PASS_PEEKS}`, text: t.passOfferPeeks },
+    { key: 'quick', icon: <QuickOrderIcon />, count: `+${PASS_QUICK_ORDERS}`, text: t.passOfferQuickOrders(PASS_QUICK_ORDERS) },
+    { key: 'time', icon: <AddTimeIcon />, count: `+${PASS_TIME_BONUSES}`, text: t.passOfferTimeBonuses(PASS_TIME_BONUSES) },
+    { key: 'peek', icon: <PeekIcon />, count: `+${PASS_PEEKS}`, text: t.passOfferPeeks(PASS_PEEKS) },
   ];
   return <dialog className="glass-popup tray-full-dialog pass-offer-dialog" ref={dialog} aria-labelledby="pass-offer-heading"
     onCancel={event => { event.preventDefault(); onClose(); }}>
     <span className="pass-offer-crown" aria-hidden="true">
-      <svg viewBox="0 0 24 24"><path d="M3 8.5 7.5 12 12 5l4.5 7L21 8.5 19 18H5L3 8.5Z" fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /><rect x="5" y="19.2" width="14" height="2.2" rx="1.1" fill="currentColor" /></svg>
+      <PassCrown />
     </span>
     <h2 id="pass-offer-heading">{t.passOfferTitle}</h2>
     <p className="pass-offer-lead">{t.passOfferLead(PASS_DAYS)}</p>
     <ul className="pass-offer-benefits">
       {benefits.map(({ key, icon, count, text }) => <li key={key} className={`pass-benefit pass-benefit--${key}`}>
         <span className="pass-benefit-icon" aria-hidden="true">{icon}{count && <span className="pass-benefit-count" lang="en">{count}</span>}</span>
-        <span className="pass-benefit-text">{count && <span className="sr-only">{count} </span>}{text}</span>
+        <span className="pass-benefit-text">{text}</span>
       </li>)}
     </ul>
     <p className="pass-offer-price"><strong>{PASS_PRICE[language]}</strong> <span>/ {t.passOfferDays(PASS_DAYS)}</span></p>

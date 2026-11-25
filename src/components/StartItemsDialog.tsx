@@ -5,15 +5,10 @@ import type { Pass } from '../monetization/pass';
 import { useMessages } from '../i18n/language';
 import { AddTimeIcon, PeekIcon } from './ItemIcons';
 
-/**
- * Before an attempt: switch on peek and/or +5 seconds for it; items can't be used once play starts. Only the items
- * this stage can use (`available`) are listed. Peek comes from the pass (`pass` with peeks left) or costs an ad
- * (`peekNeedsAd`), shown on Start. `initial` is the previous choice. Without a pass, timed play shows +5 seconds
- * locked; tapping it offers the pass (`onShowPass`).
- */
-export function StartItemsDialog({ pass, available, peekNeedsAd, dessert, initial, onStart, onClose, onShowPass }: {
-  pass?: Pass; available: Required<ItemChoice>; peekNeedsAd: boolean; dessert?: DonutType; initial: ItemChoice;
-  onStart: (choice: ItemChoice) => void; onClose: () => void; onShowPass?: () => void;
+/** Choose pre-start items funded by pass inventory or a rewarded ad. */
+export function StartItemsDialog({ pass, available, peekNeedsAd, addTimeNeedsAd, dessert, initial, onStart, onClose }: {
+  pass?: Pass; available: Required<ItemChoice>; peekNeedsAd: boolean; addTimeNeedsAd: boolean; dessert?: DonutType; initial: ItemChoice;
+  onStart: (choice: ItemChoice) => void; onClose: () => void;
 }) {
   const t = useMessages();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -28,7 +23,9 @@ export function StartItemsDialog({ pass, available, peekNeedsAd, dessert, initia
     ? <span className="start-item-count start-item-count--chosen" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
     </span>
-    : <span className={left === 'AD' ? 'ad-badge' : 'start-item-count'} lang="en" aria-hidden="true">{left}</span>;
+    : left === 'AD'
+      ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span>
+      : <span className="start-item-count" aria-hidden="true">{left}</span>;
   return <dialog className="glass-popup tray-full-dialog start-items-dialog" ref={dialog} aria-labelledby="start-items-heading"
     onCancel={event => { event.preventDefault(); onClose(); }}>
     <h2 id="start-items-heading">{t.startItemsTitle}</h2>
@@ -39,16 +36,11 @@ export function StartItemsDialog({ pass, available, peekNeedsAd, dessert, initia
         <span className="start-item-name">{t.passItemPeek}</span>
         <span className="sr-only">{peekNeedsAd ? `AD${t.startItemAd}` : t.passItemsLeft(pass!.peeks)}</span>
       </button>}
-      {available.addTime && pass && <button type="button" className="start-item" aria-pressed={!!choice.addTime} onClick={() => toggle('addTime')}>
-        {badge(choice.addTime, pass.timeBonuses)}
+      {available.addTime && <button type="button" className="start-item" aria-pressed={!!choice.addTime} onClick={() => toggle('addTime')}>
+        {badge(choice.addTime, addTimeNeedsAd ? 'AD' : pass!.timeBonuses)}
         <span className="start-item-icon"><AddTimeIcon /></span>
         <span className="start-item-name">{t.passItemAddTime}</span>
-        <span className="sr-only">{t.passItemsLeft(pass.timeBonuses)}</span>
-      </button>}
-      {onShowPass && <button type="button" className="start-item start-item--locked" onClick={onShowPass} aria-label={t.passAddTimeLocked}>
-        <span className="start-item-count pass-badge" aria-hidden="true">{t.passShortcut}</span>
-        <span className="start-item-icon"><AddTimeIcon /></span>
-        <span className="start-item-name" aria-hidden="true">{t.passItemAddTime}</span>
+        <span className="sr-only">{addTimeNeedsAd ? `AD${t.startItemAd}` : t.passItemsLeft(pass!.timeBonuses)}</span>
       </button>}
     </div>
     <div className="result-actions charge-hearts-actions">

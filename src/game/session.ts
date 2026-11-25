@@ -48,7 +48,7 @@ export type SessionAction =
   | { type: 'HOME' }
   | { type: 'STAGES' }
   /** items: chosen in the pre-start popup, applied as the attempt begins. Retries start this way too. */
-  | { type: 'START'; stageId: number; now?: number; relaxed?: boolean; items?: ItemChoice }
+  | { type: 'START'; stageId: number; now?: number; relaxed?: boolean; items?: ItemChoice; addTimeAdWatched?: boolean }
   /** testing: the Stage 00 playtest entry, which leaves the daily bonus stage unused. */
   | { type: 'START_BONUS'; dessert: DonutType; nextStageId: number; relaxed?: boolean; now?: number; testing?: boolean }
   | { type: 'GAME'; action: GameAction; now?: number }
@@ -123,37 +123,42 @@ function withoutSpentRewards(game: GameState, rewardedStages: readonly number[])
 }
 /**
  * Items the pre-start popup can offer for this attempt. Peek: any stage with "?" desserts, from the pass while
- * its peeks last, otherwise for a rewarded ad. +5 seconds: pass holders with some left, in timed play.
+ * its peeks last, otherwise for a rewarded ad. +5 seconds is offered in timed play.
  */
-export function availableItems(game: GameState, pass: Pass | undefined, now: number): Required<ItemChoice> {
+function availableItems(game: GameState): Required<ItemChoice> {
   const campaign = game.stageId !== practiceStage.id && !isBonusStage(game.stageId);
   return {
     peek: campaign && hasHiddenDesserts(game),
-    addTime: campaign && isPassActive(pass, now) && pass.timeBonuses > 0 && !game.relaxed,
+    addTime: campaign && !game.relaxed,
   };
 }
 /** Whether peek comes out of the pass for this attempt; otherwise it costs a rewarded ad. */
 export function peekFromPass(pass: Pass | undefined, now = Date.now()): boolean {
   return isPassActive(pass, now) && pass.peeks > 0;
 }
+/** Whether +5 seconds comes out of the pass for this attempt. */
+export function addTimeFromPass(pass: Pass | undefined, now = Date.now()): boolean {
+  return isPassActive(pass, now) && pass.timeBonuses > 0;
+}
 /** The items the pre-start popup can offer for this stage; the stage must be loaded. */
-export function itemsBeforeStart(state: SessionState, stageId: number, relaxed: boolean, now = Date.now()): Required<ItemChoice> {
-  return availableItems({ ...createGame(getStage(stageId)), relaxed }, state.pass, now);
+export function itemsBeforeStart(stageId: number, relaxed: boolean): Required<ItemChoice> {
+  return availableItems({ ...createGame(getStage(stageId)), relaxed });
 }
 /**
  * Applies the pre-start choice: peek opens with the "?" desserts shown, +5 seconds starts on the clock.
- * Each comes out of the pass when it can; a peek without pass peeks was paid for with an ad before the start.
+ * Each comes out of the pass when it can. Ad-funded items leave pass inventory alone.
  */
-function applyItems(game: GameState, pass: Pass | undefined, choice: ItemChoice | undefined, now: number): { game: GameState; pass?: Pass } {
+function applyItems(game: GameState, pass: Pass | undefined, choice: ItemChoice | undefined, now: number, addTimeAdWatched: boolean): { game: GameState; pass?: Pass } {
   if (!choice) return { game, pass };
-  const available = availableItems(game, pass, now);
+  const available = availableItems(game);
   const peek = !!choice.peek && available.peek;
-  const addTime = !!choice.addTime && available.addTime;
+  const passTime = !!choice.addTime && available.addTime && !addTimeAdWatched && addTimeFromPass(pass, now);
+  const addTime = passTime || (!!choice.addTime && available.addTime && addTimeAdWatched);
   if (!peek && !addTime) return { game, pass };
   const passPeek = peek && peekFromPass(pass, now);
   return {
     game: { ...game, ...(peek ? { peeked: true } : {}), ...(addTime ? { timeBonusUsed: true } : {}) },
-    pass: passPeek || addTime ? { ...pass!, peeks: pass!.peeks - (passPeek ? 1 : 0), timeBonuses: pass!.timeBonuses - (addTime ? 1 : 0) } : pass,
+    pass: passPeek || passTime ? { ...pass!, peeks: pass!.peeks - (passPeek ? 1 : 0), timeBonuses: pass!.timeBonuses - (passTime ? 1 : 0) } : pass,
   };
 }
 /** Where an attempt's heart came from; only regular hearts pay (spare hearts are charged into them first). */
@@ -215,7 +220,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const payment = payForAttempt(state, action.stageId, now);
       if (!payment) return state;
       const created = withQuickOrders(createSessionGame(action.stageId, state.rewardedStages, action.relaxed ?? false, earnable(state, now)), state.quickOrders, state.pass, now);
-      const { game, pass } = applyItems(created, state.pass, action.items, now);
+      const { game, pass } = applyItems(created, state.pass, action.items, now, !!action.addTimeAdWatched);
       return { ...state, ...payment, pass, bonus: undefined, screen: 'game', game };
     }
     case 'BUY_PASS': {
