@@ -176,13 +176,19 @@
   top: calc(12px + env(safe-area-inset-top, 0px));
   left: max(16px, env(safe-area-inset-left));
   max-width: calc(100% - 80px);
-  min-height: 40px;
-  padding-inline: 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff9f2;
-  color: var(--text);
-  font-size: 16px;
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+
+  select, output {
+    max-width: 100%;
+    padding-inline: 8px;
+    border-radius: 8px;
+    background: #fff9f2;
+    color: var(--text);
+  }
+  select { min-height: 40px; border: 1px solid var(--border); font-size: 16px; }
+  output { padding-block: 4px; font-size: 12px; }
 }
 .start-page[data-diagnostic='filters'] {
   &, *, *::before, *::after, .glass-popup::backdrop {

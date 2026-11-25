@@ -1,6 +1,6 @@
 import { stageDifficulty } from '../game/stages';
 import { StageDifficultyRibbon } from '../components/StageDifficultyRibbon';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMessages } from '../i18n/language';
 import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
 
@@ -28,23 +28,45 @@ export function StartPage({ stage, onGame, onStages, settings }: {
   const t = useMessages();
   const [poster] = useState(() => posters[Math.floor(Math.random() * posters.length)]);
   const [diagnostic, setDiagnostic] = useState('default');
-  return <main className="start-page" data-diagnostic={diagnostic} style={{ backgroundImage: diagnostic === 'stripes' ? undefined : poster?.background }}>
+  const page = useRef<HTMLElement>(null);
+  const stageSelect = useRef<HTMLButtonElement>(null);
+  const diagnosticResult = useRef<HTMLOutputElement>(null);
+  useEffect(() => {
+    const panel = page.current;
+    const button = stageSelect.current;
+    const result = diagnosticResult.current;
+    if (!panel || !button || !result) return;
+
+    const measure = () => {
+      const buttonStyle = getComputedStyle(button);
+      const blur = buttonStyle.backdropFilter || buttonStyle.getPropertyValue('-webkit-backdrop-filter') || '미지원';
+      result.textContent = `페이지 ${panel.offsetHeight}px / 뷰포트 ${window.innerHeight}px · 버튼 ${blur}`;
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [diagnostic]);
+
+  return <main ref={page} className="start-page" data-diagnostic={diagnostic} style={{ backgroundImage: diagnostic === 'stripes' ? undefined : poster?.background }}>
     <h1 className="sr-only">Sweet Order</h1>
     <img className="start-poster" src={poster?.src} width={800} height={1800} alt="" draggable={false} fetchPriority="high" />
-    <select className="pwa-diagnostic" aria-label="iOS PWA 진단" value={diagnostic} onChange={event => setDiagnostic(event.target.value)}>
-      <option value="default">진단 · 기본 상태</option>
-      <option value="filters">필터 끄기</option>
-      <option value="screen-height">화면 높이 보정 끄기</option>
-      <option value="viewport">높이를 100dvh로 고정</option>
-      <option value="safe-area">상단 safe-area 끄기</option>
-      <option value="stripes">줄무늬 배경</option>
-    </select>
+    <div className="pwa-diagnostic">
+      <select aria-label="iOS PWA 진단" value={diagnostic} onChange={event => setDiagnostic(event.target.value)}>
+        <option value="default">진단 · 기본 상태</option>
+        <option value="filters">필터 끄기</option>
+        <option value="screen-height">화면 높이 보정 끄기</option>
+        <option value="viewport">높이를 100dvh로 고정</option>
+        <option value="safe-area">상단 safe-area 끄기</option>
+        <option value="stripes">줄무늬 배경</option>
+      </select>
+      <output ref={diagnosticResult} />
+    </div>
     <div className="top-actions">
       <SettingsButton {...settings} />
     </div>
     <div className="start-actions">
       <button className="primary-button stage-button" onClick={onGame}><span>Stage {String(stage).padStart(2, '0')}</span><StageDifficultyRibbon difficulty={stageDifficulty(stage)} /></button>
-      <button className="secondary-button" onClick={onStages}>{t.stageSelect}</button>
+      <button ref={stageSelect} className="secondary-button" onClick={onStages}>{t.stageSelect}</button>
     </div>
   </main>;
 }
