@@ -1302,17 +1302,45 @@
 .start-item-icon .peek-icon-mystery { border-color: currentColor; background: transparent; color: inherit; }
 
 // Pass offer: the popup, and the small "Pass" links in the popups where it helps (tray clear, hearts, +5 seconds).
-.pass-offer-lead { margin: 4px 0 0; color: #9a6a52; font-size: 15px; text-align: center; }
-.pass-offer-benefits { display: grid; gap: 8px; margin: 16px 0 18px; padding: 0; list-style: none; }
-.pass-offer-benefits li { display: flex; align-items: center; gap: 8px; color: var(--secondary-text); font-size: 16px; }
-.pass-offer-benefits li::before {
-  content: '';
-  flex: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #6cbf73 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px no-repeat;
+.pass-offer-dialog { padding-top: 30px; }
+.pass-offer-crown {
+  position: absolute; left: 50%; top: 0; translate: -50% -50%;
+  display: grid; place-items: center; width: 52px; height: 52px; border: 3px solid #fff7f5; border-radius: 50%;
+  background: linear-gradient(#8a68e8, #6d4ad1); color: #ffe27a; box-shadow: 0 3px 8px #4a2a9a55;
 }
+.pass-offer-crown svg { width: 28px; height: 28px; }
+.pass-offer-dialog h2 { margin-bottom: 0; }
+.pass-offer-lead { margin: 6px 0 0; color: #a5552f; font-size: 15px; font-weight: 800; text-align: center; }
+.pass-offer-benefits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 12px; padding: 0; list-style: none; }
+.pass-benefit {
+  display: flex; align-items: center; gap: 8px; padding: 8px; border: 1.5px solid #f1d5c4; border-radius: 14px;
+  background: #fffaf4; color: var(--secondary-text); font-size: 13px; line-height: 1.25; text-align: left; word-break: keep-all;
+}
+.pass-benefit-icon {
+  position: relative; display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%;
+  background: #fbe9da; color: #9a5f43;
+}
+.pass-benefit-icon .heart-icon { width: 22px; height: 22px; }
+.pass-benefit-icon .add-time-icon, .pass-benefit-icon .peek-icon { width: 24px; height: 24px; }
+.pass-benefit-icon .peek-icon-mystery { font-size: 14px; }
+.pass-benefit-icon .quick-order-icon { width: 22px; height: 22px; color: #f0a31a; }
+.pass-benefit-icon svg:not(.heart-icon):not(.add-time-icon):not(.quick-order-icon) { width: 22px; height: 22px; }
+.pass-benefit-tag {
+  position: absolute; right: -6px; bottom: -3px; padding: 2px 4px 0; border-radius: 8px;
+  background: #6d4ad1; color: #fff; font-family: Jua, sans-serif; font-size: 10px; line-height: 1.1;
+}
+.pass-offer-price { margin: 0; color: #743c27; font-size: 15px; text-align: center; }
+.pass-offer-price strong { font-family: Jua, sans-serif; font-size: 26px; font-weight: 400; color: #6d4ad1; }
+.pass-offer-note { margin: 2px 0 14px; color: #a0715a; font-size: 12px; text-align: center; }
+.pass-nav-button {
+  display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 12px 0 10px;
+  border: 1px solid #fff9f3; border-radius: 20px; background: linear-gradient(#8a68e8, #6d4ad1); color: #fff;
+  font-family: Jua, sans-serif; font-size: 16px; line-height: 1; cursor: pointer;
+  box-shadow: inset 0 1px #fff6, 0 3px #4f2fa8, 0 5px 8px #3a1f8040;
+}
+.pass-nav-button svg { width: 18px; height: 18px; color: #ffe27a; }
+.pass-nav-button span { padding-top: 2px; }
+.pass-nav-button:active { translate: 0 2px; box-shadow: inset 0 1px #fff6, 0 1px #4f2fa8; }
 .pass-link-button {
   display: block;
   margin: 12px auto 0;

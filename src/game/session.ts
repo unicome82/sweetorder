@@ -82,7 +82,8 @@ export const trayClearsPerGame = (relaxed: boolean) => relaxed ? RELAXED_TRAY_CL
  */
 function withMode(game: GameState, relaxed: boolean): GameState {
   if (game.stageId === practiceStage.id) return game;
-  const trayClearsLeft = trayClearsPerGame(relaxed);
+  // Bonus stages have no tray clear: a full tray ends them.
+  const trayClearsLeft = isBonusStage(game.stageId) ? 0 : trayClearsPerGame(relaxed);
   return relaxed ? { ...game, relaxed: true, trayClearsLeft } : { ...game, trayClearsLeft };
 }
 /** What the player could take from the queues as the attempt starts: room left to hold it, and today's limit not reached. */

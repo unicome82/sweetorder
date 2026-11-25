@@ -4,6 +4,7 @@ import { describeHearts, formatWait, type Hearts } from '../game/hearts';
 import { useNow } from '../hooks/useNow';
 import { useMessages } from '../i18n/language';
 import { HeartIcon } from './HeartIcon';
+import { PASS_SPARE_HEARTS } from '../monetization/pass';
 
 /**
  * Out of hearts once spare hearts and today's bonus stage are used up: a rewarded ad gives a heart. Without a pass,
@@ -32,6 +33,6 @@ export function NoHeartsDialog({ hearts, fastUntil, onClose, onWatchAd, onShowPa
       </button>
       <button type="button" className="primary-button popup-primary-button" onClick={onClose}>{t.ok}</button>
     </div>
-    {onShowPass && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passHearts}</button>}
+    {onShowPass && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passHearts(PASS_SPARE_HEARTS)}</button>}
   </dialog>;
 }

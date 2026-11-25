@@ -7,6 +7,7 @@ import { unlockedThrough } from '../game/session';
 import { useMessages } from '../i18n/language';
 import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
 import { HeartCounter } from '../components/HeartCounter';
+import { PassButton } from '../components/PassButton';
 import { BONUS_AT_STAGE_00_FOR_TESTING, FEATURE_PREVIEW_FOR_TESTING, FEATURE_PREVIEW_STAGES, isFeaturePreviewStage } from '../game/constants';
 import type { Hearts } from '../game/hearts';
 
@@ -20,7 +21,7 @@ const JUMP_SIZE = 500;
 const blockStart = (block: number) => block * JUMP_SIZE + 1;
 const optionId = (index: number) => index === 0 ? practiceStage.id : index;
 
-export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFastUntil, unlockAllStages, settings }: { onGame: (id: number) => void; stars: Record<number, number>; hearts: Hearts; spareHearts: number; heartsFastUntil?: number; unlockAllStages: boolean; settings: SettingsProps }) {
+export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFastUntil, unlockAllStages, settings, onShowPass }: { onGame: (id: number) => void; onShowPass?: () => void; stars: Record<number, number>; hearts: Hearts; spareHearts: number; heartsFastUntil?: number; unlockAllStages: boolean; settings: SettingsProps }) {
   const relaxed = settings.mode === 'relaxed';
   const t = useMessages();
   const openThrough = unlockedThrough(stars, unlockAllStages);
@@ -66,6 +67,7 @@ export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFast
   return <main className="stage-page">
     <nav className="stage-navigation" aria-label={t.stageMenu}>
       <HeartCounter hearts={hearts} spare={spareHearts} fastUntil={heartsFastUntil} />
+      {onShowPass && <PassButton onClick={onShowPass} />}
       <SettingsButton {...settings} />
     </nav>
     <div className="stage-hero" aria-hidden="true" />

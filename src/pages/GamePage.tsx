@@ -508,6 +508,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         <button type="button" className={failed ? 'primary-button popup-primary-button' : 'secondary-button'} onClick={retry}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={onStages}><Icon name="grid" />{t.stageSelect}</button>
       </div>}
+      {failed && !practice && !bonus && !passActive && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passFailed}</button>}
     </section>}
     {(boardVisible || waitingForGoodbye) && <div className="game-board">
     <OrderBoard key={round} orders={pendingDeliveries.length ? state.orders.map(order => {
