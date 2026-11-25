@@ -13,7 +13,7 @@ export function HeartCounter({ hearts, spare = 0, fastUntil, className = '' }: {
   const { count, nextInMs } = describeHearts(hearts, now, fastUntil);
   const wait = nextInMs === null ? undefined : formatWait(nextInMs);
   return <div className={`heart-counter ${className}`} role="status" aria-label={t.heartsLabel(count, spare, wait)}>
-    <HeartIcon />
+    <HeartIcon className={count === 0 && spare === 0 ? 'heart-icon--empty' : undefined} />
     <span className="heart-counter-count" lang="en" aria-hidden="true">{count}</span>
     {wait && <span className="heart-counter-timer" lang="en" aria-hidden="true">{wait}</span>}
     {spare > 0 && <span className="heart-counter-spare" lang="en" aria-hidden="true">{spare}</span>}

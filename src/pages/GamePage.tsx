@@ -13,7 +13,7 @@ import { DonutQueue } from '../components/DonutQueue';
 import { getStage, isBonusStage, practiceStage, STAGE_COUNT } from '../game/stages';
 import { HeartIcon } from '../components/HeartIcon';
 import { canQuickOrder, getQueueHintColumns, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray, quickOrder } from '../game/engine';
-import { QuickOrderIcon } from '../components/ItemIcons';
+import { QuickOrderIcon, TrayClearIcon } from '../components/ItemIcons';
 import type { DonutType, GameState, RewardKind } from '../game/types';
 import type { GameAction } from '../game/reducer';
 import { getGameTimeLimit, getTimeStars } from '../game/stageTime';
@@ -473,14 +473,14 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     {(showClock || (timeLimit > 0 && waitingForGoodbye)) && <div className="stage-clock-wrap">
       <StageClock limitMs={timeLimit} remainingMs={pausedTimeMs ?? remainingTimeMs} />
     </div>}
-    {/* An even 2px white outline for masked icons, which can't carry a stroke or their own shadows. */}
+    {/* An even 2px white outline around the reward images. */}
     <svg className="sr-only" aria-hidden="true"><filter id="white-outline" x="-20%" y="-20%" width="140%" height="140%">
       <feMorphology in="SourceAlpha" operator="dilate" radius="2" result="grown" />
       <feFlood floodColor="#fff" /><feComposite in2="grown" operator="in" />
       <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
     </filter></svg>
     {rewardPops.map(pop => <span key={pop.id} className={`reward-pop reward-pop--${pop.reward}`} role="status" style={{ left: pop.x, top: pop.y }}>
-      {pop.reward === 'heart' ? <HeartIcon /> : pop.reward === 'quickOrder' ? <QuickOrderIcon /> : <span className="reward-pop-basket"><Icon name="basket" /></span>}<span aria-hidden="true">+1</span>
+      {pop.reward === 'heart' ? <HeartIcon /> : pop.reward === 'quickOrder' ? <QuickOrderIcon /> : <TrayClearIcon />}<span aria-hidden="true">+1</span>
       <span className="sr-only">{pop.reward === 'heart' ? t.rewardHeart : pop.reward === 'quickOrder' ? t.rewardQuickOrder : t.rewardTrayClear}</span>
     </span>)}
     <p className="sr-only" role="status" aria-live="polite">{t.status(state.completedOrders, state.tray.length, state.trayCapacity)} {returning.size > 0 && t.returned}</p>
@@ -539,7 +539,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       <h2 id="tray-full-heading">{resultTitles.blocked}</h2>
       <div className="result-actions">
         <button type="button" data-sfx="none" className="primary-button popup-primary-button tray-clear-button" onClick={requestTrayClear} aria-label={clearNeedsAd ? t.clearTrayAdLabel : t.clearTrayLabel(clearsOwned)}>
-          <Icon name="basket" />{t.clearTray} {clearNeedsAd
+          <TrayClearIcon />{t.clearTray} {clearNeedsAd
             ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span>
             : <span className="tray-clear-count" aria-hidden="true">{clearsOwned}</span>}
         </button>

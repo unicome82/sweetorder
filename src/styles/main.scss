@@ -98,7 +98,6 @@
 .material-symbol--arrow { --symbol: url('../assets/icons/arrow_forward.svg'); }
 .material-symbol--retry { --symbol: url('../assets/icons/refresh.svg'); }
 .material-symbol--grid { --symbol: url('../assets/icons/grid_view.svg'); }
-.material-symbol--basket { --symbol: url('../assets/icons/shopping_basket.svg'); }
 .material-symbol--lock { --symbol: url('../assets/icons/lock.svg'); }
 .material-symbol--settings { --symbol: url('../assets/icons/settings.svg'); }
 .pause-button {
@@ -112,18 +111,6 @@
 .icon-button:disabled { opacity: .55; }
 .donut { display: block; width: 100%; height: auto; }
 .donut--widened { scale: 1.18 1; }
-.donut--mystery {
-  display: grid;
-  place-items: center;
-  aspect-ratio: 1;
-  border: 2px dashed #d7a98b;
-  border-radius: 50%;
-  background: #fbe9da;
-  color: #b0785a;
-  font-family: Jua, sans-serif;
-  font-size: 18px;
-  line-height: 1;
-}
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @font-face {
@@ -609,19 +596,18 @@
   aspect-ratio: 1;
   height: 100%;
   padding: 0 0 4px;
-  border: 1px solid #e88aa0;
+  border: 1px solid #308ad5;
   border-radius: 15px;
-  background: linear-gradient(#ff9bb0, #ec6a86);
+  background: linear-gradient(#72caff, #318fdf);
   color: #fff;
-  box-shadow: inset 0 -4px #cf4d6c, 0 2px 3px #aa6b3b15;
+  box-shadow: inset 0 -4px #256fb9, 0 2px 3px #aa6b3b15;
 }
-.tray-clear-shortcut .material-symbol { width: 24px; height: 24px; }
-.tray-clear-shortcut:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 -2px #cf4d6c, 0 1px 2px #aa6b3b15; }
+.tray-clear-shortcut:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 -2px #256fb9, 0 1px 2px #aa6b3b15; }
 .tray-clear-shortcut:disabled {
-  border-color: #efc4cb;
-  background: linear-gradient(#fde9ea, #f7d5da);
-  color: #eab2bd;
-  box-shadow: inset 0 -4px #edc2ca, 0 2px 3px #aa6b3b15;
+  border-color: #bedcf5;
+  background: linear-gradient(#eef8ff, #dbedfc);
+  color: #9ec6e8;
+  box-shadow: inset 0 -4px #bbd9f3, 0 2px 3px #aa6b3b15;
 }
 .tray-row {
   // The square buttons beside the tray are as wide as the tray is tall: a slot plus its padding and border.
@@ -631,7 +617,7 @@
 // the buttons actually shown leave, so desserts keep one size whichever buttons are there.
 .tray-row--buttons-0 { grid-template-columns: minmax(0, 1fr); --tray-lent: calc(-1 * (var(--tray-button) + 8px)); }
 .tray-row--buttons-2 { grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; --tray-lent: calc(var(--tray-button) + 4px); }
-// Quick order: amber, so it reads apart from the pink tray clear beside it.
+// Quick order: amber, so it reads apart from the blue tray clear beside it.
 .quick-order-shortcut {
   border-color: #f0b54a;
   background: linear-gradient(#ffd98a, #f6a93b);
@@ -644,7 +630,14 @@
   color: #ebc98e;
   box-shadow: inset 0 -4px #f0d6a8, 0 2px 3px #aa6b3b15;
 }
-.quick-order-icon { display: block; width: 24px; height: 24px; }
+.quick-order-icon, .tray-clear-icon { display: block; flex: none; width: 24px; height: 24px; }
+// Button glyphs use a solid white fill when available and a faint tint when disabled.
+.item-button-icon { display: block; flex: none; width: 24px; height: 24px; color: #fff; }
+.tray-clear-shortcut:disabled > .item-button-icon {
+  color: #448cbf;
+  opacity: .38;
+}
+.quick-order-shortcut:disabled > .item-button-icon { color: #c18a31; }
 // Picked up mid-game, the quick order button pops in beside the tray.
 .quick-order-shortcut--new { animation: quick-order-arrive .5s cubic-bezier(.3, 1.6, .5, 1) both; }
 @keyframes quick-order-arrive { 0% { opacity: 0; transform: scale(.3); } 100% { opacity: 1; transform: none; } }
@@ -792,9 +785,19 @@
 }
 .start-actions .stage-button { min-height: 58px; font-size: var(--stage-script-size); }
 .glass-popup button .material-symbol { width: 1.25em; height: 1.25em; }
-.tray-clear-button { position: relative; }
+.glass-popup .tray-clear-button {
+  position: relative;
+  background: linear-gradient(#72caff, #318fdf);
+  box-shadow: inset 0 2px #c9ebffaa, inset 0 -3px #256fb980, 0 3px #28629843, 0 5px 9px #28629836;
+  text-shadow: 0 1px 2px #275c9680;
+}
 .glass-popup .quick-order-button { position: relative; background: linear-gradient(#ffd98a, #ef9a2c); text-shadow: 0 1px 2px #9a5a1080; }
-.quick-order-button .quick-order-icon { width: 1.25em; height: 1.25em; }
+.glass-popup .quick-order-button:disabled { background: linear-gradient(#fff5e2, #fbe6c4); color: #8b7357; text-shadow: none; }
+.tray-full-dialog :is(.quick-order-icon, .tray-clear-icon) {
+  width: 1.5em;
+  height: 1.5em;
+}
+.quick-order-button:disabled .quick-order-icon { opacity: .45; }
 
 .result-panel {
   flex: 0 1 auto;
@@ -1040,8 +1043,8 @@
 .stage-jump-arrow--down { rotate: -90deg; }
 
 // Hearts: the counter on the home and stage pages, the bonus reward and the out-of-hearts popup.
-.heart-icon { display: block; flex: none; width: 22px; height: 22px; fill: #e94873; filter: drop-shadow(0 1px 0 #ac204640); }
-.heart-icon--empty { fill: #d9c3b6; }
+.heart-icon { display: block; flex: none; width: 22px; height: 22px; --reward-icon-effect: drop-shadow(0 1px 0 #ac204640); }
+.heart-icon--empty { --reward-icon-effect: grayscale(1); opacity: .6; }
 .heart-counter {
   position: relative;
   display: inline-flex;
@@ -1073,7 +1076,7 @@
   line-height: 1;
   animation: clear-scale-in 520ms cubic-bezier(.22,.72,.26,1) 300ms both;
 }
-.result-heart .heart-icon { width: clamp(56px, 18vw, 78px); height: clamp(56px, 18vw, 78px); filter: drop-shadow(0 3px 2px #ac204640); }
+.result-heart .heart-icon { width: clamp(56px, 18vw, 78px); height: clamp(56px, 18vw, 78px); --reward-icon-effect: drop-shadow(0 3px 2px #ac204640); }
 .no-hearts-dialog h2 { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .no-hearts-dialog h2 .heart-icon { width: 26px; height: 26px; }
 // Jua sits about 1px high; the padding lines the title up with the heart.
@@ -1158,26 +1161,36 @@
   .time-bonus-pop { display: none; }
 }
 
-// A reward takes a dessert-sized slot in its queue. The tray clear copies the active tray-clear
-// button; the heart is a raised heart in the same pink.
-.reward-tile { display: grid; place-items: center; aspect-ratio: 1; }
-.reward-tile--trayClear {
-  padding-bottom: 3px;
-  border-radius: 12px;
-  background: linear-gradient(#ff9bb0, #ec6a86);
-  color: #fff;
-  box-shadow: inset 0 -4px #cf4d6c, 0 2px 3px #aa6b3b15;
+// A reward takes a dessert-sized slot in its queue.
+.reward-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  filter: url(#white-outline) drop-shadow(0 0 3px #f5cb818c);
 }
-.reward-tile--trayClear .material-symbol { width: 60%; height: 60%; }
-.reward-tile--quickOrder {
-  padding-bottom: 3px;
-  border-radius: 12px;
-  background: linear-gradient(#ffd98a, #f6a93b);
-  color: #fff;
-  box-shadow: inset 0 -4px #d98a1f, 0 2px 3px #aa6b3b15;
+// A small glint pulses while the rim and halo stay visible.
+.reward-tile::after {
+  content: '';
+  position: absolute;
+  top: 9%;
+  right: 12%;
+  width: 28%;
+  aspect-ratio: 1;
+  background: #fff9d9;
+  clip-path: polygon(50% 0, 59% 41%, 100% 50%, 59% 59%, 50% 100%, 41% 59%, 0 50%, 41% 41%);
+  animation: reward-glint 2.4s ease-in-out infinite;
 }
-.reward-tile--quickOrder .quick-order-icon { width: 60%; height: 60%; }
-.reward-heart { display: block; width: 100%; height: 100%; scale: 1.2; filter: drop-shadow(0 2px 2px #aa3b5a40); }
+.reward-tile--trayClear::after { animation-delay: -.8s; }
+.reward-tile--quickOrder::after { animation-delay: -1.6s; }
+@keyframes reward-glint {
+  0%, 48%, 100% { opacity: .18; transform: scale(.55); }
+  67% { opacity: .8; transform: scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reward-tile::after { animation: none; opacity: .75; }
+}
+.reward-tile > img { width: 100%; height: 100%; }
 .reward-pop {
   position: fixed;
   z-index: 20;
@@ -1194,12 +1207,9 @@
   pointer-events: none;
   animation: float-pop 1000ms ease-out both;
 }
-.reward-pop .heart-icon { width: 22px; height: 22px; fill: #ec6a86; stroke: #fff; stroke-width: 4.4px; stroke-linejoin: round; paint-order: stroke fill; filter: none; }
-.reward-pop .material-symbol { display: block; width: 21px; height: 21px; background: #ec6a86; }
+.reward-pop :is(.heart-icon, .quick-order-icon, .tray-clear-icon) { width: 21px; height: 21px; --reward-icon-effect: url(#white-outline); }
+.reward-pop--trayClear { color: #318fdf; }
 .reward-pop--quickOrder { color: #e8941f; }
-.reward-pop .quick-order-icon { width: 21px; height: 21px; color: #f6a93b; filter: url(#white-outline); }
-// The icon is drawn through a mask, which would clip its own outline, so a wrapper carries it.
-.reward-pop-basket { filter: url(#white-outline); }
 @keyframes float-pop {
   0% { opacity: 0; transform: translateY(6px) scale(.6); }
   20% { opacity: 1; transform: translateY(0) scale(1.15); }
@@ -1250,16 +1260,7 @@
 // Item icons. Peek: "?" and a dessert take turns; +5 seconds: a stopwatch with "+5s" inside.
 .peek-icon { display: grid; width: 32px; height: 32px; }
 .peek-icon > * { grid-area: 1 / 1; display: grid; place-items: center; }
-.peek-icon-mystery {
-  border: 2px dashed #d7a98b;
-  border-radius: 50%;
-  background: #fbe9da;
-  color: #b0785a;
-  font-family: Jua, sans-serif;
-  font-size: 19px;
-  line-height: 1;
-  animation: peek-mystery 2.4s ease-in-out infinite;
-}
+.peek-icon-mystery { width: 100%; height: 100%; animation: peek-mystery 2.4s ease-in-out infinite; }
 .peek-icon-dessert { opacity: 0; animation: peek-dessert 2.4s ease-in-out infinite; }
 .peek-icon-dessert .donut { width: 100%; }
 @keyframes peek-mystery { 0%, 38%, 100% { opacity: 1; } 50%, 88% { opacity: 0; } }
@@ -1267,7 +1268,7 @@
 @media (prefers-reduced-motion: reduce) {
   .peek-icon > * { animation: none; }
 }
-.add-time-icon { display: block; width: 32px; height: 32px; overflow: visible; }
+.add-time-icon { display: block; width: 32px; height: 32px; }
 
 // Items for the next game, switched on before it starts. A chosen item lights up pink with a check.
 .start-items { display: grid; grid-auto-flow: column; grid-auto-columns: 104px; justify-content: center; gap: 14px; margin: 6px 0 20px; }
@@ -1288,19 +1289,12 @@
 .start-item:active { transform: scale(.96); }
 // Chosen: a soft green card to match the check on its corner.
 .start-item[aria-pressed='true'] { border-color: #34b65a; background: #e8f7ec; color: #1f7a3b; }
-// The icon sits straight on the card, brown, green once chosen.
-.start-item-icon { display: grid; place-items: center; width: 36px; height: 36px; color: #9a5f43; }
-.start-item[aria-pressed='true'] .start-item-icon { color: #2a9a4b; }
+.start-item-icon { display: grid; place-items: center; width: 36px; height: 36px; }
 .start-item-name { font-size: 13px; font-weight: 800; white-space: nowrap; }
 // The badge sits on the card's top right; a chosen card shows a green check there.
 .start-item > .start-item-count, .start-item > .ad-badge { top: -7px; right: -7px; }
 .start-item-count--chosen { padding: 0; width: 22px; height: 22px; border-radius: 50%; background: #34b65a; box-shadow: 0 1px 2px #1a5a2a59; }
 .start-item-count--chosen svg { width: 15px; height: 15px; }
-// The stopwatch's face sits low in its box; lift it to the middle of the circle.
-.start-item-icon .add-time-icon { translate: 0 -2px; }
-// The "?" takes its disc's colour: brown on cream, pink once chosen (white disc).
-.start-item-icon .peek-icon-mystery { border-color: currentColor; background: transparent; color: inherit; }
-
 // Pass offer: the popup, and the small "Pass" links in the popups where it helps (tray clear, hearts, +5 seconds).
 .pass-offer-dialog { padding-top: 30px; }
 .pass-offer-crown {
@@ -1320,11 +1314,10 @@
   position: relative; display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 50%;
   background: #fbe9da; color: #9a5f43;
 }
-.pass-benefit-icon .heart-icon { width: 22px; height: 22px; }
-.pass-benefit-icon .add-time-icon, .pass-benefit-icon .peek-icon { width: 24px; height: 24px; }
-.pass-benefit-icon .peek-icon-mystery { font-size: 14px; }
-.pass-benefit-icon .quick-order-icon { width: 22px; height: 22px; color: #f0a31a; }
-.pass-benefit-icon svg:not(.heart-icon):not(.add-time-icon):not(.quick-order-icon) { width: 22px; height: 22px; }
+.pass-benefit-icon > img { width: 22px; height: 22px; }
+:is(.pass-benefit--clears, .pass-benefit--quick) .pass-benefit-icon { background: transparent; }
+.pass-benefit-icon > :is(.tray-clear-icon, .quick-order-icon) { width: 29px; height: 29px; }
+.pass-benefit-icon .add-time-icon, .pass-benefit-icon .peek-icon { width: 26px; height: 26px; }
 .pass-benefit-count {
   position: absolute; top: -7px; right: -10px; min-width: 22px; padding: 3px 5px 1px; border-radius: 10px;
   background: #e5262f; color: #fff; font-family: Jua, sans-serif; font-size: 11px; line-height: 1.1; text-align: center;

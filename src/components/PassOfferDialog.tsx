@@ -3,8 +3,7 @@ import { LanguageContext, useMessages } from '../i18n/language';
 import { PASS_DAYS, PASS_PEEKS, PASS_QUICK_ORDERS, PASS_SPARE_HEARTS, PASS_TIME_BONUSES } from '../monetization/pass';
 import { PASS_PRICE } from '../monetization/billing';
 import { HeartIcon } from './HeartIcon';
-import { Icon } from './Icon';
-import { AddTimeIcon, PeekIcon, QuickOrderIcon } from './ItemIcons';
+import { AddTimeIcon, PeekIcon, QuickOrderIcon, TrayClearIcon } from './ItemIcons';
 
 /**
  * The pass and what it gives, offered where the player gets stuck without it (tray clear for an ad, out of hearts,
@@ -22,7 +21,7 @@ export function PassOfferDialog({ onBuy, onClose }: { onBuy: () => void; onClose
   const benefits: { key: string; icon: ReactNode; count?: string; text: string }[] = [
     { key: 'hearts', icon: <HeartIcon />, count: `+${PASS_SPARE_HEARTS}`, text: t.passOfferSpareHearts },
     { key: 'fast', icon: <HeartIcon />, count: 'x2', text: t.passOfferFastHearts },
-    { key: 'clears', icon: <Icon name="basket" />, text: t.passOfferFreeClears },
+    { key: 'clears', icon: <TrayClearIcon />, text: t.passOfferFreeClears },
     { key: 'quick', icon: <QuickOrderIcon />, count: `+${PASS_QUICK_ORDERS}`, text: t.passOfferQuickOrders },
     { key: 'time', icon: <AddTimeIcon />, count: `+${PASS_TIME_BONUSES}`, text: t.passOfferTimeBonuses },
     { key: 'peek', icon: <PeekIcon />, count: `+${PASS_PEEKS}`, text: t.passOfferPeeks },

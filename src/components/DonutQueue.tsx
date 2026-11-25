@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react';
 import type { DonutToken, RewardKind } from '../game/types';
-import { QuickOrderIcon } from './ItemIcons';
+import { MysteryIcon, QuickOrderIcon, TrayClearIcon } from './ItemIcons';
 import { Donut } from './Donut/Donut';
 import { useMessages } from '../i18n/language';
-import { RewardHeart } from './RewardHeart';
-import { Icon } from './Icon';
+import { HeartIcon } from './HeartIcon';
 export function DonutQueue({ queues, disabled, locked = false, revealed = false, returning, hintColumns, onSelect, onReject }: {
   /** revealed: peek was used, so hidden desserts show as themselves. */
   queues: DonutToken[][]; disabled: boolean; locked?: boolean; revealed?: boolean; returning: ReadonlySet<string>; hintColumns: readonly number[];
@@ -112,13 +111,13 @@ export function DonutQueue({ queues, disabled, locked = false, revealed = false,
         key={donut.id}
         data-token-id={donut.id}
         style={{ zIndex: position, visibility: returning.has(donut.id) ? 'hidden' : undefined }}>
-        {donut.reward === 'heart' ? <span className="donut reward-tile reward-tile--heart"><RewardHeart /></span>
+        {donut.reward === 'heart' ? <span className="donut reward-tile reward-tile--heart"><HeartIcon /></span>
           : donut.reward === 'quickOrder' ? <span className="donut reward-tile reward-tile--quickOrder"><QuickOrderIcon /></span>
-          : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><Icon name="basket" /></span>
+          : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><TrayClearIcon /></span>
           : donut.hidden && position > 0 ? revealed
             // Peek: the "?" blinks as the game opens, then turns into its dessert.
-            ? <span className="peek-reveal"><span className="donut donut--mystery peek-reveal-mystery">?</span><Donut type={donut.type} className="peek-reveal-dessert" /></span>
-            : <span className="donut donut--mystery">?</span>
+            ? <span className="peek-reveal"><MysteryIcon className="donut peek-reveal-mystery" /><Donut type={donut.type} className="peek-reveal-dessert" /></span>
+            : <MysteryIcon className="donut" />
           : <Donut type={donut.type} />}
       </span>)}
     </button>)}</div>

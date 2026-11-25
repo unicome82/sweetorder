@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { HeartIcon } from './components/HeartIcon';
-import { AddTimeIcon, QuickOrderIcon } from './components/ItemIcons';
+import { AddTimeIcon, MysteryIcon, QuickOrderIcon, TrayClearIcon } from './components/ItemIcons';
 import { BASE_TRAY_CAPACITY, MAX_ORDER_QUANTITY, ORDER_SLOTS, QUEUE_COUNT } from './game/constants';
 import { HEART_REFILL_MS, MAX_HEARTS } from './game/hearts';
 import { MAX_QUICK_ORDERS } from './game/engine';
@@ -17,7 +17,6 @@ import {
 // Game facts for the guide. Numbers come straight from the game's constants, so the page follows any change to them.
 const minutes = (ms: number) => ms / 60_000;
 const days = (ms: number) => ms / (24 * 60 * 60_000);
-const basket = new URL('./assets/icons/shopping_basket.svg', import.meta.url).href;
 
 function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   return <div className="info-table-wrap">
@@ -62,19 +61,19 @@ const items = <ul className="info-items">
     <div><h3>하트</h3><p>스테이지 입장에 1개 사용, 클리어하면 돌려받아요. 최대 {MAX_HEARTS}개, {minutes(HEART_REFILL_MS)}분마다 1개 충전. 부족하면 광고로 충전.</p></div>
   </li>
   <li>
-    <span className="info-item-icon"><img src={basket} alt="" /></span>
+    <span className="info-item-icon"><TrayClearIcon /></span>
     <div><h3>트레이 비우기</h3><p>트레이의 디저트를 대기열로 돌려보내요. 시작 시 {STARTING_TRAY_CLEARS}개 지급, 스테이지 보상으로 최대 {MAX_TRAY_CLEARS}개까지 보유, 한 판에 타이머 {TIMED_TRAY_CLEARS_PER_GAME}회 · 릴랙스 {RELAXED_TRAY_CLEARS}회까지. 보유 0개면 광고로 사용.</p></div>
   </li>
   <li>
-    <span className="info-item-icon info-item-icon--quick"><QuickOrderIcon /></span>
+    <span className="info-item-icon"><QuickOrderIcon /></span>
     <div><h3>퀵오더</h3><p>화면의 손님 주문을 한 번에 채워요 (트레이 → 대기열 순). 최대 {MAX_QUICK_ORDERS}개 보유, 스테이지 보상으로 획득. 패스가 있으면 한 판에 1개 더.</p></div>
   </li>
   <li>
-    <span className="info-item-icon info-item-icon--text" aria-hidden="true">?</span>
+    <span className="info-item-icon"><MysteryIcon /></span>
     <div><h3>미리보기</h3><p>가려진 “?” 디저트를 공개한 채로 시작해요. 시작 전 선택, 광고 또는 패스로 사용.</p></div>
   </li>
   <li>
-    <span className="info-item-icon info-item-icon--time"><AddTimeIcon /></span>
+    <span className="info-item-icon"><AddTimeIcon /></span>
     <div><h3>+5초</h3><p>제한 시간을 {PASS_TIME_BONUS_MS / 1000}초 늘리고 시작해요. 시작 전 선택, <b>패스 전용</b> (타이머 모드).</p></div>
   </li>
 </ul>;

@@ -1,0 +1,7 @@
+:is(.heart-icon, .quick-order-icon, .tray-clear-icon) {
+  filter: brightness(.95) saturate(1.08) var(--reward-icon-effect, );
+}
+
+.quick-order-icon {
+  scale: .92 1;
+}

@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { HeartIcon } from './components/HeartIcon';
-import { RewardHeart } from './components/RewardHeart';
+import { AddTimeIcon, MysteryIcon, QuickOrderIcon, TrayClearIcon } from './components/ItemIcons';
 import { itemNames } from './components/Donut/donutThemes';
 import { DONUT_TYPES } from './game/types';
 import { infoSections } from './GuideInfo';
+import './styles/reward-icons.css';
 import './styles/guide.css';
 
 const images = import.meta.glob<string>('./assets/{menu,menu-archive,customers,home,game,icons}/*.{webp,svg}', {
@@ -44,7 +45,7 @@ const archivedDesserts = {
 const icons: Record<string, string> = {
   chevron_left: '뒤로', volume_up: '소리 켜기', volume_off: '소리 끄기', pause: '일시 정지',
   play_arrow: '재생', arrow_forward: '다음', refresh: '다시 시도', grid_view: '스테이지 목록',
-  shopping_basket: '트레이 비우기', lock: '잠금', settings: '설정',
+  lock: '잠금', settings: '설정',
 };
 
 function ImagePreview({ url, label }: { url: string; label: string }) {
@@ -94,12 +95,14 @@ const sections = [
       { label: '파비콘', preview: <ImagePreview label="파비콘" url="../favicon.svg" /> },
       { label: '홈 화면 아이콘', preview: <ImagePreview label="홈 화면 아이콘" url="../apple-touch-icon.png" /> },
       { label: '하트', preview: <span className="preview"><HeartIcon /></span> },
-      { label: '하트 보상', preview: <span className="preview"><RewardHeart /></span> },
+      { label: '퀵오더', preview: <span className="preview"><QuickOrderIcon /></span> },
+      { label: '+5초', preview: <span className="preview"><AddTimeIcon /></span> },
+      { label: '트레이 비우기', preview: <span className="preview"><TrayClearIcon /></span> },
       { label: '타이머 모드', preview: <span className="preview" aria-hidden="true">⏱️</span> },
       { label: '릴랙스 모드', preview: <span className="preview" aria-hidden="true">🌿</span> },
       { label: '하트 효과', preview: <span className="preview effect-icon" aria-hidden="true">♥</span> },
       { label: '반짝임 효과', preview: <span className="preview effect-icon" aria-hidden="true">✦</span> },
-      { label: '가려진 디저트', preview: <span className="preview" aria-hidden="true">?</span> },
+      { label: '가려진 디저트', preview: <span className="preview"><MysteryIcon /></span> },
     ],
   },
 ];

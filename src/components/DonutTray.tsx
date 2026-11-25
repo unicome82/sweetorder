@@ -4,8 +4,7 @@ import { StageDifficultyRibbon } from './StageDifficultyRibbon';
 import { BASE_TRAY_CAPACITY } from '../game/constants';
 import { Donut } from './Donut/Donut';
 import { useMessages } from '../i18n/language';
-import { Icon } from './Icon';
-import { QuickOrderIcon } from './ItemIcons';
+import { ItemButtonIcon } from './ItemIcons';
 type TrayLevel = 'calm' | 'warn' | 'danger';
 function getTrayLevel(used: number, capacity: number): TrayLevel {
   if (capacity - used <= 1) return 'danger';
@@ -37,12 +36,12 @@ export function DonutTray({ donuts, capacity, difficulty, inFlight, clearsLeft, 
     <div className="tray"><ol className="tray-slots" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>{Array.from({ length: capacity }, (_, i) => <li key={i} data-tray-slot={i} data-token-id={donuts[i]?.id} aria-label={donuts[i] ? t.items[donuts[i].type] : t.emptySlot(i + 1)}>{donuts[i] ? <span className="tray-donut" style={{ visibility: inFlight?.has(donuts[i].id) ? 'hidden' : undefined }}><Donut type={donuts[i].type} /></span> : null}</li>)}</ol></div>
   </section>
     {showClear && <button type="button" data-sfx="none" className="tray-clear-shortcut" onClick={onClear} disabled={!canClear} aria-label={needsAd ? t.clearTrayAdLabel : t.clearTrayLabel(owned)}>
-      <Icon name="basket" />{needsAd
+      <ItemButtonIcon item="trayClear" />{needsAd
         ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span>
         : <span className="tray-clear-shortcut-count" aria-hidden="true">{owned}</span>}
     </button>}
     {showQuickOrder && <button type="button" data-sfx="none" className={`tray-clear-shortcut quick-order-shortcut${heldAtStart ? '' : ' quick-order-shortcut--new'}`} onClick={onQuickOrder} disabled={!canQuickOrder} aria-label={t.quickOrderLabel(quickOrders!)}>
-      <QuickOrderIcon /><span className="tray-clear-shortcut-count" aria-hidden="true">{quickOrders}</span>
+      <ItemButtonIcon item="quickOrder" /><span className="tray-clear-shortcut-count" aria-hidden="true">{quickOrders}</span>
     </button>}
   </div>;
 }
