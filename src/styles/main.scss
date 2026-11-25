@@ -562,10 +562,10 @@
 }
 .customer-hearts .customer-heart--spark-left { --heart-x: -37px; }
 .customer-hearts .customer-heart--spark-right { --heart-x: 37px; }
+.tray-section, .queue-mystery { background: linear-gradient(#fffcf2, #ffefd8); }
 .tray-section {
   border: 1px solid #e8c099;
   border-radius: 15px;
-  background: linear-gradient(#fffcf2, #ffefd8);
   box-shadow: inset 0 -4px #ecd2a9, 0 2px 3px #aa6b3b15;
 }
 .tray-section {
@@ -596,13 +596,13 @@
   aspect-ratio: 1;
   height: 100%;
   padding: 0 0 4px;
-  border: 1px solid #61a9cd;
+  border: 1px solid #74b6d7;
   border-radius: 15px;
-  background: linear-gradient(#86c6e2, #54a3ca);
+  background: linear-gradient(#94d0eb, #65afd4);
   color: #fff;
-  box-shadow: inset 0 -4px #4d8eb0, 0 2px 3px #aa6b3b15;
+  box-shadow: inset 0 -4px #589abd, 0 2px 3px #aa6b3b15;
 }
-.tray-clear-shortcut:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 -2px #4d8eb0, 0 1px 2px #aa6b3b15; }
+.tray-clear-shortcut:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 -2px #589abd, 0 1px 2px #aa6b3b15; }
 .tray-clear-shortcut:disabled {
   border-color: #cfdee4;
   background: linear-gradient(#f1f7f8, #e4edf0);
@@ -698,12 +698,12 @@
 .queue-front, .queue-back { display: grid; place-items: center; pointer-events: none; width: 100%; min-width: 0; }
 .queue-front .donut { width: min(100%, 40px); }
 .queue-back .donut { width: min(92%, 36px); }
-.queue-column .mystery-icon {
-  background: #ecdbc6;
+.queue-mystery {
   border-radius: 50%;
   padding: 2px;
   box-shadow: 0 0 0 1px #bb9e813d;
 }
+.queue-mystery .mystery-icon { display: block; width: 100%; }
 
 [data-hint-target] .queue-front img.donut { filter: url(#queue-dessert-glow); }
 .queue-dessert-glow-color { flood-opacity: .8; }
@@ -793,8 +793,8 @@
 .glass-popup button .material-symbol { width: 1.25em; height: 1.25em; }
 .glass-popup .tray-clear-button {
   position: relative;
-  background: linear-gradient(#86c6e2, #54a3ca);
-  box-shadow: inset 0 2px #c9ebffaa, inset 0 -3px #4d8eb080, 0 3px #58768743, 0 5px 9px #58768736;
+  background: linear-gradient(#94d0eb, #65afd4);
+  box-shadow: inset 0 2px #c9ebffaa, inset 0 -3px #589abd80, 0 3px #58768743, 0 5px 9px #58768736;
   text-shadow: 0 1px 2px #45647680;
 }
 .glass-popup .quick-order-button { position: relative; background: linear-gradient(#ffd98a, #ef9a2c); text-shadow: 0 1px 2px #9a5a1080; }
@@ -1029,8 +1029,8 @@
   display: grid; gap: 8px;
 }
 .stage-jump-button {
-  display: flex; align-items: center; justify-content: center; gap: 2px;
-  min-width: 64px; height: 40px; padding: 0 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  width: 84px; height: 40px; padding: 0 8px;
   border: 1px solid #fff9f3; border-radius: 999px;
   background: linear-gradient(#fffaf4, #fceadc); color: #813f29;
   font-family: Jua, sans-serif; font-size: 15px; line-height: 1;
@@ -1039,7 +1039,7 @@
 .stage-jump-button:active:not(:disabled) { transform: translateY(2px); }
 .stage-jump-button:disabled { visibility: hidden; }
 .stage-jump-arrow {
-  width: 20px; height: 20px; background: currentColor;
+  flex: none; width: 20px; height: 20px; background: currentColor;
   mask: url('../assets/icons/chevron_left.svg') center / contain no-repeat;
 }
 .stage-jump-arrow--up { rotate: 90deg; }
@@ -1308,21 +1308,20 @@
 .pass-offer-lead { margin: 6px 0 0; color: #a5552f; font-size: 15px; font-weight: 800; text-align: center; }
 .pass-offer-benefits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 12px; padding: 0; list-style: none; }
 .pass-benefit {
-  display: flex; align-items: center; gap: 12px; padding: 10px 8px; border: 1.5px solid #f1d5c4; border-radius: 14px;
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 8px; border: 1.5px solid #f1d5c4; border-radius: 14px;
   background: #fffaf4; color: var(--secondary-text); font-size: 13px; line-height: 1.25; text-align: left; word-break: keep-all;
 }
 .pass-benefit-icon {
-  position: relative; display: grid; place-items: center; flex: none; width: 36px; height: 36px;
+  display: grid; place-items: center; flex: none; width: 36px; height: 36px;
 }
 .pass-benefit-icon > :is(img, svg, .peek-icon) { width: 100%; height: 100%; }
 .pass-benefit-count {
-  position: absolute; top: -7px; right: -10px; min-width: 22px; padding: 3px 5px 1px; border-radius: 10px;
+  position: absolute; top: -6px; right: -4px; min-width: 22px; padding: 3px 5px 1px; border-radius: 10px;
   background: #e5262f; color: #fff; font-family: Jua, sans-serif; font-size: 11px; line-height: 1.1; text-align: center;
   box-shadow: 0 1px 2px #7a1a1a59;
 }
-.pass-offer-price { margin: 0; color: #743c27; font-size: 15px; text-align: center; }
+.pass-offer-price { margin: 0 0 12px; color: #743c27; font-size: 15px; text-align: center; }
 .pass-offer-price strong { font-family: Jua, sans-serif; font-size: 26px; font-weight: 400; color: #6d4ad1; }
-.pass-offer-note { margin: 2px 0 14px; color: #a0715a; font-size: 12px; text-align: center; }
 .pass-nav-button {
   display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 12px 0 10px;
   border: 1px solid #fff9f3; border-radius: 20px; background: linear-gradient(#8a68e8, #6d4ad1); color: #fff;

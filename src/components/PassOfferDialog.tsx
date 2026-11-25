@@ -19,14 +19,14 @@ export function PassOfferDialog({ onBuy, onClose }: { onBuy: () => void; onClose
     const element = dialog.current;
     if (element && !element.open) element.showModal();
   }, []);
-  // Inventory counts sit at the upper-right corner of the icon.
-  const benefits: { key: string; icon: ReactNode; count?: string; text: string }[] = [
-    { key: 'hearts', icon: <HeartIcon />, count: `+${PASS_SPARE_HEARTS}`, text: t.passOfferSpareHearts(PASS_SPARE_HEARTS) },
-    { key: 'fast', icon: <img src={halfTime} alt="" />, text: t.passOfferFastHearts(PASS_FAST_REFILLS) },
-    { key: 'clears', icon: <TrayClearIcon />, text: t.passOfferTrayClears(PASS_TRAY_CLEARS) },
-    { key: 'quick', icon: <QuickOrderIcon />, count: `+${PASS_QUICK_ORDERS}`, text: t.passOfferQuickOrders(PASS_QUICK_ORDERS) },
-    { key: 'time', icon: <AddTimeIcon />, count: `+${PASS_TIME_BONUSES}`, text: t.passOfferTimeBonuses(PASS_TIME_BONUSES) },
-    { key: 'peek', icon: <PeekIcon />, count: `+${PASS_PEEKS}`, text: t.passOfferPeeks(PASS_PEEKS) },
+  // Each benefit has a quantity badge on its card.
+  const benefits: { key: string; icon: ReactNode; count: string; text: string }[] = [
+    { key: 'hearts', icon: <HeartIcon />, count: `+${PASS_SPARE_HEARTS}`, text: t.passOfferSpareHearts },
+    { key: 'fast', icon: <img src={halfTime} alt="" />, count: `+${PASS_FAST_REFILLS}`, text: t.passOfferFastHearts },
+    { key: 'clears', icon: <TrayClearIcon />, count: `+${PASS_TRAY_CLEARS}`, text: t.passOfferTrayClears },
+    { key: 'quick', icon: <QuickOrderIcon />, count: `+${PASS_QUICK_ORDERS}`, text: t.passOfferQuickOrders },
+    { key: 'time', icon: <AddTimeIcon />, count: `+${PASS_TIME_BONUSES}`, text: t.passOfferTimeBonuses },
+    { key: 'peek', icon: <PeekIcon />, count: `+${PASS_PEEKS}`, text: t.passOfferPeeks },
   ];
   return <dialog className="glass-popup tray-full-dialog pass-offer-dialog" ref={dialog} aria-labelledby="pass-offer-heading"
     onCancel={event => { event.preventDefault(); onClose(); }}>
@@ -37,12 +37,12 @@ export function PassOfferDialog({ onBuy, onClose }: { onBuy: () => void; onClose
     <p className="pass-offer-lead">{t.passOfferLead}</p>
     <ul className="pass-offer-benefits">
       {benefits.map(({ key, icon, count, text }) => <li key={key} className={`pass-benefit pass-benefit--${key}`}>
-        <span className="pass-benefit-icon" aria-hidden="true">{icon}{count && <span className="pass-benefit-count" lang="en">{count}</span>}</span>
+        <span className="pass-benefit-icon" aria-hidden="true">{icon}</span>
         <span className="pass-benefit-text">{text}</span>
+        <span className="pass-benefit-count">{count}</span>
       </li>)}
     </ul>
     <p className="pass-offer-price"><strong>{PASS_PRICE[language]}</strong></p>
-    <p className="pass-offer-note">{t.passOfferNote}</p>
     <div className="result-actions charge-hearts-actions">
       <button type="button" className="secondary-button" onClick={onClose}>{t.passOfferLater}</button>
       <button type="button" className="primary-button popup-primary-button" onClick={onBuy}>{t.passOfferBuy}</button>

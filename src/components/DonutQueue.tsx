@@ -116,8 +116,8 @@ export function DonutQueue({ queues, disabled, locked = false, revealed = false,
           : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><TrayClearIcon /></span>
           : donut.hidden && position > 0 ? revealed
             // Peek: the "?" blinks as the game opens, then turns into its dessert.
-            ? <span className="peek-reveal"><MysteryIcon className="donut peek-reveal-mystery" /><Donut type={donut.type} className="peek-reveal-dessert" /></span>
-            : <MysteryIcon className="donut" />
+            ? <span className="peek-reveal"><span className="donut queue-mystery peek-reveal-mystery"><MysteryIcon /></span><Donut type={donut.type} className="peek-reveal-dessert" /></span>
+            : <span className="donut queue-mystery"><MysteryIcon /></span>
           : <Donut type={donut.type} />}
       </span>)}
     </button>)}</div>
