@@ -27,9 +27,18 @@ export function StartPage({ stage, onGame, onStages, settings }: {
 }) {
   const t = useMessages();
   const [poster] = useState(() => posters[Math.floor(Math.random() * posters.length)]);
-  return <main className="start-page" style={{ backgroundImage: poster?.background }}>
+  const [diagnostic, setDiagnostic] = useState('default');
+  return <main className="start-page" data-diagnostic={diagnostic} style={{ backgroundImage: diagnostic === 'stripes' ? undefined : poster?.background }}>
     <h1 className="sr-only">Sweet Order</h1>
     <img className="start-poster" src={poster?.src} width={800} height={1800} alt="" draggable={false} fetchPriority="high" />
+    <select className="pwa-diagnostic" aria-label="iOS PWA 진단" value={diagnostic} onChange={event => setDiagnostic(event.target.value)}>
+      <option value="default">진단 · 기본 상태</option>
+      <option value="filters">필터 끄기</option>
+      <option value="screen-height">화면 높이 보정 끄기</option>
+      <option value="viewport">높이를 100dvh로 고정</option>
+      <option value="safe-area">상단 safe-area 끄기</option>
+      <option value="stripes">줄무늬 배경</option>
+    </select>
     <div className="top-actions">
       <SettingsButton {...settings} />
     </div>
