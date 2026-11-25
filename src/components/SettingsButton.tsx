@@ -63,7 +63,7 @@ export function SettingsButton({ language, onLanguage, mode, onMode, testPass, i
       <Icon name="settings" />
     </button>
     <dialog ref={dialog} className="glass-popup tray-full-dialog sound-dialog settings-dialog" aria-labelledby="settings-heading"
-      onClose={close} onClick={event => { if (event.target === event.currentTarget) close(); }}>
+      onClose={close}>
       <h2 id="settings-heading">{t.settings}</h2>
       <section className="settings-section">
         <h3>{t.language}</h3>
