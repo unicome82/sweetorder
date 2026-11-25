@@ -114,6 +114,7 @@
   font-display: swap;
 }
 
+:root:has(.start-page) { background: #fff; }
 .app-shell:has(.start-page) { width: 100%; }
 .start-page {
   position: relative;
@@ -123,17 +124,7 @@
   display: grid;
   place-items: end center;
   padding: var(--safe-top) env(safe-area-inset-right) max(clamp(20px, 5dvh, 48px), env(safe-area-inset-bottom)) env(safe-area-inset-left);
-  background-color: #c5e9ff;
-}
-.start-poster {
-  position: absolute;
-  top: 0;
-  inset-inline: 0;
-  margin-inline: auto;
-  // Short screens can cut into the added foreground, below the original artwork.
-  width: min(100%, calc(var(--page-height) * 800 / 1360));
-  height: auto;
-  pointer-events: none;
+  background: #fff;
 }
 .top-actions {
   position: absolute;
