@@ -18,13 +18,14 @@ export function PassOfferDialog({ onBuy, onClose }: { onBuy: () => void; onClose
     const element = dialog.current;
     if (element && !element.open) element.showModal();
   }, []);
-  const benefits: { key: string; icon: ReactNode; text: string }[] = [
-    { key: 'hearts', icon: <HeartIcon />, text: t.passOfferSpareHearts(PASS_SPARE_HEARTS) },
-    { key: 'fast', icon: <><HeartIcon /><span className="pass-benefit-tag" lang="en">x2</span></>, text: t.passOfferFastHearts },
+  // The count sits on the icon's top right (+10, x2); the label beside it says what it is.
+  const benefits: { key: string; icon: ReactNode; count?: string; text: string }[] = [
+    { key: 'hearts', icon: <HeartIcon />, count: `+${PASS_SPARE_HEARTS}`, text: t.passOfferSpareHearts },
+    { key: 'fast', icon: <HeartIcon />, count: 'x2', text: t.passOfferFastHearts },
     { key: 'clears', icon: <Icon name="basket" />, text: t.passOfferFreeClears },
-    { key: 'quick', icon: <QuickOrderIcon />, text: t.passOfferQuickOrders(PASS_QUICK_ORDERS) },
-    { key: 'time', icon: <AddTimeIcon />, text: t.passOfferTimeBonuses(PASS_TIME_BONUSES) },
-    { key: 'peek', icon: <PeekIcon />, text: t.passOfferPeeks(PASS_PEEKS) },
+    { key: 'quick', icon: <QuickOrderIcon />, count: `+${PASS_QUICK_ORDERS}`, text: t.passOfferQuickOrders },
+    { key: 'time', icon: <AddTimeIcon />, count: `+${PASS_TIME_BONUSES}`, text: t.passOfferTimeBonuses },
+    { key: 'peek', icon: <PeekIcon />, count: `+${PASS_PEEKS}`, text: t.passOfferPeeks },
   ];
   return <dialog className="glass-popup tray-full-dialog pass-offer-dialog" ref={dialog} aria-labelledby="pass-offer-heading"
     onCancel={event => { event.preventDefault(); onClose(); }}>
@@ -34,9 +35,9 @@ export function PassOfferDialog({ onBuy, onClose }: { onBuy: () => void; onClose
     <h2 id="pass-offer-heading">{t.passOfferTitle}</h2>
     <p className="pass-offer-lead">{t.passOfferLead(PASS_DAYS)}</p>
     <ul className="pass-offer-benefits">
-      {benefits.map(({ key, icon, text }) => <li key={key} className={`pass-benefit pass-benefit--${key}`}>
-        <span className="pass-benefit-icon" aria-hidden="true">{icon}</span>
-        <span className="pass-benefit-text">{text}</span>
+      {benefits.map(({ key, icon, count, text }) => <li key={key} className={`pass-benefit pass-benefit--${key}`}>
+        <span className="pass-benefit-icon" aria-hidden="true">{icon}{count && <span className="pass-benefit-count" lang="en">{count}</span>}</span>
+        <span className="pass-benefit-text">{count && <span className="sr-only">{count} </span>}{text}</span>
       </li>)}
     </ul>
     <p className="pass-offer-price"><strong>{PASS_PRICE[language]}</strong> <span>/ {t.passOfferDays(PASS_DAYS)}</span></p>

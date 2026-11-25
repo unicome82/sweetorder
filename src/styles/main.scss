@@ -1313,7 +1313,7 @@
 .pass-offer-lead { margin: 6px 0 0; color: #a5552f; font-size: 15px; font-weight: 800; text-align: center; }
 .pass-offer-benefits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 12px; padding: 0; list-style: none; }
 .pass-benefit {
-  display: flex; align-items: center; gap: 8px; padding: 8px; border: 1.5px solid #f1d5c4; border-radius: 14px;
+  display: flex; align-items: center; gap: 12px; padding: 10px 8px; border: 1.5px solid #f1d5c4; border-radius: 14px;
   background: #fffaf4; color: var(--secondary-text); font-size: 13px; line-height: 1.25; text-align: left; word-break: keep-all;
 }
 .pass-benefit-icon {
@@ -1325,10 +1325,12 @@
 .pass-benefit-icon .peek-icon-mystery { font-size: 14px; }
 .pass-benefit-icon .quick-order-icon { width: 22px; height: 22px; color: #f0a31a; }
 .pass-benefit-icon svg:not(.heart-icon):not(.add-time-icon):not(.quick-order-icon) { width: 22px; height: 22px; }
-.pass-benefit-tag {
-  position: absolute; right: -6px; bottom: -3px; padding: 2px 4px 0; border-radius: 8px;
-  background: #6d4ad1; color: #fff; font-family: Jua, sans-serif; font-size: 10px; line-height: 1.1;
+.pass-benefit-count {
+  position: absolute; top: -7px; right: -10px; min-width: 22px; padding: 3px 5px 1px; border-radius: 10px;
+  background: #e5262f; color: #fff; font-family: Jua, sans-serif; font-size: 11px; line-height: 1.1; text-align: center;
+  box-shadow: 0 1px 2px #7a1a1a59;
 }
+.pass-benefit--fast .pass-benefit-count { background: #6d4ad1; box-shadow: 0 1px 2px #3a1f8059; }
 .pass-offer-price { margin: 0; color: #743c27; font-size: 15px; text-align: center; }
 .pass-offer-price strong { font-family: Jua, sans-serif; font-size: 26px; font-weight: 400; color: #6d4ad1; }
 .pass-offer-note { margin: 2px 0 14px; color: #a0715a; font-size: 12px; text-align: center; }
