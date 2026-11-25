@@ -20,6 +20,8 @@ const LOCKED_PREVIEW = 12;
 const JUMP_SIZE = 500;
 const blockStart = (block: number) => block * JUMP_SIZE + 1;
 const optionId = (index: number) => index === 0 ? practiceStage.id : index;
+// Where the list was last scrolled, so coming back to it (from a game or the home screen) lands there again.
+let savedScrollTop: number | undefined;
 
 export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFastUntil, unlockAllStages, settings, onShowPass }: { onGame: (id: number) => void; onShowPass?: () => void; stars: Record<number, number>; hearts: Hearts; spareHearts: number; heartsFastUntil?: number; unlockAllStages: boolean; settings: SettingsProps }) {
   const relaxed = settings.mode === 'relaxed';
@@ -33,7 +35,8 @@ export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFast
   const rowCount = Math.ceil(optionCount / columns);
   const currentRow = Math.floor(currentStage / columns);
   const scrollArea = useRef<HTMLDivElement>(null);
-  const [viewport, setViewport] = useState({ top: currentRow * rowHeight, height: 0 });
+  const [restoreTo] = useState(savedScrollTop);
+  const [viewport, setViewport] = useState({ top: restoreTo ?? currentRow * rowHeight, height: 0 });
   const firstRow = Math.min(rowCount - 1, Math.max(0, Math.floor(viewport.top / rowHeight) - overscan));
   const lastRow = Math.max(firstRow + 1, Math.min(rowCount, Math.ceil((viewport.top + viewport.height) / rowHeight) + overscan));
 
@@ -61,8 +64,8 @@ export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFast
     if (scrollArea.current) scrollArea.current.scrollTop = Math.floor(stageId / columns) * rowHeight;
   }
   useLayoutEffect(() => {
-    if (scrollArea.current) scrollArea.current.scrollTop = currentRow * rowHeight - endPadding;
-  }, [currentRow, endPadding]);
+    if (scrollArea.current) scrollArea.current.scrollTop = restoreTo ?? currentRow * rowHeight - endPadding;
+  }, [restoreTo, currentRow, endPadding]);
 
   return <main className="stage-page">
     <nav className="stage-navigation" aria-label={t.stageMenu}>
@@ -73,7 +76,10 @@ export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFast
     <div className="stage-hero" aria-hidden="true" />
     <div className="stage-list-frame" data-scrolled={viewport.top > 0}>
       <div ref={scrollArea} className="stage-scroll" tabIndex={0} aria-label={t.stageList} role="region"
-        onScroll={event => setViewport({ top: event.currentTarget.scrollTop, height: event.currentTarget.clientHeight })}>
+        onScroll={event => {
+          savedScrollTop = event.currentTarget.scrollTop;
+          setViewport({ top: event.currentTarget.scrollTop, height: event.currentTarget.clientHeight });
+        }}>
         <div className="stage-list"
           style={{ gridAutoRows: rowHeight, paddingTop: firstRow * rowHeight, paddingBottom: (rowCount - lastRow) * rowHeight + endPadding }}>
           {Array.from({ length: Math.min(optionCount, lastRow * columns) - firstRow * columns }, (_, offset) => {
