@@ -32,6 +32,9 @@ export function StartPage({ stage, onGame, onStages, settings }: {
     try { return localStorage.getItem(diagnosticKey) ?? 'default'; }
     catch { return 'default'; }
   });
+  const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  const diagnosticColor = themeColor?.dataset.diagnosticColor;
+  const solidBackground = diagnostic === 'solid';
   const changeDiagnostic = (next: string) => {
     const reload = (diagnostic === 'status-bar') !== (next === 'status-bar');
     try { localStorage.setItem(diagnosticKey, next); }
@@ -48,6 +51,9 @@ export function StartPage({ stage, onGame, onStages, settings }: {
   const stageSelect = useRef<HTMLButtonElement>(null);
   const diagnosticResult = useRef<HTMLOutputElement>(null);
   useEffect(() => {
+    const color = diagnostic === 'theme-color' ? diagnosticColor : themeColor?.dataset.defaultColor;
+    if (themeColor && color) themeColor.content = color;
+
     const panel = page.current;
     const button = stageSelect.current;
     const result = diagnosticResult.current;
@@ -56,16 +62,19 @@ export function StartPage({ stage, onGame, onStages, settings }: {
     const measure = () => {
       const buttonStyle = getComputedStyle(button);
       const blur = buttonStyle.backdropFilter || buttonStyle.getPropertyValue('-webkit-backdrop-filter') || '미지원';
-      result.textContent = `페이지 ${panel.offsetHeight}px / 뷰포트 ${window.innerHeight}px · 버튼 ${blur}`;
+      result.textContent = `페이지 ${panel.offsetHeight}px / 뷰포트 ${window.innerHeight}px · 버튼 ${blur} · 테마 ${themeColor?.content ?? '없음'}`;
     };
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [diagnostic]);
+  }, [diagnostic, diagnosticColor, themeColor]);
 
-  return <main ref={page} className="start-page" data-diagnostic={diagnostic} style={{ backgroundImage: diagnostic === 'stripes' ? undefined : poster?.background }}>
+  return <main ref={page} className="start-page" data-diagnostic={diagnostic} style={{
+    backgroundColor: solidBackground ? diagnosticColor : undefined,
+    backgroundImage: solidBackground || diagnostic === 'stripes' ? undefined : poster?.background,
+  }}>
     <h1 className="sr-only">Sweet Order</h1>
-    <img className="start-poster" src={poster?.src} width={800} height={1800} alt="" draggable={false} fetchPriority="high" />
+    {!solidBackground && <img className="start-poster" src={poster?.src} width={800} height={1800} alt="" draggable={false} fetchPriority="high" />}
     <div className="pwa-diagnostic">
       <select aria-label="iOS PWA 진단" value={diagnostic} onChange={event => changeDiagnostic(event.target.value)}>
         <option value="default">진단 · 기본 상태</option>
@@ -75,6 +84,8 @@ export function StartPage({ stage, onGame, onStages, settings }: {
         <option value="safe-area">상단 safe-area 끄기</option>
         <option value="stripes">줄무늬 배경</option>
         <option value="status-bar">상태바 뒤 배경 끄기</option>
+        <option value="solid">포스터를 단색으로</option>
+        <option value="theme-color">테마색만 변경</option>
       </select>
       <output ref={diagnosticResult} />
     </div>
