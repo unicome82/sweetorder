@@ -157,29 +157,36 @@ describe('패스 퀵오더', () => {
   const use = (session: SessionState) => reduceSession(session, { type: 'GAME', action: { type: 'QUICK_ORDER' }, now: 0 });
   const withPass = (quickOrders: number): SessionState => ({ ...createSession(true), quickOrders, pass: purchasePass(undefined, 0) });
 
-  it(`패스가 있으면 판마다 1개를 더 쓸 수 있고, 쓰면 패스에서 ${PASS_QUICK_ORDERS}개 중 하나가 줄어든다`, () => {
+  it(`패스 잔여분이 한 판에 모두 표시되고, 쓰면 패스에서 ${PASS_QUICK_ORDERS}개 중 하나가 줄어든다`, () => {
     const started = reduceSession(withPass(0), { type: 'START', stageId: 40, now: 0 });
-    expect(started.game).toMatchObject({ quickOrders: 1, passQuickOrders: 1 });
+    expect(started.game).toMatchObject({ quickOrders: PASS_QUICK_ORDERS, passQuickOrders: PASS_QUICK_ORDERS });
     const used = use(started);
-    expect(used.game).toMatchObject({ quickOrders: 0, passQuickOrders: 0 });
+    expect(used.game).toMatchObject({ quickOrders: PASS_QUICK_ORDERS - 1, passQuickOrders: PASS_QUICK_ORDERS - 1 });
     expect(used.quickOrders).toBe(0);
     expect(used.pass!.quickOrders).toBe(PASS_QUICK_ORDERS - 1);
-    // A retry brings the pass's one back while the pass still has some.
+    // A retry keeps the remaining pass balance.
     const retried = reduceSession(used, { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
-    expect(retried.game).toMatchObject({ quickOrders: 1, passQuickOrders: 1 });
+    expect(retried.game).toMatchObject({ quickOrders: PASS_QUICK_ORDERS - 1, passQuickOrders: PASS_QUICK_ORDERS - 1 });
     expect(retried.pass!.quickOrders).toBe(PASS_QUICK_ORDERS - 1);
   });
 
   it('가진 퀵오더를 먼저 쓰고, 그다음 패스 것을 쓴다', () => {
     const started = reduceSession(withPass(1), { type: 'START', stageId: 40, now: 0 });
-    expect(started.game).toMatchObject({ quickOrders: 2, passQuickOrders: 1 });
+    expect(started.game).toMatchObject({ quickOrders: 1 + PASS_QUICK_ORDERS, passQuickOrders: PASS_QUICK_ORDERS });
     const first = use(started);
     expect(first.quickOrders).toBe(0);
     expect(first.pass!.quickOrders).toBe(PASS_QUICK_ORDERS);
     // The game moves on after a quick order; check the pass's turn on a fresh copy of the attempt.
-    const passTurn = use({ ...first, game: { ...started.game, quickOrders: 1 } });
+    const passTurn = use({ ...first, game: { ...started.game, quickOrders: PASS_QUICK_ORDERS } });
     expect(passTurn.quickOrders).toBe(0);
     expect(passTurn.pass!.quickOrders).toBe(PASS_QUICK_ORDERS - 1);
+  });
+
+  it('진행 중 패스를 구매하거나 종료하면 버튼에 표시할 수량도 갱신된다', () => {
+    const started = reduceSession({ ...createSession(true), quickOrders: 1 }, { type: 'START', stageId: 40, now: 0 });
+    const bought = reduceSession(started, { type: 'BUY_PASS', now: 1 });
+    expect(bought.game.quickOrders).toBe(1 + PASS_QUICK_ORDERS);
+    expect(reduceSession(bought, { type: 'END_PASS' }).game.quickOrders).toBe(1);
   });
 
   it('패스가 없거나 패스 퀵오더를 다 쓰면 패스 몫은 없다', () => {

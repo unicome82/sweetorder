@@ -29,33 +29,33 @@ const start = (stageId: number, relaxed: boolean, session = createSession(true))
   reduceSession(session, { type: 'START', stageId, relaxed, now: 0 });
 
 describe('여유 모드', () => {
-  it('타이머가 없고, 트레이 비우기 보상은 받을 수 있으며, 트레이 비우기는 판당 1번까지 쓴다', async () => {
+  it('타이머가 없고, 트레이 비우기 보상은 받을 수 있으며, 보유분 뒤에 광고 1회를 쓸 수 있다', async () => {
     const stage = await stageWithReward('trayClear');
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const session = start(stage.id, true);
       expect(session.game.relaxed).toBe(true);
       expect(getGameTimeLimit(session.game, stage)).toBe(0);
       expect(session.game.queues.flat().some(token => token.reward === 'trayClear')).toBe(true);
-      expect(session.game.trayClearsLeft).toBe(RELAXED_TRAY_CLEARS);
+      expect(session.game.trayClearsLeft).toBe(STARTING_TRAY_CLEARS + RELAXED_TRAY_CLEARS);
     }
     const heartStage = await stageWithReward('heart');
     const lowHearts = { ...createSession(true), hearts: { count: 3, refillFrom: 0 } };
     expect(start(heartStage.id, true, lowHearts).game.queues.flat().some(token => token.reward === 'heart')).toBe(true);
   });
 
-  it('트레이 비우기는 판당 1번, 보유분에서 차감되고, 다시 하기도 여유 모드로 시작한다', async () => {
+  it('트레이 비우기는 보유분에서 먼저 차감되고, 다시 하기도 여유 모드로 시작한다', async () => {
     const stage = await loadStage(30);
     expect(start(stage.id, true, { ...createSession(true), trayClears: 0 }).game.trayClearsLeft).toBe(1);
     const session = start(stage.id, true, { ...createSession(true), trayClears: 3 });
-    expect(session.game.trayClearsLeft).toBe(1);
+    expect(session.game.trayClearsLeft).toBe(4);
     const game = structuredClone(session.game);
     game.tray = game.queues[0]!.splice(0, 1);
     const used = reduceSession({ ...session, game }, { type: 'GAME', action: { type: 'CLEAR_TRAY' } });
-    expect(used.game.trayClearsLeft).toBe(0);
+    expect(used.game.trayClearsLeft).toBe(3);
     expect(used.trayClears).toBe(2);
     const restarted = reduceSession({ ...used, game: { ...used.game, status: 'gameover' } }, { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
     expect(restarted.game.relaxed).toBe(true);
-    expect(restarted.game.trayClearsLeft).toBe(1);
+    expect(restarted.game.trayClearsLeft).toBe(3);
     expect(restarted.trayClears).toBe(2);
   });
 
@@ -74,10 +74,10 @@ describe('여유 모드', () => {
 });
 
 describe('타이머 모드', () => {
-  it('보유가 많아도 판당 2회까지만 쓸 수 있다', async () => {
+  it('보유분을 모두 쓴 뒤 광고 2회를 쓸 수 있다', async () => {
     const session = start(30, false, { ...createSession(true), trayClears: 5 });
     expect(session.game.relaxed).toBeUndefined();
-    expect(session.game.trayClearsLeft).toBe(TIMED_TRAY_CLEARS_PER_GAME);
+    expect(session.game.trayClearsLeft).toBe(5 + TIMED_TRAY_CLEARS_PER_GAME);
   });
 
   it('클리어해도 트레이 비우기는 늘지 않는다', async () => {

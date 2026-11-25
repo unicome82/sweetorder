@@ -1,18 +1,9 @@
 :is(.heart-icon, .quick-order-icon, .tray-clear-icon) {
-  filter: brightness(.95) saturate(1.08) var(--reward-icon-effect, );
+  filter: var(--reward-icon-effect, none);
 }
 
-/* The visible art occupies 118 × 80 pixels within each square file. */
-.quick-order-icon {
-  scale: .824 1.215;
-}
-
-.tray-clear-icon {
-  scale: .88 1.215;
-}
-
-.heart-icon {
-  filter: brightness(1.02) saturate(1.24) var(--reward-icon-effect, );
+:is(.quick-order-icon, .tray-clear-icon) {
+  object-fit: contain;
 }
 
 .mystery-icon {

@@ -2,20 +2,10 @@ import { useContext, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { LanguageContext, useMessages } from '../i18n/language';
 import { PASS_DAYS, PASS_PEEKS, PASS_QUICK_ORDERS, PASS_SPARE_HEARTS, PASS_TIME_BONUSES } from '../monetization/pass';
 import { PASS_PRICE } from '../monetization/billing';
+import halfTime from '../assets/game/half-time.webp';
 import { HeartIcon } from './HeartIcon';
 import { AddTimeIcon, PeekIcon, QuickOrderIcon, TrayClearIcon } from './ItemIcons';
 import { PassCrown } from './PassButton';
-
-function HalfTimeIcon() {
-  return <svg className="half-time-icon" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-    <path d="M18 5a13 13 0 0 0 0 26Z" fill="#e5d6f2" />
-    <g stroke="#805abe" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 5a13 13 0 0 0 0 26" />
-      <path d="M18 5a13 13 0 0 1 0 26" strokeDasharray="2.4 4.7" />
-      <path d="M18 11v7h-5" />
-    </g>
-  </svg>;
-}
 
 /**
  * The pass and what it gives, offered where the player gets stuck without it (tray clear for an ad, out of hearts,
@@ -32,7 +22,7 @@ export function PassOfferDialog({ onBuy, onClose }: { onBuy: () => void; onClose
   // Inventory counts sit at the upper-right corner of the icon.
   const benefits: { key: string; icon: ReactNode; count?: string; text: string }[] = [
     { key: 'hearts', icon: <HeartIcon />, count: `+${PASS_SPARE_HEARTS}`, text: t.passOfferSpareHearts(PASS_SPARE_HEARTS) },
-    { key: 'fast', icon: <HalfTimeIcon />, text: t.passOfferFastHearts },
+    { key: 'fast', icon: <img src={halfTime} alt="" />, text: t.passOfferFastHearts },
     { key: 'clears', icon: <TrayClearIcon />, text: t.passOfferFreeClears },
     { key: 'quick', icon: <QuickOrderIcon />, count: `+${PASS_QUICK_ORDERS}`, text: t.passOfferQuickOrders(PASS_QUICK_ORDERS) },
     { key: 'time', icon: <AddTimeIcon />, count: `+${PASS_TIME_BONUSES}`, text: t.passOfferTimeBonuses(PASS_TIME_BONUSES) },

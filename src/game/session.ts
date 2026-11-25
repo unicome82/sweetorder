@@ -48,7 +48,7 @@ export type SessionAction =
   | { type: 'HOME' }
   | { type: 'STAGES' }
   /** items: chosen in the pre-start popup, applied as the attempt begins. Retries start this way too. */
-  | { type: 'START'; stageId: number; now?: number; relaxed?: boolean; items?: ItemChoice; addTimeAdWatched?: boolean }
+  | { type: 'START'; stageId: number; now?: number; relaxed?: boolean; items?: ItemChoice; adItems?: ItemChoice }
   /** testing: the Stage 00 playtest entry, which leaves the daily bonus stage unused. */
   | { type: 'START_BONUS'; dessert: DonutType; nextStageId: number; relaxed?: boolean; now?: number; testing?: boolean }
   | { type: 'GAME'; action: GameAction; now?: number }
@@ -72,18 +72,18 @@ export function createSession(unlockAllStages = false, unlimitedHearts = false):
 export const STARTING_TRAY_CLEARS = 3;
 /** The most tray clears the pool holds; a reward that would go past it isn't offered. */
 export const MAX_TRAY_CLEARS = 5;
-/** Owned tray clears an attempt may use: two in timed play, one in relaxed play. */
+/** Fallback tray clears an attempt may use: two in timed play, one in relaxed play. */
 export const TIMED_TRAY_CLEARS_PER_GAME = 2;
 export const RELAXED_TRAY_CLEARS = 1;
 export const trayClearsPerGame = (relaxed: boolean) => relaxed ? RELAXED_TRAY_CLEARS : TIMED_TRAY_CLEARS_PER_GAME;
 /**
- * Sets an attempt up for its mode. trayClearsLeft is the per-game cap: each use comes out of the
- * owned pool, or, with none left, is paid for with a rewarded ad (pass holders use them freely).
+ * Sets up the attempt with all owned tray clears and a capped fallback allowance.
+ * A fallback use requires an ad unless the pass covers it.
  */
-function withMode(game: GameState, relaxed: boolean): GameState {
+function withMode(game: GameState, relaxed: boolean, ownedClears: number): GameState {
   if (game.stageId === practiceStage.id) return game;
   // Bonus stages have no tray clear: a full tray ends them.
-  const trayClearsLeft = isBonusStage(game.stageId) ? 0 : trayClearsPerGame(relaxed);
+  const trayClearsLeft = isBonusStage(game.stageId) ? 0 : ownedClears + trayClearsPerGame(relaxed);
   return relaxed ? { ...game, relaxed: true, trayClearsLeft } : { ...game, trayClearsLeft };
 }
 /** What the player could take from the queues as the attempt starts: room left to hold it, and today's limit not reached. */
@@ -97,8 +97,9 @@ function earnable(state: SessionState, now: number): Earnable {
     quickOrder: underLimit('quickOrder') && state.quickOrders < MAX_QUICK_ORDERS,
   };
 }
-function createSessionGame(stageId: number, rewardedStages: readonly number[], relaxed: boolean, can: Earnable): GameState {
-  return withMode(withoutUnearnableRewards(withoutSpentRewards(createGame(getStage(stageId)), rewardedStages), can), relaxed);
+function createSessionGame(stageId: number, state: SessionState, relaxed: boolean, now: number): GameState {
+  const game = withoutSpentRewards(createGame(getStage(stageId)), state.rewardedStages);
+  return withMode(withoutUnearnableRewards(game, earnable(state, now)), relaxed, state.trayClears);
 }
 /**
  * Drops rewards the player can't take, checked as the attempt starts: one they have no room for, or one today's limit
@@ -108,12 +109,12 @@ function withoutUnearnableRewards(game: GameState, can: Earnable): GameState {
   return { ...game, queues: game.queues.map(queue => queue.filter(token => !token.reward || can[token.reward])) };
 }
 /**
- * The held quick order comes along into campaign and bonus attempts, plus one from the pass while it has any;
+ * The held quick order comes along into campaign and bonus attempts, plus all remaining pass quick orders;
  * practice has none.
  */
 function withQuickOrders(game: GameState, quickOrders: number, pass: Pass | undefined, now: number): GameState {
   if (game.stageId === practiceStage.id) return game;
-  const passQuickOrders = isPassActive(pass, now) && pass.quickOrders > 0 ? 1 : 0;
+  const passQuickOrders = isPassActive(pass, now) ? pass.quickOrders : 0;
   return { ...game, quickOrders: quickOrders + passQuickOrders, passQuickOrders };
 }
 /** A stage whose reward was already collected comes back without it, so retries can't farm it. */
@@ -148,14 +149,14 @@ export function itemsBeforeStart(stageId: number, relaxed: boolean): Required<It
  * Applies the pre-start choice: peek opens with the "?" desserts shown, +5 seconds starts on the clock.
  * Each comes out of the pass when it can. Ad-funded items leave pass inventory alone.
  */
-function applyItems(game: GameState, pass: Pass | undefined, choice: ItemChoice | undefined, now: number, addTimeAdWatched: boolean): { game: GameState; pass?: Pass } {
+function applyItems(game: GameState, pass: Pass | undefined, choice: ItemChoice | undefined, now: number, adItems?: ItemChoice): { game: GameState; pass?: Pass } {
   if (!choice) return { game, pass };
   const available = availableItems(game);
-  const peek = !!choice.peek && available.peek;
-  const passTime = !!choice.addTime && available.addTime && !addTimeAdWatched && addTimeFromPass(pass, now);
-  const addTime = passTime || (!!choice.addTime && available.addTime && addTimeAdWatched);
+  const passPeek = !!choice.peek && available.peek && !adItems?.peek && peekFromPass(pass, now);
+  const passTime = !!choice.addTime && available.addTime && !adItems?.addTime && addTimeFromPass(pass, now);
+  const peek = passPeek || (!!choice.peek && available.peek && !!adItems?.peek);
+  const addTime = passTime || (!!choice.addTime && available.addTime && !!adItems?.addTime);
   if (!peek && !addTime) return { game, pass };
-  const passPeek = peek && peekFromPass(pass, now);
   return {
     game: { ...game, ...(peek ? { peeked: true } : {}), ...(addTime ? { timeBonusUsed: true } : {}) },
     pass: passPeek || passTime ? { ...pass!, peeks: pass!.peeks - (passPeek ? 1 : 0), timeBonuses: pass!.timeBonuses - (passTime ? 1 : 0) } : pass,
@@ -219,20 +220,22 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const now = action.now ?? Date.now();
       const payment = payForAttempt(state, action.stageId, now);
       if (!payment) return state;
-      const created = withQuickOrders(createSessionGame(action.stageId, state.rewardedStages, action.relaxed ?? false, earnable(state, now)), state.quickOrders, state.pass, now);
-      const { game, pass } = applyItems(created, state.pass, action.items, now, !!action.addTimeAdWatched);
+      const created = withQuickOrders(createSessionGame(action.stageId, state, action.relaxed ?? false, now), state.quickOrders, state.pass, now);
+      const { game, pass } = applyItems(created, state.pass, action.items, now, action.adItems);
       return { ...state, ...payment, pass, bonus: undefined, screen: 'game', game };
     }
     case 'BUY_PASS': {
       // The running refill keeps its progress and goes on at double speed until the new end.
       const now = action.now ?? Date.now();
       const pass = purchasePass(state.pass, now);
-      return { ...state, pass, hearts: rebaseRefill(state.hearts, now, heartsFastUntil(state), pass.expiresAt) };
+      const game = state.screen === 'game' ? withQuickOrders(state.game, state.quickOrders, pass, now) : state.game;
+      return { ...state, game, pass, hearts: rebaseRefill(state.hearts, now, heartsFastUntil(state), pass.expiresAt) };
     }
     case 'END_PASS': {
       const now = Date.now();
       const endedAt = state.pass && Math.min(state.pass.expiresAt, now);
-      return { ...state, pass: undefined, hearts: rebaseRefill(state.hearts, now, endedAt, undefined) };
+      const game = state.screen === 'game' ? withQuickOrders(state.game, state.quickOrders, undefined, now) : state.game;
+      return { ...state, game, pass: undefined, hearts: rebaseRefill(state.hearts, now, endedAt, undefined) };
     }
     case 'CHARGE_SPARE': {
       // The player chose to move spare hearts into the regular hearts.
@@ -248,7 +251,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       // Entering uses up the day's bonus stage, so leaving and coming back can't repeat it.
       const today = dayKey(action.now ?? Date.now());
       if (!action.testing && state.bonusDay === today) return state;
-      const game = withQuickOrders(withMode(createGame(prepareBonusStage(action.dessert)), action.relaxed ?? false), state.quickOrders, state.pass, action.now ?? Date.now());
+      const game = withQuickOrders(withMode(createGame(prepareBonusStage(action.dessert)), action.relaxed ?? false, 0), state.quickOrders, state.pass, action.now ?? Date.now());
       const bonusDay = action.testing ? state.bonusDay : today;
       return { ...state, screen: 'game', heartPaidFrom: undefined, bonus: { dessert: action.dessert, nextStageId: action.nextStageId }, bonusDay, game };
     }
@@ -258,21 +261,21 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const restart = action.action.type === 'RESTART';
       const payment = restart ? payForAttempt(state, state.game.stageId, now) : null;
       if (restart && !payment) return state;
-      const passActive = isPassActive(state.pass, now);
-      let game = reduceGame(state.game, action.action, getStage(state.game.stageId));
-      if (game === state.game) return state;
+      const before = state.game.passQuickOrders && !isPassActive(state.pass, now)
+        ? withQuickOrders(state.game, state.quickOrders, undefined, now)
+        : state.game;
+      let game = reduceGame(before, action.action, getStage(before.stageId));
+      if (game === before) return before === state.game ? state : { ...state, game };
       const relaxed = state.game.relaxed ?? false;
-      if (restart) game = withQuickOrders(withMode(withoutUnearnableRewards(withoutSpentRewards(game, state.rewardedStages), earnable(state, now)), relaxed), state.quickOrders, state.pass, now);
+      if (restart) game = withQuickOrders(withMode(withoutUnearnableRewards(withoutSpentRewards(game, state.rewardedStages), earnable(state, now)), relaxed, state.trayClears), state.quickOrders, state.pass, now);
       if (game.stageId === practiceStage.id) return { ...state, game };
       // The held quick order follows the attempt: picked up from a queue, or used on the customers.
-      // The pass's one is kept apart and comes out of the pass once used.
+      // Pass inventory is tracked separately so only uses from it are charged to the pass.
       const quickOrders = game.quickOrders === undefined ? state.quickOrders : game.quickOrders - (game.passQuickOrders ?? 0);
-      const passQuickOrdersUsed = restart ? 0 : Math.max(0, (state.game.passQuickOrders ?? 0) - (game.passQuickOrders ?? 0));
+      const passQuickOrdersUsed = restart ? 0 : Math.max(0, (before.passQuickOrders ?? 0) - (game.passQuickOrders ?? 0));
       const pass = passQuickOrdersUsed && state.pass ? { ...state.pass, quickOrders: Math.max(0, state.pass.quickOrders - passQuickOrdersUsed) } : state.pass;
-      // Each tray clear used in play comes out of the owned pool while any are left (an ad covers the rest);
-      // pass holders keep theirs.
-      const usedClears = restart || passActive ? 0 : Math.max(0, state.game.trayClearsLeft - game.trayClearsLeft);
-      let trayClears = Math.max(0, state.trayClears - usedClears);
+      const usedOwnedClear = action.action.type === 'CLEAR_TRAY' && game.trayClearsLeft < state.game.trayClearsLeft && state.trayClears > 0;
+      let trayClears = state.trayClears - Number(usedOwnedClear);
       const earned = restart ? [] : (game.collectedRewards ?? []).slice(state.game.collectedRewards?.length ?? 0);
       let rewardedStages = state.rewardedStages;
       let rewardHearts = state.hearts;

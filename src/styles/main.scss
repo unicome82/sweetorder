@@ -799,11 +799,8 @@
 }
 .glass-popup .quick-order-button { position: relative; background: linear-gradient(#ffd98a, #ef9a2c); text-shadow: 0 1px 2px #9a5a1080; }
 .glass-popup .quick-order-button:disabled { background: linear-gradient(#fff5e2, #fbe6c4); color: #8b7357; text-shadow: none; }
-.tray-full-dialog :is(.quick-order-icon, .tray-clear-icon) {
-  width: 1.5em;
-  height: 1.5em;
-}
-.quick-order-button:disabled .quick-order-icon { opacity: .45; }
+.tray-full-dialog .item-button-icon { width: 1.5em; height: 1.5em; }
+.quick-order-button:disabled .item-button-icon { opacity: .45; }
 
 .result-panel {
   flex: 0 1 auto;

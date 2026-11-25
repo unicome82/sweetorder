@@ -62,11 +62,11 @@ const items = <ul className="info-items">
   </li>
   <li>
     <span className="info-item-icon"><TrayClearIcon /></span>
-    <div><h3>트레이 비우기</h3><p>트레이의 디저트를 대기열로 돌려보내요. 시작 시 {STARTING_TRAY_CLEARS}개 지급, 스테이지 보상으로 최대 {MAX_TRAY_CLEARS}개까지 보유, 한 판에 타이머 {TIMED_TRAY_CLEARS_PER_GAME}회 · 릴랙스 {RELAXED_TRAY_CLEARS}회까지. 보유 0개면 광고로 사용.</p></div>
+    <div><h3>트레이 비우기</h3><p>트레이의 디저트를 대기열로 돌려보내요. 시작 시 {STARTING_TRAY_CLEARS}개 지급, 스테이지 보상으로 최대 {MAX_TRAY_CLEARS}개까지 보유, 보유분은 한 판에 모두 쓸 수 있어요. 다 쓰면 광고로 타이머 {TIMED_TRAY_CLEARS_PER_GAME}회 · 릴랙스 {RELAXED_TRAY_CLEARS}회까지 사용.</p></div>
   </li>
   <li>
     <span className="info-item-icon"><QuickOrderIcon /></span>
-    <div><h3>퀵오더</h3><p>화면의 손님 주문을 한 번에 채워요 (트레이 → 대기열 순). 최대 {MAX_QUICK_ORDERS}개 보유, 스테이지 보상으로 획득. 패스가 있으면 한 판에 1개 더.</p></div>
+    <div><h3>퀵오더</h3><p>화면의 손님 주문을 한 번에 채워요 (트레이 → 대기열 순). 최대 {MAX_QUICK_ORDERS}개 보유, 스테이지 보상으로 획득. 일반 보유분과 패스 잔여분을 한 판에 모두 쓸 수 있어요.</p></div>
   </li>
   <li>
     <span className="info-item-icon"><MysteryIcon /></span>
@@ -88,8 +88,8 @@ const settings = <>
   <h3 className="info-subheading">아이템</h3>
   <Table head={['아이템', '시작', '최대 보유', '한 판 사용', '없을 때']} rows={[
     ['하트', MAX_HEARTS, MAX_HEARTS, '입장 1개', `${minutes(HEART_REFILL_MS)}분 충전 · 광고`],
-    ['트레이 비우기', STARTING_TRAY_CLEARS, MAX_TRAY_CLEARS, `${TIMED_TRAY_CLEARS_PER_GAME} (릴랙스 ${RELAXED_TRAY_CLEARS})`, '광고'],
-    ['퀵오더', 0, MAX_QUICK_ORDERS, '보유분 (+ 패스 1)', '패스'],
+    ['트레이 비우기', STARTING_TRAY_CLEARS, MAX_TRAY_CLEARS, '보유분', `광고 ${TIMED_TRAY_CLEARS_PER_GAME}회 (릴랙스 ${RELAXED_TRAY_CLEARS}회)`],
+    ['퀵오더', 0, MAX_QUICK_ORDERS, '일반·패스 보유분', '패스'],
     ['미리보기', '—', '—', '1', '광고'],
     ['+5초', '—', '—', '1', '광고'],
   ]} />
@@ -113,7 +113,7 @@ const pass = <div className="info-pass">
     ['트레이 비우기', `보유분 → 광고`, '무료 (한 판 한도 안에서)'],
     ['미리보기', '광고', `${PASS_PEEKS}회`],
     ['+5초', '사용 불가', `${PASS_TIME_BONUSES}회`],
-    ['퀵오더', '보상으로만', `+ ${PASS_QUICK_ORDERS}개 (한 판에 1개)`],
+    ['퀵오더', '보상으로만', `+ ${PASS_QUICK_ORDERS}개`],
     ['만료 알림', '—', `만료 ${days(PASS_REMINDER_MS)}일 전부터`],
   ]} />
 </div>;

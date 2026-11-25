@@ -1,4 +1,4 @@
-import { ORDER_SLOTS } from './constants';
+import { BONUS_STAGE_ID, ORDER_SLOTS } from './constants';
 import { DONUT_TYPES, type ActiveOrder, type DonutToken, type DonutType, type GameState, type RewardKind, type StageDefinition } from './types';
 import { validateStage } from './validation';
 
@@ -127,7 +127,7 @@ function updateStatus(state: GameState, stage: StageDefinition, events: GameEven
     || state.queues.some(queue => queue[0]?.reward)) {
     state.status = 'playing';
   } else {
-    state.status = state.trayClearsLeft > 0 ? 'blocked' : 'gameover';
+    state.status = state.trayClearsLeft > 0 || (stage.id !== BONUS_STAGE_ID && canQuickOrder(state)) ? 'blocked' : 'gameover';
     state.blockedReason = state.tray.length >= state.trayCapacity ? 'full' : 'stuck';
   }
 }
@@ -259,7 +259,7 @@ export function quickOrder(state: GameState, stage: StageDefinition): Transition
   if (!canQuickOrder(state) || state.stageId !== stage.id) return { state, events: [] };
   const next = structuredClone(state);
   next.quickOrders = (state.quickOrders ?? 0) - 1;
-  // The owned quick order goes first; the pass's one is used only when none is owned.
+  // The owned quick order goes first; pass inventory is used only when none is owned.
   const passQuickOrders = state.passQuickOrders ?? 0;
   if (passQuickOrders > 0 && (state.quickOrders ?? 0) <= passQuickOrders) next.passQuickOrders = passQuickOrders - 1;
   next.transitionId += 1;
