@@ -566,8 +566,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       </div>
       {clearNeedsAd && state.trayClearsLeft > 0 && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passClearTray}</button>}
     </dialog>
-    {/* Keep the intro layer through the item effects: +5s (popping in the middle), then the "?" reveal. */}
-    {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-ms': `${introMs}ms` } as CSSProperties}>
+    {/* Dim the board for the title and +5s, then reveal the hidden desserts on the normal board. */}
+    {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-overlay-ms': `${INTRO_MS + timeBonusMs}ms` } as CSSProperties}>
       <span className="stage-intro-title">{bonus ? 'Bonus Stage!' : `Stage ${String(state.stageId).padStart(2, '0')}`}</span>
       {timeBonusMs > 0 && <span className="time-bonus-pop" lang="en"
         style={{ animationDelay: `${INTRO_MS}ms`, animationDuration: `${TIME_BONUS_POP_MS}ms` }}>+5s</span>}

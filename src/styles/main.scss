@@ -1030,7 +1030,7 @@
 }
 .stage-jump-button {
   display: flex; align-items: center; justify-content: space-between;
-  width: 84px; height: 40px; padding: 0 8px;
+  width: 88px; height: 40px; padding: 0 12px 0 8px;
   border: 1px solid #fff9f3; border-radius: 999px;
   background: linear-gradient(#fffaf4, #fceadc); color: #813f29;
   font-family: Jua, sans-serif; font-size: 15px; line-height: 1;
@@ -1100,8 +1100,15 @@
   z-index: 7;
   display: grid;
   place-items: center;
-  // Fade the opening title and item effects without covering the board.
-  animation: intro-backdrop-in 270ms ease both, intro-backdrop-out 450ms ease calc(var(--intro-ms, 1800ms) - 450ms) forwards;
+}
+.stage-intro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgb(0 0 0 / .28);
+  animation: intro-backdrop-in 270ms ease both,
+    intro-backdrop-out 450ms ease calc(var(--intro-overlay-ms) - 450ms) forwards;
 }
 .stage-intro > * { grid-area: 1 / 1; }
 @keyframes intro-backdrop-in { from { opacity: 0; } }
@@ -1236,7 +1243,7 @@
 .fake-ad .result-actions { margin-inline: auto; }
 // Every count badge (tray clear, quick order, items left, spare hearts) is one small red badge on the top right
 // of its button, card or counter. Where an ad pays instead, the same pill is yellow with AD.
-.tray-clear-shortcut-count, .tray-clear-count, .start-item-count, .ad-badge, .heart-counter-spare {
+.tray-clear-shortcut-count, .tray-clear-count, .start-item-count, .ad-badge, .heart-counter-spare, .pass-benefit-count {
   position: absolute;
   top: -6px;
   right: -6px;
@@ -1298,9 +1305,9 @@
 .start-item-count--chosen { padding: 0; width: 22px; height: 22px; border-radius: 50%; background: #34b65a; box-shadow: 0 1px 2px #1a5a2a59; }
 .start-item-count--chosen svg { width: 15px; height: 15px; }
 // Pass offer: the popup, and the small "Pass" links in the popups where it helps (tray clear, hearts, +5 seconds).
-.pass-offer-dialog { padding-top: 44px; }
+.pass-offer-dialog { padding-top: 52px; }
 .pass-offer-crown {
-  position: absolute; left: 50%; top: 4px; translate: -50% 0;
+  position: absolute; left: 50%; top: 12px; translate: -50% 0;
   display: grid; place-items: center; color: #805abe;
 }
 .pass-offer-crown svg { width: 37px; height: 37px; }
@@ -1315,13 +1322,16 @@
   display: grid; place-items: center; flex: none; width: 36px; height: 36px;
 }
 .pass-benefit-icon > :is(img, svg, .peek-icon) { width: 100%; height: 100%; }
-.pass-benefit-count {
-  position: absolute; top: -6px; right: -4px; min-width: 22px; padding: 3px 5px 1px; border-radius: 10px;
-  background: #e5262f; color: #fff; font-family: Jua, sans-serif; font-size: 11px; line-height: 1.1; text-align: center;
-  box-shadow: 0 1px 2px #7a1a1a59;
-}
 .pass-offer-price { margin: 0 0 12px; color: #743c27; font-size: 15px; text-align: center; }
-.pass-offer-price strong { font-family: Jua, sans-serif; font-size: 26px; font-weight: 400; color: #6d4ad1; }
+.pass-offer-price strong {
+  color: #fff;
+  font-family: Jua, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  -webkit-text-stroke: 2px #6d4ad1;
+  paint-order: stroke fill;
+  text-shadow: 0 2px 0 #4f2fa8;
+}
 .pass-nav-button {
   display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 12px 0 10px;
   border: 1px solid #fff9f3; border-radius: 20px; background: linear-gradient(#8a68e8, #6d4ad1); color: #fff;
