@@ -10,13 +10,20 @@
   --secondary-text: #76452d;
   --stage-script: Lobster, 'Brush Script MT', cursive;
   --stage-script-size: clamp(27px, 7vw, 33px);
-  --page-height: 100dvh;
+  --page-height: max(100dvh, var(--ios-full-height, 0px));
   --safe-top: env(safe-area-inset-top, 0px);
   --button-stack-gap: clamp(13px, 2dvh, 18px);
   --gutter: clamp(10px, 4vw, 18px);
   --gap: clamp(6px, 2vw, 12px);
   color: var(--text);
   background: #f6ece2;
+}
+
+@media (display-mode: standalone) {
+  :root { --page-height: max(100dvh, 100lvh, 100vh, var(--ios-full-height, 0px)); }
+  :root:has(.start-page) { background-color: #c5e9ff; }
+  :root:has(.stage-page) { background-color: #fff4f7; }
+  :root:has(.game-page) { background-color: #fae2d2; }
 }
 
 .app-shell {
@@ -114,7 +121,6 @@
   font-display: swap;
 }
 
-:root:has(.start-page) { background: #fff; }
 .app-shell:has(.start-page) { width: 100%; }
 .start-page {
   position: relative;
@@ -124,7 +130,17 @@
   display: grid;
   place-items: end center;
   padding: var(--safe-top) env(safe-area-inset-right) max(clamp(20px, 5dvh, 48px), env(safe-area-inset-bottom)) env(safe-area-inset-left);
-  background: #fff;
+  background-color: #c5e9ff;
+}
+.start-poster {
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  margin-inline: auto;
+  // Short screens can cut into the added foreground, below the original artwork.
+  width: min(100%, calc(var(--page-height) * 800 / 1360));
+  height: auto;
+  pointer-events: none;
 }
 .top-actions {
   position: absolute;
@@ -153,6 +169,45 @@
 }
 .stage-button > span:first-child { transform: translateY(-2px); }
 .start-actions .secondary-button, .glass-popup .secondary-button { backdrop-filter: blur(8px); }
+
+.pwa-diagnostic {
+  position: absolute;
+  z-index: 1;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: max(16px, env(safe-area-inset-left));
+  max-width: calc(100% - 80px);
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+
+  select, output {
+    max-width: 100%;
+    padding-inline: 8px;
+    border-radius: 8px;
+    background: #fff9f2;
+    color: var(--text);
+  }
+  select { min-height: 40px; border: 1px solid var(--border); font-size: 16px; }
+  output { padding-block: 4px; font-size: 12px; }
+}
+.start-page[data-diagnostic='filters'] {
+  &, *, *::before, *::after, .glass-popup::backdrop {
+    filter: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+:root:has(.start-page[data-diagnostic='screen-height']),
+:root:has(.start-page[data-diagnostic='viewport']) { --page-height: 100dvh; }
+@media (display-mode: standalone) {
+  :root:has(.start-page[data-diagnostic='screen-height']) { --page-height: max(100dvh, 100lvh, 100vh); }
+}
+.start-page[data-diagnostic='safe-area'] { --safe-top: 0px; }
+.start-page[data-diagnostic='stripes'] {
+  background-image: repeating-linear-gradient(90deg, #000 0 8px, #fff 8px 16px);
+
+  .start-poster { visibility: hidden; }
+}
 
 .stage-page {
   position: relative;

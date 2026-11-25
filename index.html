@@ -3,10 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#fff9f2" />
     <meta name="description" content="A dessert puzzle game about filling customer orders." />
     <title>Sweet Order</title>
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      try {
+        if (localStorage.getItem('sweetorder:pwa-diagnostic') === 'status-bar') {
+          const viewport = document.querySelector('meta[name="viewport"]');
+          viewport.content = viewport.content.replace('viewport-fit=cover', 'viewport-fit=contain');
+          document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default';
+        }
+      } catch {
+        // Keep the default viewport if storage is unavailable.
+      }
+    </script>
     <meta name="apple-mobile-web-app-title" content="Sweet Order" />
     <meta name="application-name" content="Sweet Order" />
     <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%apple-touch-icon.png" />

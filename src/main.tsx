@@ -1,12 +1,14 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
+import { syncStandaloneViewport } from './app/standaloneViewport';
 import { preventDoubleTapZoom } from './app/preventDoubleTapZoom';
 import '@fontsource/jua';
 import './styles/reward-icons.css';
 import './styles/main.scss';
 import { readLanguagePreference } from './i18n/language';
 
+syncStandaloneViewport();
 preventDoubleTapZoom();
 document.documentElement.lang = readLanguagePreference();
 const root = document.getElementById('root');
