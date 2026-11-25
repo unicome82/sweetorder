@@ -5,7 +5,7 @@ import { useMessages } from '../i18n/language';
 import type { Language } from '../i18n/messages';
 import type { PlayMode } from '../app/modePreference';
 import { useNow } from '../hooks/useNow';
-import { passDaysLeft, type Pass } from '../monetization/pass';
+import { isPassActive, type Pass } from '../monetization/pass';
 
 export interface SettingsProps {
   soundEnabled: boolean; onToggleSound: () => void;
@@ -26,9 +26,9 @@ function Segmented<T extends string>({ label, value, options, onChange, disabled
 
 function TestPass({ pass, onBuy, onEnd, onFillHearts, onEmptyHearts }: NonNullable<SettingsProps['testPass']>) {
   const t = useMessages();
-  const daysLeft = passDaysLeft(pass, useNow());
+  const active = isPassActive(pass, useNow());
   return <>
-    <p className="settings-hint">{t.testPass}: {daysLeft > 0 ? t.testPassOn(daysLeft) : t.testPassOff}</p>
+    <p className="settings-hint">{t.testPass}: {active ? t.testPassOn : t.testPassOff}</p>
     <div className="settings-test-actions" role="group" aria-label={t.testPass}>
       <button type="button" className="secondary-button" onClick={onBuy}>{t.testPassBuy}</button>
       <button type="button" className="secondary-button" disabled={!pass} onClick={onEnd}>{t.testPassEnd}</button>

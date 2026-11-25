@@ -15,17 +15,17 @@ function getTrayLevel(used: number, capacity: number): TrayLevel {
  * clearsLeft: tray clears this game may still use; owned: the player's pool, shown on the badge; needsAd: the next one costs an ad.
  * quickOrders: held quick orders, shown beside the tray clear (practice leaves it out).
  * Each button shows only while it can be used this game: the tray clear until the game's clears run out,
- * the quick order while one is held (it pops in when picked up from a queue).
+ * quick order shows the inventory count or an ad badge.
  */
-export function DonutTray({ donuts, capacity, difficulty, inFlight, clearsLeft, owned, needsAd, canClear, onClear, quickOrders, canQuickOrder, onQuickOrder }: {
+export function DonutTray({ donuts, capacity, difficulty, inFlight, clearsLeft, owned, needsAd, canClear, onClear, quickOrders, quickNeedsAd, canQuickOrder, onQuickOrder }: {
   donuts: DonutToken[]; capacity: number; difficulty?: StageDifficulty; inFlight?: ReadonlySet<string>; clearsLeft: number; owned: number; needsAd: boolean; canClear: boolean; onClear: () => void;
-  quickOrders?: number; canQuickOrder?: boolean; onQuickOrder?: () => void;
+  quickOrders?: number; quickNeedsAd?: boolean; canQuickOrder?: boolean; onQuickOrder?: () => void;
 }) {
   const t = useMessages();
   const level = getTrayLevel(donuts.length, capacity);
   const columns = Math.min(capacity, BASE_TRAY_CAPACITY);
   const showClear = clearsLeft > 0;
-  const showQuickOrder = (quickOrders ?? 0) > 0;
+  const showQuickOrder = quickNeedsAd || (quickOrders ?? 0) > 0;
   // Held from the start, the quick order is just there; picked up mid-game, it pops in.
   const [heldAtStart] = useState(showQuickOrder);
   const buttons = Number(showClear) + Number(showQuickOrder);
@@ -40,8 +40,8 @@ export function DonutTray({ donuts, capacity, difficulty, inFlight, clearsLeft, 
         ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span>
         : <span className="tray-clear-shortcut-count" aria-hidden="true">{owned}</span>}
     </button>}
-    {showQuickOrder && <button type="button" data-sfx="none" className={`tray-clear-shortcut quick-order-shortcut${heldAtStart ? '' : ' quick-order-shortcut--new'}`} onClick={onQuickOrder} disabled={!canQuickOrder} aria-label={t.quickOrderLabel(quickOrders!)}>
-      <ItemButtonIcon item="quickOrder" /><span className="tray-clear-shortcut-count" aria-hidden="true">{quickOrders}</span>
+    {showQuickOrder && <button type="button" data-sfx="none" className={`tray-clear-shortcut quick-order-shortcut${heldAtStart ? '' : ' quick-order-shortcut--new'}`} onClick={onQuickOrder} disabled={!canQuickOrder} aria-label={quickNeedsAd ? t.quickOrderAdLabel : t.quickOrderLabel(quickOrders ?? 0)}>
+      <ItemButtonIcon item="quickOrder" />{quickNeedsAd ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span> : <span className="tray-clear-shortcut-count" aria-hidden="true">{quickOrders}</span>}
     </button>}
   </div>;
 }

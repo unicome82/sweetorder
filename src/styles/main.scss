@@ -596,13 +596,13 @@
   aspect-ratio: 1;
   height: 100%;
   padding: 0 0 4px;
-  border: 1px solid #7fa1b3;
+  border: 1px solid #61a9cd;
   border-radius: 15px;
-  background: linear-gradient(#a9c8d7, #7199b0);
+  background: linear-gradient(#86c6e2, #54a3ca);
   color: #fff;
-  box-shadow: inset 0 -4px #5d8198, 0 2px 3px #aa6b3b15;
+  box-shadow: inset 0 -4px #4d8eb0, 0 2px 3px #aa6b3b15;
 }
-.tray-clear-shortcut:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 -2px #5d8198, 0 1px 2px #aa6b3b15; }
+.tray-clear-shortcut:not(:disabled):active { transform: translateY(2px); box-shadow: inset 0 -2px #4d8eb0, 0 1px 2px #aa6b3b15; }
 .tray-clear-shortcut:disabled {
   border-color: #cfdee4;
   background: linear-gradient(#f1f7f8, #e4edf0);
@@ -699,10 +699,10 @@
 .queue-front .donut { width: min(100%, 40px); }
 .queue-back .donut { width: min(92%, 36px); }
 .queue-column .mystery-icon {
-  background: #fff2dd;
+  background: #ecdbc6;
   border-radius: 50%;
   padding: 2px;
-  box-shadow: 0 0 0 1px #e4c7a5, 0 1px 2px #80512e24;
+  box-shadow: 0 0 0 1px #bb9e813d;
 }
 
 [data-hint-target] .queue-front img.donut { filter: url(#queue-dessert-glow); }
@@ -793,8 +793,8 @@
 .glass-popup button .material-symbol { width: 1.25em; height: 1.25em; }
 .glass-popup .tray-clear-button {
   position: relative;
-  background: linear-gradient(#a9c8d7, #7199b0);
-  box-shadow: inset 0 2px #c9ebffaa, inset 0 -3px #5d819880, 0 3px #58768743, 0 5px 9px #58768736;
+  background: linear-gradient(#86c6e2, #54a3ca);
+  box-shadow: inset 0 2px #c9ebffaa, inset 0 -3px #4d8eb080, 0 3px #58768743, 0 5px 9px #58768736;
   text-shadow: 0 1px 2px #45647680;
 }
 .glass-popup .quick-order-button { position: relative; background: linear-gradient(#ffd98a, #ef9a2c); text-shadow: 0 1px 2px #9a5a1080; }
@@ -1100,8 +1100,7 @@
   z-index: 7;
   display: grid;
   place-items: center;
-  background: rgb(76 42 28 / .28);
-  // Fades in, holds for the whole opening (--intro-ms: the title plus any item effects), then fades out.
+  // Fade the opening title and item effects without covering the board.
   animation: intro-backdrop-in 270ms ease both, intro-backdrop-out 450ms ease calc(var(--intro-ms, 1800ms) - 450ms) forwards;
 }
 .stage-intro > * { grid-area: 1 / 1; }
@@ -1346,3 +1345,5 @@
   text-underline-offset: .25em;
   cursor: pointer;
 }
+
+.pass-benefit-text { white-space: pre-line; }

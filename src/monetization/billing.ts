@@ -6,7 +6,7 @@ import type { Language } from '../i18n/messages';
 export const PASS_PRICE: Record<Language, string> = { ko: '₩1,900', en: '$1.99' };
 
 export interface BillingService {
-  /** Resolves true when the 30-day pass was bought. */
+  /** Resolves true when the item pack was bought. */
   purchasePass(): Promise<boolean>;
 }
 

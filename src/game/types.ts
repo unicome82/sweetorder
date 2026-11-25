@@ -35,4 +35,5 @@ export interface GameState {
   quickOrders?: number;
   /** How many of quickOrders came from the pass for this attempt (0 or 1); the owned one is used first. */
   passQuickOrders?: number;
+  quickOrderAds?: boolean;
 }

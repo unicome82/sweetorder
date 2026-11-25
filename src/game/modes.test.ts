@@ -59,6 +59,18 @@ describe('여유 모드', () => {
     expect(restarted.trayClears).toBe(2);
   });
 
+  it('릴랙스 모드에서도 패스 트레이 비우기를 광고 없이 차감한다', async () => {
+    const stage = await loadStage(30);
+    const bought = reduceSession({ ...createSession(true), trayClears: 0 }, { type: 'BUY_PASS', now: 0 });
+    const session = start(stage.id, true, bought);
+    expect(session.game.trayClearsLeft).toBe(11);
+    const game = structuredClone(session.game);
+    game.tray = game.queues[0]!.splice(0, 1);
+    const used = reduceSession({ ...session, game }, { type: 'GAME', action: { type: 'CLEAR_TRAY' }, now: 0 });
+    expect(used.pass?.trayClears).toBe(9);
+    expect(used.game.trayClearsLeft).toBe(10);
+  });
+
   it('클리어하면 별 없이 기록하고 다음 스테이지를 연다', async () => {
     const stage = await loadStage(1);
     const cleared = finishing(start(1, true, createSession()), stage);

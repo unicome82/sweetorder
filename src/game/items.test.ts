@@ -22,7 +22,7 @@ describe('시작 전 아이템 선택', () => {
     expect(itemsBeforeStart(plainStage.id, true)).toEqual({ peek: false, addTime: false });
     expect(addTimeFromPass(noPass.pass, 1)).toBe(false);
     expect(addTimeFromPass(withPass.pass, 1)).toBe(true);
-    expect(addTimeFromPass(withPass.pass, 31 * DAY)).toBe(false);
+    expect(addTimeFromPass(withPass.pass, 31 * DAY)).toBe(true);
   });
 
   it('패스는 고른 아이템을 1회씩 차감하고, 엿보기는 물음표가 공개된 채로, +5초는 쓴 채로 시작한다', () => {

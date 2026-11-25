@@ -182,6 +182,16 @@ describe('패스 퀵오더', () => {
     expect(passTurn.pass!.quickOrders).toBe(PASS_QUICK_ORDERS - 1);
   });
 
+  it('릴랙스 모드에서 보유분 없이도 광고마다 퀵오더를 다시 사용할 수 있다', () => {
+    const started = reduceSession(createSession(true), { type: 'START', stageId: 40, relaxed: true, now: 0 });
+    expect(use(started)).toBe(started);
+    const action = { type: 'GAME', action: { type: 'QUICK_ORDER', adWatched: true }, now: 0 } as const;
+    const first = reduceSession(started, action);
+    const second = reduceSession(first, action);
+    expect(second.game.transitionId).toBe(started.game.transitionId + 2);
+    expect(second.game.quickOrders).toBe(0);
+  });
+
   it('진행 중 패스를 구매하거나 종료하면 버튼에 표시할 수량도 갱신된다', () => {
     const started = reduceSession({ ...createSession(true), quickOrders: 1 }, { type: 'START', stageId: 40, now: 0 });
     const bought = reduceSession(started, { type: 'BUY_PASS', now: 1 });

@@ -11,12 +11,11 @@ import { QUICK_ORDER_FROM_STAGE, REWARD_MIN_DEPTH, REWARD_SPLIT_PERCENT, REWARD_
 import { STAGE_COUNT, firstHiddenCount, hiddenDessertsAfterStage, maxHiddenCount } from './game/stages/schedule';
 import { TRAY_CAPACITY_BY_DIFFICULTY } from './game/trayCapacity';
 import {
-  PASS_DAYS, PASS_PEEKS, PASS_QUICK_ORDERS, PASS_REMINDER_MS, PASS_SPARE_HEARTS, PASS_TIME_BONUS_MS, PASS_TIME_BONUSES,
+  PASS_FAST_REFILLS, PASS_TRAY_CLEARS, PASS_PEEKS, PASS_QUICK_ORDERS, PASS_SPARE_HEARTS, PASS_TIME_BONUS_MS, PASS_TIME_BONUSES,
 } from './monetization/pass';
 
 // Game facts for the guide. Numbers come straight from the game's constants, so the page follows any change to them.
 const minutes = (ms: number) => ms / 60_000;
-const days = (ms: number) => ms / (24 * 60 * 60_000);
 
 function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   return <div className="info-table-wrap">
@@ -89,7 +88,7 @@ const settings = <>
   <Table head={['아이템', '시작', '최대 보유', '한 판 사용', '없을 때']} rows={[
     ['하트', MAX_HEARTS, MAX_HEARTS, '입장 1개', `${minutes(HEART_REFILL_MS)}분 충전 · 광고`],
     ['트레이 비우기', STARTING_TRAY_CLEARS, MAX_TRAY_CLEARS, '보유분', `광고 ${TIMED_TRAY_CLEARS_PER_GAME}회 (릴랙스 ${RELAXED_TRAY_CLEARS}회)`],
-    ['퀵오더', 0, MAX_QUICK_ORDERS, '일반·패스 보유분', '패스'],
+    ['퀵오더', 0, MAX_QUICK_ORDERS, '일반·패스 보유분', '광고 (판당 제한 없음)'],
     ['미리보기', '—', '—', '1', '광고'],
     ['+5초', '—', '—', '1', '광고'],
   ]} />
@@ -106,15 +105,14 @@ const settings = <>
 </>;
 
 const pass = <div className="info-pass">
-  <p className="info-pass-lead"><b>{PASS_DAYS}일 패스</b> · 자동 갱신 없음 · 다시 사면 기간은 이어지고 개수는 다시 가득 채워져요 (쌓이지 않음).</p>
+  <p className="info-pass-lead"><b>1회 구매 패스</b> · 사용 기한 없이 보유하고, 다시 사면 남은 수량에 더해져요.</p>
   <Table head={['혜택', '무료', '패스']} rows={[
     ['여분 하트', '—', `${PASS_SPARE_HEARTS}개`],
-    ['하트 충전', `${minutes(HEART_REFILL_MS)}분에 1개`, `${minutes(HEART_REFILL_MS) / 2}분에 1개 (2배)`],
-    ['트레이 비우기', `보유분 → 광고`, '무료 (한 판 한도 안에서)'],
+    ['하트 충전', `${minutes(HEART_REFILL_MS)}분에 1개`, `${minutes(HEART_REFILL_MS) / 2}분에 1개 (총 ${PASS_FAST_REFILLS}회)`],
+    ['트레이 비우기', `보유분 → 광고`, `${PASS_TRAY_CLEARS}개`],
     ['미리보기', '광고', `${PASS_PEEKS}회`],
-    ['+5초', '사용 불가', `${PASS_TIME_BONUSES}회`],
-    ['퀵오더', '보상으로만', `+ ${PASS_QUICK_ORDERS}개`],
-    ['만료 알림', '—', `만료 ${days(PASS_REMINDER_MS)}일 전부터`],
+    ['+5초', '광고', `${PASS_TIME_BONUSES}회`],
+    ['퀵오더', '보상 또는 광고', `+ ${PASS_QUICK_ORDERS}개`],
   ]} />
 </div>;
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addHeart, describeHearts, fullHearts, HEART_REFILL_MS, MAX_HEARTS, parseHearts, rebaseRefill, refillHearts, spendHeart, type Hearts } from './hearts';
-import { PASS_MS, PASS_SPARE_HEARTS } from '../monetization/pass';
+import { PASS_FAST_REFILLS, PASS_SPARE_HEARTS } from '../monetization/pass';
 import { canAffordAttempt, canPlayBonusToday, chargeableSpareHearts, createSession, reduceSession } from './session';
 import { BONUS_STAGE_ID } from './constants';
 import { getStage, loadStage } from './stages';
@@ -8,6 +8,7 @@ import { createBonusStage } from './stages/bonus';
 import { selectDonut } from './engine';
 import { validateStage } from './validation';
 
+const LEGACY_PASS_MS = 30 * 24 * 60 * 60_000;
 const minutes = (n: number) => n * 60_000;
 
 describe('하트', () => {
@@ -107,8 +108,8 @@ describe('패스 하트 혜택', () => {
 
   it('패스를 사거나 끝내면 충전 진행분은 그대로 두고 남은 시간만 속도가 바뀐다', () => {
     const half = { count: 2, refillFrom: 0 };
-    const bought = rebaseRefill(half, minutes(20), undefined, minutes(20) + PASS_MS);
-    expect(describeHearts(bought, minutes(20), minutes(20) + PASS_MS).nextInMs).toBe(minutes(5));
+    const bought = rebaseRefill(half, minutes(20), undefined, minutes(20) + LEGACY_PASS_MS);
+    expect(describeHearts(bought, minutes(20), minutes(20) + LEGACY_PASS_MS).nextInMs).toBe(minutes(5));
     const ended = rebaseRefill({ count: 2, refillFrom: 0 }, minutes(5), minutes(5), undefined);
     expect(describeHearts(ended, minutes(5)).nextInMs).toBe(minutes(20));
   });
@@ -140,9 +141,21 @@ describe('패스 하트 혜택', () => {
 
   it('스페어 하트는 패스가 끝나면 쓸 수 없다', async () => {
     await loadStage(1);
-    const session = { ...reduceSession(createSession(), { type: 'BUY_PASS', now: 0 }), hearts: { count: 0, refillFrom: PASS_MS } };
-    expect(chargeableSpareHearts(session, PASS_MS)).toBe(0);
-    expect(reduceSession(session, { type: 'CHARGE_SPARE', amount: 1, now: PASS_MS })).toBe(session);
+    const bought = reduceSession(createSession(), { type: 'BUY_PASS', now: 0 });
+    const session = { ...bought, pass: { ...bought.pass!, expiresAt: LEGACY_PASS_MS, fastRefills: 0 }, hearts: { count: 0, refillFrom: LEGACY_PASS_MS } };
+    expect(chargeableSpareHearts(session, LEGACY_PASS_MS)).toBe(0);
+    expect(reduceSession(session, { type: 'CHARGE_SPARE', amount: 1, now: LEGACY_PASS_MS })).toBe(session);
+  });
+
+  it('자동 충전으로만 단축 횟수를 차감하고, 소진 뒤에는 일반 속도로 돌아간다', () => {
+    const bought = reduceSession(createSession(), { type: 'BUY_PASS', now: 0 });
+    expect(bought.pass?.fastRefills).toBe(PASS_FAST_REFILLS);
+    const session = { ...bought, pass: { ...bought.pass!, fastRefills: 1 }, hearts: { count: 0, refillFrom: 0 } };
+    const after = reduceSession(session, { type: 'AD_HEARTS', now: minutes(14) });
+    expect(after.pass?.fastRefills).toBe(1);
+    const settled = reduceSession(after, { type: 'CHARGE_SPARE', amount: 0, now: minutes(45) });
+    expect(settled.hearts.count).toBe(3);
+    expect(settled.pass?.fastRefills).toBe(0);
   });
 
   it('광고를 끝까지 보면 일반 하트 1개를 받는다', () => {

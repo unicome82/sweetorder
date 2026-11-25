@@ -1,41 +1,43 @@
-// Premium pass (30 days, no auto-renew). Each purchase adds 30 days to what is left and refills the
-// pass allowances to their full amounts (they don't stack). Nothing here talks to a store; see billing.ts.
-export const PASS_DAYS = 30;
-export const PASS_MS = PASS_DAYS * 24 * 60 * 60_000;
 export const PASS_SPARE_HEARTS = 10;
 export const PASS_TIME_BONUSES = 30;
 export const PASS_PEEKS = 30;
-/** Quick orders the pass holds; an attempt may use one of them. */
 export const PASS_QUICK_ORDERS = 5;
-/** What one +5 seconds adds to the clock. */
+export const PASS_TRAY_CLEARS = 10;
+export const PASS_FAST_REFILLS = 20;
 export const PASS_TIME_BONUS_MS = 5_000;
-/** "Extend your pass" reminders start this long before the pass runs out. */
-export const PASS_REMINDER_MS = 3 * 24 * 60 * 60_000;
 
-/** expiresAt: when the pass ends. The rest are allowances left from the latest purchase. */
-export interface Pass { expiresAt: number; spareHearts: number; timeBonuses: number; peeks: number; quickOrders: number }
+export interface Pass {
+  /** Retained only for passes purchased under the old 30-day offer. */
+  expiresAt?: number;
+  spareHearts: number;
+  timeBonuses: number;
+  peeks: number;
+  quickOrders: number;
+  trayClears?: number;
+  fastRefills?: number;
+}
 
 export function isPassActive(pass: Pass | undefined, now: number): pass is Pass {
-  return pass !== undefined && now < pass.expiresAt;
+  return pass !== undefined && (pass.expiresAt === undefined || now < pass.expiresAt);
 }
 
-/** A purchase: 30 more days on top of any time left, allowances back to full. */
 export function purchasePass(pass: Pass | undefined, now: number): Pass {
-  const from = isPassActive(pass, now) ? pass.expiresAt : now;
-  return { expiresAt: from + PASS_MS, spareHearts: PASS_SPARE_HEARTS, timeBonuses: PASS_TIME_BONUSES, peeks: PASS_PEEKS, quickOrders: PASS_QUICK_ORDERS };
-}
-
-/** Whole days left, counting a partial day as one; 0 once expired. */
-export function passDaysLeft(pass: Pass | undefined, now: number): number {
-  return isPassActive(pass, now) ? Math.ceil((pass.expiresAt - now) / (24 * 60 * 60_000)) : 0;
+  const balance = isPassActive(pass, now) ? pass : undefined;
+  return {
+    spareHearts: (balance?.spareHearts ?? 0) + PASS_SPARE_HEARTS,
+    timeBonuses: (balance?.timeBonuses ?? 0) + PASS_TIME_BONUSES,
+    peeks: (balance?.peeks ?? 0) + PASS_PEEKS,
+    quickOrders: (balance?.quickOrders ?? 0) + PASS_QUICK_ORDERS,
+    trayClears: (balance?.trayClears ?? 0) + PASS_TRAY_CLEARS,
+    fastRefills: (balance?.fastRefills ?? 0) + PASS_FAST_REFILLS,
+  };
 }
 
 export function parsePass(saved: unknown): Pass | undefined {
   if (!saved || typeof saved !== 'object') return undefined;
-  const { expiresAt, spareHearts, timeBonuses, peeks, quickOrders = 0 } = saved as Record<string, unknown>;
-  const count = (n: unknown, max: number): n is number => Number.isSafeInteger(n) && (n as number) >= 0 && (n as number) <= max;
-  if (!Number.isFinite(expiresAt) || !count(spareHearts, PASS_SPARE_HEARTS) || !count(timeBonuses, PASS_TIME_BONUSES) || !count(peeks, PASS_PEEKS)
-    || !count(quickOrders, PASS_QUICK_ORDERS)) return undefined;
-  // Passes bought before quick orders joined it have none.
-  return { expiresAt: expiresAt as number, spareHearts, timeBonuses, peeks, quickOrders };
+  const { expiresAt, spareHearts, timeBonuses, peeks, quickOrders = 0, trayClears = 0, fastRefills = 0 } = saved as Record<string, unknown>;
+  const count = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0;
+  if ((expiresAt !== undefined && (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt)))
+    || !count(spareHearts) || !count(timeBonuses) || !count(peeks) || !count(quickOrders) || !count(trayClears) || !count(fastRefills)) return undefined;
+  return { ...(expiresAt === undefined ? {} : { expiresAt }), spareHearts, timeBonuses, peeks, quickOrders, trayClears, fastRefills };
 }

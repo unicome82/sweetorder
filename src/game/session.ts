@@ -1,7 +1,7 @@
 import { createGame, getStars, MAX_QUICK_ORDERS } from './engine';
 import { getStage, isBonusStage, isStageId, practiceStage, prepareBonusStage, STAGE_COUNT } from './stages';
 import { hasHiddenDesserts, reduceGame, type GameAction } from './reducer';
-import { addHeart, canEarnHearts, fullHearts, MAX_HEARTS, rebaseRefill, refillHearts, spendHeart } from './hearts';
+import { addHeart, canEarnHearts, fullHearts, HEART_REFILL_MS, MAX_HEARTS, rebaseRefill, refillHearts, spendHeart } from './hearts';
 import type { Hearts } from './hearts';
 import type { DonutType, GameState, RewardKind } from './types';
 import { isFeaturePreviewStage } from './constants';
@@ -78,7 +78,7 @@ export const RELAXED_TRAY_CLEARS = 1;
 export const trayClearsPerGame = (relaxed: boolean) => relaxed ? RELAXED_TRAY_CLEARS : TIMED_TRAY_CLEARS_PER_GAME;
 /**
  * Sets up the attempt with all owned tray clears and a capped fallback allowance.
- * A fallback use requires an ad unless the pass covers it.
+ * A fallback use requires an ad unless a legacy pass covers it.
  */
 function withMode(game: GameState, relaxed: boolean, ownedClears: number): GameState {
   if (game.stageId === practiceStage.id) return game;
@@ -98,8 +98,8 @@ function earnable(state: SessionState, now: number): Earnable {
   };
 }
 function createSessionGame(stageId: number, state: SessionState, relaxed: boolean, now: number): GameState {
-  const game = withoutSpentRewards(createGame(getStage(stageId)), state.rewardedStages);
-  return withMode(withoutUnearnableRewards(game, earnable(state, now)), relaxed, state.trayClears);
+  const game = { ...withoutSpentRewards(createGame(getStage(stageId)), state.rewardedStages), quickOrderAds: stageId !== practiceStage.id && !isBonusStage(stageId) };
+  return withMode(withoutUnearnableRewards(game, earnable(state, now)), relaxed, state.trayClears + passTrayClears(state.pass, now));
 }
 /**
  * Drops rewards the player can't take, checked as the attempt starts: one they have no room for, or one today's limit
@@ -165,7 +165,13 @@ function applyItems(game: GameState, pass: Pass | undefined, choice: ItemChoice 
 /** Where an attempt's heart came from; only regular hearts pay (spare hearts are charged into them first). */
 export type HeartPayment = 'regular';
 /** Regular hearts refill twice as fast up to the end of the latest pass. */
-export const heartsFastUntil = (state: Pick<SessionState, 'pass'>) => state.pass?.expiresAt;
+export function heartsFastUntil({ pass, hearts }: Pick<SessionState, 'pass' | 'hearts'>): number | undefined {
+  if (pass?.expiresAt !== undefined) return pass.expiresAt;
+  return pass?.fastRefills ? hearts.refillFrom + pass.fastRefills * HEART_REFILL_MS / 2 : undefined;
+}
+
+export const passTrayClears = (pass: Pass | undefined, now: number) =>
+  isPassActive(pass, now) ? pass.trayClears ?? 0 : 0;
 /** Practice and bonus stages cost no heart. */
 export const isFreeStage = (id: number) => id === practiceStage.id || isBonusStage(id);
 /** Pass spare hearts usable now: only while the pass runs. */
@@ -212,6 +218,14 @@ export function getCurrentStage(stars: Record<number, number>): number {
 }
 
 export function reduceSession(state: SessionState, action: SessionAction): SessionState {
+  const nowForRefill = ('now' in action ? action.now : undefined) ?? Date.now();
+  if (state.pass?.fastRefills) {
+    const hearts = refillHearts(state.hearts, nowForRefill, heartsFastUntil(state));
+    const gained = hearts.count - state.hearts.count;
+    if (gained > 0) {
+      state = { ...state, hearts, pass: { ...state.pass, fastRefills: Math.max(0, state.pass.fastRefills - gained) } };
+    }
+  }
   switch (action.type) {
     case 'HOME': return { ...state, screen: 'start', bonus: undefined };
     case 'STAGES': return { ...state, screen: 'stages', bonus: undefined };
@@ -228,13 +242,17 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       // The running refill keeps its progress and goes on at double speed until the new end.
       const now = action.now ?? Date.now();
       const pass = purchasePass(state.pass, now);
-      const game = state.screen === 'game' ? withQuickOrders(state.game, state.quickOrders, pass, now) : state.game;
-      return { ...state, game, pass, hearts: rebaseRefill(state.hearts, now, heartsFastUntil(state), pass.expiresAt) };
+      const game = state.screen === 'game'
+        ? withQuickOrders({ ...state.game, trayClearsLeft: state.game.quickOrderAds
+          ? state.game.trayClearsLeft + passTrayClears(pass, now) - passTrayClears(state.pass, now)
+          : state.game.trayClearsLeft }, state.quickOrders, pass, now)
+        : state.game;
+      return { ...state, game, pass, hearts: rebaseRefill(state.hearts, now, heartsFastUntil(state), Infinity) };
     }
     case 'END_PASS': {
       const now = Date.now();
-      const endedAt = state.pass && Math.min(state.pass.expiresAt, now);
-      const game = state.screen === 'game' ? withQuickOrders(state.game, state.quickOrders, undefined, now) : state.game;
+      const endedAt = heartsFastUntil(state);
+      const game = state.screen === 'game' ? withQuickOrders({ ...state.game, trayClearsLeft: state.game.quickOrderAds ? Math.max(0, state.game.trayClearsLeft - passTrayClears(state.pass, now)) : state.game.trayClearsLeft }, state.quickOrders, undefined, now) : state.game;
       return { ...state, game, pass: undefined, hearts: rebaseRefill(state.hearts, now, endedAt, undefined) };
     }
     case 'CHARGE_SPARE': {
@@ -267,15 +285,17 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       let game = reduceGame(before, action.action, getStage(before.stageId));
       if (game === before) return before === state.game ? state : { ...state, game };
       const relaxed = state.game.relaxed ?? false;
-      if (restart) game = withQuickOrders(withMode(withoutUnearnableRewards(withoutSpentRewards(game, state.rewardedStages), earnable(state, now)), relaxed, state.trayClears), state.quickOrders, state.pass, now);
+      if (restart) game = withQuickOrders(withMode(withoutUnearnableRewards(withoutSpentRewards({ ...game, quickOrderAds: before.quickOrderAds }, state.rewardedStages), earnable(state, now)), relaxed, state.trayClears + passTrayClears(state.pass, now)), state.quickOrders, state.pass, now);
       if (game.stageId === practiceStage.id) return { ...state, game };
       // The held quick order follows the attempt: picked up from a queue, or used on the customers.
       // Pass inventory is tracked separately so only uses from it are charged to the pass.
       const quickOrders = game.quickOrders === undefined ? state.quickOrders : game.quickOrders - (game.passQuickOrders ?? 0);
       const passQuickOrdersUsed = restart ? 0 : Math.max(0, (before.passQuickOrders ?? 0) - (game.passQuickOrders ?? 0));
-      const pass = passQuickOrdersUsed && state.pass ? { ...state.pass, quickOrders: Math.max(0, state.pass.quickOrders - passQuickOrdersUsed) } : state.pass;
-      const usedOwnedClear = action.action.type === 'CLEAR_TRAY' && game.trayClearsLeft < state.game.trayClearsLeft && state.trayClears > 0;
-      let trayClears = state.trayClears - Number(usedOwnedClear);
+      let pass = passQuickOrdersUsed && state.pass ? { ...state.pass, quickOrders: Math.max(0, state.pass.quickOrders - passQuickOrdersUsed) } : state.pass;
+      const usedClear = action.action.type === 'CLEAR_TRAY' && game.trayClearsLeft < state.game.trayClearsLeft;
+      let trayClears = state.trayClears;
+      if (usedClear && trayClears > 0) trayClears -= 1;
+      else if (usedClear && pass && passTrayClears(pass, now) > 0) pass = { ...pass, trayClears: (pass.trayClears ?? 0) - 1 };
       const earned = restart ? [] : (game.collectedRewards ?? []).slice(state.game.collectedRewards?.length ?? 0);
       let rewardedStages = state.rewardedStages;
       let rewardHearts = state.hearts;

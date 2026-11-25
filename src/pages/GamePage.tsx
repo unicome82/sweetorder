@@ -32,7 +32,7 @@ const PICKUP_INTERVAL = 100;
 // Every stage but practice opens with its title in the middle; the clock starts once it has gone.
 const INTRO_MS = 1800;
 // Items chosen before the start play out one after another once the title has gone, with the clock held:
-// "+5s" pops in the middle on the dimmed layer, then after a short pause peek's "?" blink and
+// "+5s" pops in the middle on the intro layer, then after a short pause peek's "?" blink and
 // turn into desserts (DonutQueue's CSS animation lasts PEEK_REVEAL_MS and starts at --peek-delay).
 const PEEK_REVEAL_MS = 1300;
 const TIME_BONUS_POP_MS = 1200;
@@ -51,12 +51,13 @@ interface Props {
   trayClearsOwned: number;
   /** Pass holders clear the tray without an ad and without using owned clears. */
   passActive: boolean;
+  legacyAdFree: boolean;
   /** Offers the pass; the tray-full popup links to it while a tray clear costs an ad. */
   onShowPass: () => void;
   /** A campaign retry starts the stage afresh through the app, so the pre-start item popup can come first. */
   onRetry: () => void;
 }
-export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, passActive, onRetry, onShowPass }: Props) {
+export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, legacyAdFree, passActive, onRetry, onShowPass }: Props) {
   const t = useMessages();
   const { soundEnabled } = settings;
   // Settings opened mid-play pause the game behind them and resume it when closed.
@@ -206,7 +207,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       : action.type === 'TRAY_READY' ? matchTray(current, currentStage, action.donutId, true)
       : action.type === 'PICKUP_TRAY' ? pickupTray(current, currentStage, action.readyOrders, action.parallel)
       : action.type === 'CLEAR_TRAY' ? clearTray(current, currentStage)
-      : action.type === 'QUICK_ORDER' ? quickOrder(current, currentStage) : null;
+      : action.type === 'QUICK_ORDER' ? quickOrder(current, currentStage, action.adWatched) : null;
     if (!result) { dispatch(action); return; }
     if (result.state === current || !root.current) return;
     if (action.type === 'CLEAR_TRAY') {
@@ -331,19 +332,28 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const practice = state.stageId === practiceStage.id;
   const clearsOwned = practice ? state.trayClearsLeft : trayClearsOwned;
   // With no owned clears left (and no pass), each clear is paid for with a rewarded ad.
-  const clearNeedsAd = !practice && !passActive && trayClearsOwned <= 0;
+  const clearNeedsAd = !practice && !legacyAdFree && trayClearsOwned <= 0;
   const actAfterAd = useRef(act);
+  const adInProgress = useRef(false);
   useLayoutEffect(() => { actAfterAd.current = act; });
   /** Shows a rewarded ad with the clock paused, then applies the action if it was watched to the end. */
   async function actAfterRewardedAd(placement: RewardedPlacement, action: GameAction) {
+    if (adInProgress.current) return;
+    adInProgress.current = true;
     const pauseForAd = latest.current.status === 'playing' && timeLimit > 0;
     setAdPlaying(true);
     if (pauseForAd) act({ type: 'PAUSE' });
-    const watched = await ads.showRewarded(placement);
-    if (!mounted.current) return;
-    setAdPlaying(false);
-    if (pauseForAd) actAfterAd.current({ type: 'RESUME' });
-    if (watched) actAfterAd.current(action);
+    let watched = false;
+    try {
+      watched = await ads.showRewarded(placement);
+    } finally {
+      adInProgress.current = false;
+      if (mounted.current) {
+        setAdPlaying(false);
+        if (pauseForAd) actAfterAd.current({ type: 'RESUME' });
+      }
+    }
+    if (watched && mounted.current) actAfterAd.current(action);
   }
   function requestTrayClear() {
     if (clearNeedsAd) void actAfterRewardedAd('trayClear', { type: 'CLEAR_TRAY' });
@@ -351,6 +361,11 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   }
   // Practice has no quick order.
   const quickOrders = practice ? undefined : (state.quickOrders ?? 0) - (passActive ? 0 : state.passQuickOrders ?? 0);
+  const quickNeedsAd = !!state.quickOrderAds && quickOrders === 0;
+  const requestQuickOrder = () => {
+    if (quickNeedsAd) void actAfterRewardedAd('quickOrder', { type: 'QUICK_ORDER', adWatched: true });
+    else act({ type: 'QUICK_ORDER' });
+  };
   const boardVisible = playing || status === 'blocked' || status === 'paused';
   const [presentedResult, setPresentedResult] = useState<GameState | null>(null);
   const waitingForGoodbye = showGoodbye && presentedResult !== state;
@@ -507,7 +522,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         <button type="button" className={failed ? 'primary-button popup-primary-button' : 'secondary-button'} onClick={retry}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={onStages}><Icon name="grid" />{t.stageSelect}</button>
       </div>}
-      {failed && !practice && !bonus && !passActive && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passFailed}</button>}
+      {failed && !practice && !bonus && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passFailed}</button>}
     </section>}
     {(boardVisible || waitingForGoodbye) && <div className="game-board">
     <OrderBoard key={round} orders={pendingDeliveries.length ? state.orders.map(order => {
@@ -521,8 +536,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
       canClear={playing && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
       onClear={requestTrayClear}
-      quickOrders={quickOrders} onQuickOrder={() => act({ type: 'QUICK_ORDER' })}
-      canQuickOrder={playing && canQuickOrder(state) && !waitingForGoodbye && !showIntro && inFlight.size === 0 && returning.size === 0} />
+      quickOrders={quickOrders} quickNeedsAd={quickNeedsAd} onQuickOrder={requestQuickOrder}
+      canQuickOrder={playing && canQuickOrder(state, quickNeedsAd) && !waitingForGoodbye && !showIntro && inFlight.size === 0 && returning.size === 0} />
     <DonutQueue key={round} queues={state.queues} revealed={state.peeked} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}
     <dialog className="glass-popup tray-full-dialog pause-dialog" ref={pauseDialog} aria-labelledby="pause-heading" onCancel={event => { event.preventDefault(); act({ type: 'RESUME' }); }}>
@@ -542,16 +557,16 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
             ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span>
             : <span className="tray-clear-count" aria-hidden="true">{clearsOwned}</span>}
         </button>}
-        {!!quickOrders && <button type="button" data-sfx="none" className="primary-button popup-primary-button quick-order-button" onClick={() => act({ type: 'QUICK_ORDER' })}
-          disabled={!canQuickOrder(state)} aria-label={t.quickOrderLabel(quickOrders)}>
-          <ItemButtonIcon item="quickOrder" />{t.quickOrder} <span className="tray-clear-count" aria-hidden="true">{quickOrders}</span>
+        {(!!quickOrders || quickNeedsAd) && <button type="button" data-sfx="none" className="primary-button popup-primary-button quick-order-button" onClick={requestQuickOrder}
+          disabled={!canQuickOrder(state, quickNeedsAd)} aria-label={quickNeedsAd ? t.quickOrderAdLabel : t.quickOrderLabel(quickOrders ?? 0)}>
+          <ItemButtonIcon item="quickOrder" />{t.quickOrder} {quickNeedsAd ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span> : <span className="tray-clear-count" aria-hidden="true">{quickOrders}</span>}
         </button>}
         <button type="button" className="secondary-button" onClick={retry}><Icon name="retry" />{t.retry}</button>
         <button type="button" className="secondary-button" onClick={() => act({ type: 'GIVE_UP' })}>{t.giveUp}</button>
       </div>
       {clearNeedsAd && state.trayClearsLeft > 0 && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passClearTray}</button>}
     </dialog>
-    {/* The dimmed layer stays through every item effect: +5s (popping in the middle), then the "?" reveal. */}
+    {/* Keep the intro layer through the item effects: +5s (popping in the middle), then the "?" reveal. */}
     {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-ms': `${introMs}ms` } as CSSProperties}>
       <span className="stage-intro-title">{bonus ? 'Bonus Stage!' : `Stage ${String(state.stageId).padStart(2, '0')}`}</span>
       {timeBonusMs > 0 && <span className="time-bonus-pop" lang="en"

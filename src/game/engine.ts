@@ -127,7 +127,7 @@ function updateStatus(state: GameState, stage: StageDefinition, events: GameEven
     || state.queues.some(queue => queue[0]?.reward)) {
     state.status = 'playing';
   } else {
-    state.status = state.trayClearsLeft > 0 || (stage.id !== BONUS_STAGE_ID && canQuickOrder(state)) ? 'blocked' : 'gameover';
+    state.status = state.trayClearsLeft > 0 || (stage.id !== BONUS_STAGE_ID && canQuickOrder(state, state.quickOrderAds)) ? 'blocked' : 'gameover';
     state.blockedReason = state.tray.length >= state.trayCapacity ? 'full' : 'stuck';
   }
 }
@@ -244,10 +244,10 @@ export function clearTray(state: GameState, stage: StageDefinition): TransitionR
 /** A player holds at most one quick order. */
 export const MAX_QUICK_ORDERS = 1;
 
-/** Whether a quick order can be used now: one is held, play is settled, and a shown customer still waits for something. */
-export function canQuickOrder(state: GameState): boolean {
+/** Whether a quick order can be used now: an item is held or its ad was watched, play is settled, and a shown customer still waits for something. */
+export function canQuickOrder(state: GameState, adWatched = false): boolean {
   const settled = state.status === 'blocked' || (state.status === 'playing' && !state.pendingMatchIds?.length);
-  return settled && (state.quickOrders ?? 0) > 0
+  return settled && ((state.quickOrders ?? 0) > 0 || (adWatched && state.quickOrderAds === true))
     && state.orders.some(order => order && Object.values(order.remaining).some(count => count > 0));
 }
 
@@ -255,13 +255,13 @@ export function canQuickOrder(state: GameState): boolean {
  * Quick order: every customer on screen gets the rest of their order at once, from the tray first and then from the
  * queues (nearest the front first, middle positions included). Customers who arrive after those leave are not served.
  */
-export function quickOrder(state: GameState, stage: StageDefinition): TransitionResult {
-  if (!canQuickOrder(state) || state.stageId !== stage.id) return { state, events: [] };
+export function quickOrder(state: GameState, stage: StageDefinition, adWatched = false): TransitionResult {
+  if (!canQuickOrder(state, adWatched) || state.stageId !== stage.id) return { state, events: [] };
   const next = structuredClone(state);
-  next.quickOrders = (state.quickOrders ?? 0) - 1;
+  next.quickOrders = Math.max(0, (state.quickOrders ?? 0) - 1);
   // The owned quick order goes first; pass inventory is used only when none is owned.
   const passQuickOrders = state.passQuickOrders ?? 0;
-  if (passQuickOrders > 0 && (state.quickOrders ?? 0) <= passQuickOrders) next.passQuickOrders = passQuickOrders - 1;
+  if ((state.quickOrders ?? 0) > 0 && passQuickOrders > 0 && (state.quickOrders ?? 0) <= passQuickOrders) next.passQuickOrders = passQuickOrders - 1;
   next.transitionId += 1;
   const events: GameEvent[] = [];
   const ordered = next.orders.filter((o): o is ActiveOrder => o !== null).sort((a, b) => a.sequence - b.sequence);

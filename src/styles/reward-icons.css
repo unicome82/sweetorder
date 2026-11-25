@@ -9,3 +9,11 @@
 .mystery-icon {
   filter: sepia(.58) hue-rotate(-53deg) saturate(1.26) brightness(1.15);
 }
+
+.tray-clear-icon {
+  filter: saturate(.84) var(--reward-icon-effect, brightness(1));
+}
+
+.queue-column .mystery-icon {
+  filter: sepia(.35) hue-rotate(-40deg) saturate(.85) brightness(.96);
+}

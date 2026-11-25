@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { LanguageContext, readLanguagePreference, saveLanguagePreference } from '../i18n/language';
 import type { MouseEvent } from 'react';
 import { playSound, readSoundPreference, saveSoundPreference, setMusicScene, unlockSound } from '../effects/sound';
-import { addTimeFromPass, canAffordAttempt, canPlayBonusToday, chargeableSpareHearts, getCurrentStage, heartsFastUntil, itemsBeforeStart, peekFromPass, spareHearts, type ItemChoice } from '../game/session';
+import { addTimeFromPass, canAffordAttempt, canPlayBonusToday, chargeableSpareHearts, getCurrentStage, heartsFastUntil, itemsBeforeStart, peekFromPass, passTrayClears, spareHearts, type ItemChoice } from '../game/session';
 import { StartItemsDialog } from '../components/StartItemsDialog';
 import { ads } from '../monetization/ads';
 import { getStage } from '../game/stages';
@@ -131,7 +131,7 @@ export function App() {
     // Out of hearts: the new spare hearts can be charged straight away.
     if (outOfHearts !== undefined) { setOutOfHearts(undefined); setChargeOpen(true); }
   }
-  const showPass = passActive ? undefined : () => setPassOfferOpen(true);
+  const showPass = () => setPassOfferOpen(true);
   const testPass = FAKE_MONETIZATION_FOR_TESTING
     ? {
       pass: session.pass, onBuy: () => void buyPass(), onEnd: () => dispatch({ type: 'END_PASS' }),
@@ -148,7 +148,7 @@ export function App() {
       : screen === 'stages'
         ? <StageSelectPage stars={stars} hearts={displayedHearts} spareHearts={session.unlimitedHearts ? 0 : spareHearts(session, passNow)} heartsFastUntil={fastUntil} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} onShowPass={showPass} />
         : <GamePage key={`${game.stageId}:${attempt}`} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
-          trayClearsOwned={session.trayClears} passActive={passActive} onRetry={() => start(game.stageId)} onShowPass={() => setPassOfferOpen(true)}
+          trayClearsOwned={session.trayClears + passTrayClears(session.pass, passNow)} legacyAdFree={passActive && session.pass?.expiresAt !== undefined} passActive={passActive} onRetry={() => start(game.stageId)} onShowPass={() => setPassOfferOpen(true)}
           canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => handleOutOfHearts(game.stageId)} />
     }
     {screen === 'start' && !modeChosen && <ModeChoiceDialog onChoose={changeMode} />}
