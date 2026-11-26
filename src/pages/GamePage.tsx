@@ -12,7 +12,7 @@ import { DonutTray } from '../components/DonutTray';
 import { DonutQueue } from '../components/DonutQueue';
 import { getStage, isBonusStage, practiceStage, STAGE_COUNT } from '../game/stages';
 import { HeartIcon } from '../components/HeartIcon';
-import { canQuickOrder, getQueueHintColumns, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray, quickOrder } from '../game/engine';
+import { canQuickOrder, canUseQuickOrderAd, getQueueHintColumns, getReadyTrayPickupOrders, getStars, selectDonut, clearTray, matchTray, pickupTray, quickOrder } from '../game/engine';
 import { ItemButtonIcon, QuickOrderIcon, TrayClearIcon } from '../components/ItemIcons';
 import type { DonutType, GameState, RewardKind } from '../game/types';
 import type { GameAction } from '../game/reducer';
@@ -356,7 +356,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   }
   // Practice has no quick order.
   const quickOrders = practice ? undefined : (state.quickOrders ?? 0) - (passActive ? 0 : state.passQuickOrders ?? 0);
-  const quickNeedsAd = !!state.quickOrderAds && quickOrders === 0;
+  const quickNeedsAd = canUseQuickOrderAd(state) && quickOrders === 0;
   // Stable handlers for the memoized tray, always running the latest request functions.
   const trayActions = useRef({ clear: requestTrayClear, quick: () => {} });
   const onTrayClear = useCallback(() => trayActions.current.clear(), []);

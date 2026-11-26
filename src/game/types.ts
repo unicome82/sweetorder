@@ -38,4 +38,6 @@ export interface GameState {
   /** How many of quickOrders came from the pass for this attempt (0 or 1); the owned one is used first. */
   passQuickOrders?: number;
   quickOrderAds?: boolean;
+  /** The one ad-funded quick order of this attempt was used; owned ones stay usable. */
+  quickOrderAdUsed?: boolean;
 }

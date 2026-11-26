@@ -109,6 +109,20 @@ describe('퀵오더 효과', () => {
     expect(after.quickOrders).toBe(0);
     expect(after.status).not.toBe('blocked');
   });
+
+  it('광고로는 판당 1번만 쓸 수 있고, 보유한 퀵오더는 그 뒤에도 쓸 수 있다', () => {
+    const stage = byId.get(40)!;
+    const game: GameState = { ...createGame(stage), quickOrderAds: true };
+    expect(canQuickOrder(game, true)).toBe(true);
+    const afterAd = quickOrder(game, stage, true).state;
+    expect(afterAd).not.toBe(game);
+    expect(afterAd.quickOrderAdUsed).toBe(true);
+    const next: GameState = { ...afterAd, status: 'playing', orders: game.orders };
+    expect(canQuickOrder(next, true)).toBe(false);
+    expect(quickOrder(next, stage, true).state).toBe(next);
+    expect(canQuickOrder({ ...next, quickOrders: 1 })).toBe(true);
+    expect(quickOrder({ ...next, quickOrders: 1 }, stage).state.quickOrders).toBe(0);
+  });
 });
 
 describe('퀵오더 보관', () => {
@@ -182,14 +196,16 @@ describe('패스 퀵오더', () => {
     expect(passTurn.pass!.quickOrders).toBe(PASS_QUICK_ORDERS - 1);
   });
 
-  it('릴랙스 모드에서 보유분 없이도 광고마다 퀵오더를 다시 사용할 수 있다', () => {
+  it('보유분이 없으면 광고 퀵오더는 판당 1번이고, 다시 시작하면 또 쓸 수 있다', () => {
     const started = reduceSession(createSession(true), { type: 'START', stageId: 40, relaxed: true, now: 0 });
     expect(use(started)).toBe(started);
     const action = { type: 'GAME', action: { type: 'QUICK_ORDER', adWatched: true }, now: 0 } as const;
     const first = reduceSession(started, action);
-    const second = reduceSession(first, action);
-    expect(second.game.transitionId).toBe(started.game.transitionId + 2);
-    expect(second.game.quickOrders).toBe(0);
+    expect(first.game.transitionId).toBe(started.game.transitionId + 1);
+    expect(reduceSession(first, action)).toBe(first);
+    const retried = reduceSession(first, { type: 'GAME', action: { type: 'RESTART' }, now: 0 });
+    expect(retried.game.quickOrderAdUsed).toBeFalsy();
+    expect(reduceSession(retried, action).game.transitionId).toBe(retried.game.transitionId + 1);
   });
 
   it('진행 중 패스를 구매하거나 종료하면 버튼에 표시할 수량도 갱신된다', () => {
