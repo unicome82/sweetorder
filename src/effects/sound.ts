@@ -378,35 +378,100 @@ function startMusic(context: AudioContext) {
   }
 }
 
-const WAKE_FADE_IN = 0.12;
-const SUSPEND_AFTER_HIDE_MS = 150;
+// Returning to the app: fade the sound in, and start the music a moment later (it crackles if it starts while the
+// audio device is still waking up).
+const WAKE_FADE_IN = 0.25;
+const MUSIC_AFTER_WAKE_MS = 200;
+// iOS can leave a resume() pending for good; after this long, the next tap rebuilds audio from scratch.
+const RESUME_TIMEOUT_MS = 600;
+let resumeStartedAt = 0;
+let musicTimer: ReturnType<typeof setTimeout> | undefined;
+let listening = false;
 
-/** Fades the sound back in once the audio clock runs again, then lets the music continue. */
 function fadeIn() {
   if (!audio || !wake || document.hidden || audio.state !== 'running') return;
   const now = audio.currentTime;
   wake.gain.cancelScheduledValues(now);
   wake.gain.setValueAtTime(0, now);
-  wake.gain.setTargetAtTime(1, now + 0.03, WAKE_FADE_IN / 3);
-  syncMusic();
+  wake.gain.setTargetAtTime(1, now + 0.05, WAKE_FADE_IN / 3);
+  clearTimeout(musicTimer);
+  musicTimer = setTimeout(syncMusic, MUSIC_AFTER_WAKE_MS);
+}
+
+function tryResume() {
+  if (!audio || audio.state === 'running' || resuming) return;
+  const context = audio;
+  resumeStartedAt = performance.now();
+  resuming = context.resume().catch(() => undefined).finally(() => { if (audio === context) resuming = undefined; });
 }
 
 function onVisibility() {
-  if (!audio || !wake) { syncMusic(); return; }
   if (document.hidden) {
-    // Fade out, stop the music, then suspend the context so the device releases it cleanly.
-    const now = audio.currentTime;
-    wake.gain.cancelScheduledValues(now);
-    wake.gain.setTargetAtTime(0, now, 0.015);
+    // Silence at once and stop the music, but leave the context to the system: iOS repeats the last fragment of
+    // sound (a beep) when it freezes audio that is still playing, and a context the page suspends itself may not
+    // come back without a tap.
+    if (audio && wake) {
+      const now = audio.currentTime;
+      wake.gain.cancelScheduledValues(now);
+      wake.gain.setValueAtTime(0, now);
+    }
+    clearTimeout(musicTimer);
     syncMusic();
-    setTimeout(() => {
-      if (document.hidden && audio?.state === 'running') void audio.suspend().catch(() => undefined);
-    }, SUSPEND_AFTER_HIDE_MS);
     return;
   }
+  if (!audio) return;
   if (audio.state === 'running') fadeIn();
-  // Mobile browsers may refuse to resume without a tap; the next tap's unlockSound resumes it then.
-  else if (!resuming) resuming = audio.resume().catch(() => undefined).finally(() => { resuming = undefined; });
+  // Safari may refuse this without a tap; the next tap's unlockSound tries again.
+  else tryResume();
+}
+
+/** Drops a context that won't come back (closed, or a resume that never answered) along with its music element. */
+function teardown() {
+  const old = audio;
+  if (music) {
+    music.pause();
+    music.removeAttribute('src');
+    music.load();
+  }
+  clearTimeout(musicTimer);
+  music = undefined;
+  musicRouted = false;
+  moodGain = undefined;
+  audio = output = wake = sfxBus = musicBus = undefined;
+  noise = undefined;
+  resuming = undefined;
+  if (old && old.state !== 'closed') void old.close().catch(() => undefined);
+}
+
+function createAudio() {
+  const Context = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Context) return;
+  const context = new Context();
+  audio = context;
+  output = context.createGain();
+  output.gain.value = soundEnabled ? masterVolume : 0;
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = -6;
+  limiter.ratio.value = 8;
+  wake = context.createGain();
+  output.connect(wake).connect(limiter).connect(context.destination);
+  // Whenever the context comes back (resumed here, after a tap, or by the system after an interruption),
+  // fade in and restart the music; when it stops, stop the music too.
+  context.addEventListener('statechange', () => {
+    if (context !== audio) return;
+    if (context.state === 'running') fadeIn();
+    else syncMusic();
+  });
+  sfxBus = context.createGain();
+  sfxBus.gain.value = volumes.sfx;
+  sfxBus.connect(output);
+  musicBus = context.createGain();
+  musicBus.gain.value = volumes.music;
+  musicBus.connect(output);
+  if (!listening) {
+    listening = true;
+    document.addEventListener('visibilitychange', onVisibility);
+  }
 }
 
 export function unlockSound() {
@@ -414,31 +479,11 @@ export function unlockSound() {
     // On supporting browsers, ambient audio follows the device's silent switch.
     const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
     if (session && session.type !== 'ambient') session.type = 'ambient';
-    if (!audio) {
-      const Context = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Context) return;
-      audio = new Context();
-      output = audio.createGain();
-      output.gain.value = soundEnabled ? masterVolume : 0;
-      const limiter = audio.createDynamicsCompressor();
-      limiter.threshold.value = -6;
-      limiter.ratio.value = 8;
-      wake = audio.createGain();
-      output.connect(wake).connect(limiter).connect(audio.destination);
-      // Whenever the context comes back (resumed here, after a tap, or by the system after an interruption),
-      // fade in and restart the music; when it stops, stop the music too.
-      audio.addEventListener('statechange', () => { if (audio?.state === 'running') fadeIn(); else syncMusic(); });
-      document.addEventListener('visibilitychange', onVisibility);
-      sfxBus = audio.createGain();
-      sfxBus.gain.value = volumes.sfx;
-      sfxBus.connect(output);
-      musicBus = audio.createGain();
-      musicBus.gain.value = volumes.music;
-      musicBus.connect(output);
-    }
-    if (audio.state !== 'running' && !resuming) {
-      resuming = audio.resume().catch(() => undefined).finally(() => { resuming = undefined; });
-    }
+    const stuck = audio && (audio.state === 'closed' || (resuming && performance.now() - resumeStartedAt > RESUME_TIMEOUT_MS));
+    if (stuck) teardown();
+    if (!audio) createAudio();
+    if (!audio) return;
+    tryResume();
     // Media playback must start inside the user gesture that called this.
     startMusic(audio);
     syncMusic();
