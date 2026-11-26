@@ -132,7 +132,6 @@ html, body { height: 100%; overflow: hidden; }
   display: grid;
   place-items: end center;
   padding: var(--safe-top) env(safe-area-inset-right) max(clamp(20px, 5dvh, 48px), env(safe-area-inset-bottom)) env(safe-area-inset-left);
-  background-color: #c5e9ff;
 }
 .start-poster {
   position: absolute;
