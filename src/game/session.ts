@@ -35,6 +35,8 @@ export interface SessionState {
   quickOrders: number;
   /** Queue rewards picked up on the device's current day (see dayKey); older days count as none. */
   dailyRewards?: DailyRewards;
+  /** Finished attempts past the ad-free stages since the last interstitial (see monetization/interstitial). */
+  gamesSinceAd: number;
 }
 export interface DailyRewards { day: string; heart: number; trayClear: number; quickOrder: number }
 /** The most of each queue reward one day can pay out. */
@@ -57,6 +59,8 @@ export type SessionAction =
   /** Moves this many pass spare hearts into the regular hearts, never past five. */
   | { type: 'CHARGE_SPARE'; amount: number; now?: number }
   | { type: 'BUY_PASS'; now?: number }
+  /** The result of a campaign attempt was shown; the count toward the next interstitial goes on to this value. */
+  | { type: 'COUNT_AD_GAME'; gamesSinceAd: number }
   /** Playtesting only: drops the pass as if it had run out. */
   | { type: 'END_PASS' }
   /** Playtesting only: fills the regular hearts to five, or empties them with the refill starting now. */
@@ -66,7 +70,7 @@ export type SessionAction =
 export interface ItemChoice { peek?: boolean; addTime?: boolean }
 
 export function createSession(unlockAllStages = false, unlimitedHearts = false): SessionState {
-  return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, unlimitedHearts, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [], quickOrders: 0 };
+  return { screen: 'start', game: createGame(getStage(1)), stars: {}, score: 0, unlockAllStages, unlimitedHearts, trayClears: STARTING_TRAY_CLEARS, hearts: fullHearts(), rewardedStages: [], quickOrders: 0, gamesSinceAd: 0 };
 }
 // Tray clears are a single owned pool: three at the very start, refilled only by queue rewards.
 export const STARTING_TRAY_CLEARS = 3;
@@ -238,6 +242,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Sessi
       const { game, pass } = applyItems(created, state.pass, action.items, now, action.adItems);
       return { ...state, ...payment, pass, bonus: undefined, screen: 'game', game };
     }
+    case 'COUNT_AD_GAME': return { ...state, gamesSinceAd: action.gamesSinceAd };
     case 'BUY_PASS': {
       // The running refill keeps its progress and goes on at double speed until the new end.
       const now = action.now ?? Date.now();

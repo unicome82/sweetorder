@@ -16,7 +16,7 @@ import { canQuickOrder, getQueueHintColumns, getReadyTrayPickupOrders, getStars,
 import { ItemButtonIcon, QuickOrderIcon, TrayClearIcon } from '../components/ItemIcons';
 import type { DonutType, GameState, RewardKind } from '../game/types';
 import type { GameAction } from '../game/reducer';
-import { getGameTimeLimit, getTimeStars } from '../game/stageTime';
+import { getGameTimeLimit, getTimeStars, losesOnTimeUp } from '../game/stageTime';
 import { StageClock } from '../components/StageClock';
 import { playSound, setMusicMood } from '../effects/sound';
 import { haptic } from '../effects/haptics';
@@ -54,10 +54,12 @@ interface Props {
   legacyAdFree: boolean;
   /** Offers the pass; the tray-full popup links to it while a tray clear costs an ad. */
   onShowPass: () => void;
+  /** The result panel (clear or loss) has just appeared. */
+  onResultShown?: () => void;
   /** A campaign retry starts the stage afresh through the app, so the pre-start item popup can come first. */
   onRetry: () => void;
 }
-export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, legacyAdFree, passActive, onRetry, onShowPass }: Props) {
+export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, legacyAdFree, passActive, onRetry, onShowPass, onResultShown }: Props) {
   const t = useMessages();
   const { soundEnabled } = settings;
   // Settings opened mid-play pause the game behind them and resume it when closed.
@@ -94,7 +96,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const [remainingTimeMs, setRemainingTimeMs] = useState(currentClockMax);
   const timerRunning = timeLimit > 0 && state.status === 'playing';
   const showClock = timerRunning || (timeLimit > 0 && (state.status === 'blocked' || state.status === 'paused'));
-  // The clock stops at 0:00 and play goes on; a clear from then on earns one star.
+  // The clock stops at 0:00. Campaign stages then lose once the desserts already placed have been served;
+  // practice and bonus stages play on, and a clear from then on earns one star.
   useLayoutEffect(() => {
     if (!timerRunning) return;
     const updateClock = () => {
@@ -325,7 +328,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     paused: t.tryAgain,
     clear: 'Stage Clear!',
     blocked: state.blockedReason === 'stuck' ? t.noMoves : t.trayFull,
-    gameover: state.trayClearsLeft > 0 ? t.tryAgain : state.blockedReason === 'stuck' ? t.noMoves : t.trayFull,
+    gameover: state.failReason === 'time' ? t.timeUp : state.trayClearsLeft > 0 ? t.tryAgain : state.blockedReason === 'stuck' ? t.noMoves : t.trayFull,
   };
   const failed = status === 'gameover';
   // Practice keeps its own single tray clear; elsewhere the badges show the owned pool.
@@ -391,10 +394,12 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     if (status === 'blocked') playTrayFullSound();
   }, [status]);
   const resultWasShown = useRef(false);
+  const resultShown = useEffectEvent(() => onResultShown?.());
   useEffect(() => {
     const newlyShown = showResult && !resultWasShown.current;
     resultWasShown.current = showResult;
     if (!newlyShown) return;
+    resultShown();
     if (status === 'clear') haptic('clear');
     else if (status === 'gameover') haptic('failed');
     if (!soundEnabled) return;
@@ -404,7 +409,13 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const stars = status === 'clear' ? getStars(state) : 0;
   const stage = getStage(state.stageId);
   const trayFull = state.tray.length >= state.trayCapacity;
-  const queueDisabled = !playing || waitingForGoodbye || returning.size > 0 || showIntro;
+  // Out of time: no more taps or items, but desserts already on their way are still served before the loss.
+  const timeUp = timeLimit > 0 && losesOnTimeUp(state.stageId) && remainingTimeMs <= 0 && (playing || status === 'paused');
+  const queueDisabled = !playing || waitingForGoodbye || returning.size > 0 || showIntro || timeUp;
+  const timeUpSettled = timeUp && playing && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0
+    && pendingDeliveries.length === 0 && !getReadyTrayPickupOrders(state, state.orders.flatMap(order => order ? [order.definitionId] : [])).length;
+  const loseOnTime = useEffectEvent(() => act({ type: 'TIME_UP' }));
+  useEffect(() => { if (timeUpSettled) loseOnTime(); }, [timeUpSettled]);
   const canShowHint = !queueDisabled && !trayFull && inFlight.size === 0 && pendingDeliveries.length === 0;
   const hintColumns = useMemo(() => canShowHint ? getQueueHintColumns(state, readyOrders) : [],
     [canShowHint, state, readyOrders]);
@@ -472,7 +483,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   }, [showResult, status, urgent]);
   useEffect(() => () => setMusicMood('normal'), []);
   return <main className={`game-page game-status--${waitingForGoodbye || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root} style={{ '--peek-delay': `${peekDelayMs}ms` } as CSSProperties}>
-    {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro}
+    {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro && !timeUp}
       settings={<SettingsButton {...settings} mode={state.relaxed ? 'relaxed' : 'timed'} inGame className="header-settings-button"
         onOpen={() => {
           setSettingsOpen(true);
@@ -534,10 +545,10 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       return { ...order, remaining };
     }) : state.orders} stageId={state.stageId} onOrderReady={onOrderReady} />
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
-      canClear={playing && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
+      canClear={playing && !timeUp && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
       onClear={requestTrayClear}
       quickOrders={quickOrders} quickNeedsAd={quickNeedsAd} onQuickOrder={requestQuickOrder}
-      canQuickOrder={playing && canQuickOrder(state, quickNeedsAd) && !waitingForGoodbye && !showIntro && inFlight.size === 0 && returning.size === 0} />
+      canQuickOrder={playing && !timeUp && canQuickOrder(state, quickNeedsAd) && !waitingForGoodbye && !showIntro && inFlight.size === 0 && returning.size === 0} />
     <DonutQueue key={round} queues={state.queues} revealed={state.peeked} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}
     <dialog className="glass-popup tray-full-dialog pause-dialog" ref={pauseDialog} aria-labelledby="pause-heading" onCancel={event => { event.preventDefault(); act({ type: 'RESUME' }); }}>

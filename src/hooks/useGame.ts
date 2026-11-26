@@ -34,6 +34,7 @@ function loadSession() {
     if (Number.isSafeInteger(saved.quickOrders) && saved.quickOrders > 0) session.quickOrders = Math.min(MAX_QUICK_ORDERS, saved.quickOrders);
     if (typeof saved.bonusDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(saved.bonusDay)) session.bonusDay = saved.bonusDay;
     session.dailyRewards = parseDailyRewards(saved.dailyRewards);
+    if (Number.isSafeInteger(saved.gamesSinceAd) && saved.gamesSinceAd >= 0) session.gamesSinceAd = saved.gamesSinceAd;
   } catch {
     return session;
   }
@@ -56,13 +57,13 @@ export function encodeStars(stars: Record<number, number>): string {
 
 export function useGame() {
   const [session, dispatch] = useReducer(reduceSession, undefined, loadSession);
-  const { stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, dailyRewards } = session;
+  const { stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, dailyRewards, gamesSinceAd } = session;
   useEffect(() => {
     try {
-      localStorage.setItem(progressKey, JSON.stringify({ stars: encodeStars(stars), score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, dailyRewards, clearsVersion: 2, progressVersion: 3 }));
+      localStorage.setItem(progressKey, JSON.stringify({ stars: encodeStars(stars), score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, dailyRewards, gamesSinceAd, clearsVersion: 2, progressVersion: 3 }));
     } catch {
       // Play can continue when browser storage is unavailable.
     }
-  }, [stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, dailyRewards]);
+  }, [stars, score, trayClears, hearts, rewardedStages, bonusDay, pass, quickOrders, dailyRewards, gamesSinceAd]);
   return { session, dispatch };
 }

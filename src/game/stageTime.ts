@@ -19,7 +19,12 @@ export function getGameTimeLimit(state: Pick<GameState, 'relaxed'>, stage: Stage
   return state.relaxed ? 0 : getStageTimeLimit(stage);
 }
 
-// Time running out never ends a stage; a clear after it still earns one star.
+/** Whether running out of time loses this stage; practice and bonus stages play on past 0:00. */
+export function losesOnTimeUp(stageId: number): boolean {
+  return stageId !== 0 && stageId !== BONUS_STAGE_ID;
+}
+
+// A clear that lands at 0:00 (the last desserts still settling when time ran out) earns one star.
 export function getTimeStars(remainingMs: number, limitMs: number): number {
   if (remainingMs <= 0) return 1;
   if (remainingMs * 2 >= limitMs) return 3;
