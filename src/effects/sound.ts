@@ -135,6 +135,18 @@ const cueBuilders = {
     ],
     noises: [{ at: 0, freq: 3000, dur: 0.012, level: 0.1, attack: 0.0005 }],
   }),
+  // +5 seconds joining the clock: one bright ding per second, each a step higher; the fifth rings longer with a sparkle.
+  timeAdd: (step: number): Cue => {
+    const freq = 783.99 * semitone ** (Math.min(step, 4) * 2);
+    const last = step >= 4;
+    return {
+      tones: [
+        { at: 0, freq, dur: last ? 0.42 : 0.14, level: last ? 0.12 : 0.1, attack: 0.002, partials: bell },
+        ...(last ? [{ at: 0.05, freq: freq * 2, dur: 0.3, level: 0.035, attack: 0.003, partials: pure }] : []),
+      ],
+      noises: [{ at: 0, freq: 5200, dur: 0.012, level: 0.05, attack: 0.0005 }],
+    };
+  },
   // A star slips away: a falling glassy arpeggio.
   starLost: (): Cue => ({
     tones: [
@@ -462,12 +474,13 @@ function nextStep(sound: SoundName, now: number) {
   return streak;
 }
 
-export function playSound(sound: SoundName, delayMs = 0) {
+/** step: picks a note on a climbing cue (delivery, order and timeAdd); by default delivery and order follow the streak. */
+export function playSound(sound: SoundName, delayMs = 0, step?: number) {
   if (!soundEnabled || !audio || !output || !sfxBus || document.hidden) return;
   if (audio.state !== 'running') {
     const pendingResume = resuming;
     if (pendingResume) void pendingResume.then(() => {
-      if (audio?.state === 'running') playSound(sound, delayMs);
+      if (audio?.state === 'running') playSound(sound, delayMs, step);
     });
     return;
   }
@@ -478,7 +491,7 @@ export function playSound(sound: SoundName, delayMs = 0) {
     lastPlayed.set(sound, now);
   }
   try {
-    renderCue(audio, sfxBus, sound, now + delayMs / 1000, nextStep(sound, now));
+    renderCue(audio, sfxBus, sound, now + delayMs / 1000, step ?? nextStep(sound, now));
   } catch {
     // Playback can fail when the browser suspends or loses its audio device.
   }

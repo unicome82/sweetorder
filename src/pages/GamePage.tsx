@@ -37,6 +37,9 @@ const INTRO_MS = 1800;
 // turn into desserts (DonutQueue's CSS animation lasts PEEK_REVEAL_MS and starts at --peek-delay).
 const PEEK_REVEAL_MS = 1300;
 const TIME_BONUS_POP_MS = 1200;
+// Within that: "+5s" pops in the middle, flies into the clock, and from there the clock counts up one second at a time.
+const TIME_BONUS_COUNT_AT_MS = 660;
+const TIME_BONUS_STEP_MS = 110;
 const PEEK_AFTER_TIME_BONUS_MS = 500;
 
 interface Delivery { orderId: string; type: DonutType }
@@ -93,8 +96,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const currentClockMax = clockMax(state);
   // Chosen before the start, +5 seconds is on the clock from the first moment.
   const [deadline, setDeadline] = useState(() => performance.now() + currentClockMax + introMs);
-  // The clock shows the stage's own limit until "+5s" pops, then the extra 5 seconds join it.
-  const [timeBonusAt] = useState(() => performance.now() + INTRO_MS);
+  // The clock shows the stage's own limit until "+5s" flies into it, then the extra seconds join one at a time.
+  const [timeBonusAt] = useState(() => performance.now() + INTRO_MS + TIME_BONUS_COUNT_AT_MS);
+  const timeBonusPop = useRef<HTMLSpanElement>(null);
   const [pausedTimeMs, setPausedTimeMs] = useState<number>();
   // The clock ticks inside LiveStageClock; the page only hears about stars, the last ten seconds and 0:00.
   const [phase, setPhase] = useState<ClockPhase>(() => clockPhase(currentClockMax, timeLimit));
@@ -507,6 +511,26 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     setMusicMood(status === 'paused' || status === 'blocked' || showResult ? 'muted' : urgent ? 'urgent' : 'normal');
   }, [showResult, status, urgent]);
   useEffect(() => () => setMusicMood('normal'), []);
+  // "+5s" flies from the middle into the clock's time: measure that path once it is on screen, and line up one
+  // rising ding with each second the clock then adds.
+  const timeBonusShown = showIntro && timeBonusMs > 0;
+  useLayoutEffect(() => {
+    const pop = timeBonusPop.current;
+    const time = root.current?.querySelector('.stage-clock-time');
+    if (!timeBonusShown || !pop || !time) return;
+    const from = pop.getBoundingClientRect();
+    const to = time.getBoundingClientRect();
+    pop.style.setProperty('--fly-x', `${to.x + to.width / 2 - (from.x + from.width / 2)}px`);
+    pop.style.setProperty('--fly-y', `${to.y + to.height / 2 - (from.y + from.height / 2)}px`);
+    if (!soundEnabled) return;
+    const startIn = timeBonusAt - performance.now();
+    for (let step = 0; step < PASS_TIME_BONUS_MS / 1000; step += 1) {
+      const delay = startIn + step * TIME_BONUS_STEP_MS;
+      if (delay >= 0) playSound('timeAdd', delay, step);
+    }
+    // Once per intro: the sounds are already scheduled on the audio clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeBonusShown]);
   return <main className={`game-page game-status--${waitingForGoodbye || waitingForTimeUp || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root} style={{ '--peek-delay': `${peekDelayMs}ms` } as CSSProperties}>
     {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro && !timeUp}
       settings={<SettingsButton {...settings} mode={state.relaxed ? 'relaxed' : 'timed'} inGame className="header-settings-button"
@@ -522,7 +546,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         }} />} />}
     {(showClock || (timeLimit > 0 && (waitingForGoodbye || waitingForTimeUp))) && <div className="stage-clock-wrap">
       <LiveStageClock deadline={deadline} running={timerRunning} frozenMs={pausedTimeMs} clockMax={currentClockMax}
-        limitMs={timeLimit} bonusAt={timeBonusAt} showStars={!bonus} onPhase={setPhase} />
+        limitMs={timeLimit} bonusAt={timeBonusAt} bonusStepMs={TIME_BONUS_STEP_MS} showStars={!bonus} onPhase={setPhase} />
     </div>}
     {/* An even 2px white outline around the reward images. */}
     <svg className="sr-only" aria-hidden="true"><filter id="white-outline" x="-20%" y="-20%" width="140%" height="140%">
@@ -601,7 +625,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     {/* Dim the board for the title and +5s, then reveal the hidden desserts on the normal board. */}
     {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-overlay-ms': `${INTRO_MS + timeBonusMs}ms` } as CSSProperties}>
       <span className="stage-intro-title">{bonus ? 'Bonus Stage!' : `Stage ${String(state.stageId).padStart(2, '0')}`}</span>
-      {timeBonusMs > 0 && <span className="time-bonus-pop" lang="en"
+      {timeBonusMs > 0 && <span ref={timeBonusPop} className="time-bonus-pop" lang="en"
         style={{ animationDelay: `${INTRO_MS}ms`, animationDuration: `${TIME_BONUS_POP_MS}ms` }}>+5s</span>}
     </div>}
     {showResult && status === 'clear' && <div className="confetti" aria-hidden="true">{Array.from({ length: 36 }, (_, i) => <span key={i} style={{ left: `${(i * 29) % 100}%`, background: ['#ed96a6', '#a8d8c8', '#f5c66b', '#af9aca'][i % 4], animationDelay: `${(i % 9) * 55}ms`, transform: `rotate(${i * 37}deg)` }} />)}</div>}
