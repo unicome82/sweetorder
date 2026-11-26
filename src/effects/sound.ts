@@ -368,6 +368,9 @@ function startMusic(context: AudioContext) {
   music.loop = true;
   music.preload = 'auto';
   music.preservesPitch = true;
+  // Rebuilt after the app was in the background: carry on where the track was.
+  if (musicResume?.scene === scene) music.currentTime = musicResume.time;
+  musicResume = undefined;
   try {
     moodGain = context.createGain();
     moodGain.gain.value = mood === 'muted' ? 0 : 1;
@@ -378,18 +381,29 @@ function startMusic(context: AudioContext) {
   }
 }
 
-// Returning to the app: fade the sound in, and start the music a moment later (it crackles if it starts while the
+// iOS (Safari and home-screen apps) doesn't bring Web Audio back cleanly from the background: a context still
+// playing as the app is frozen beeps, one the system interrupted crackles or never resumes. There the whole audio
+// setup is closed when the app is hidden and built afresh on the first tap after returning.
+const rebuildAfterHide = typeof navigator !== 'undefined'
+  && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+// Returning elsewhere: fade the sound in, and start the music a moment later (it crackles if it starts while the
 // audio device is still waking up).
 const WAKE_FADE_IN = 0.25;
 const MUSIC_AFTER_WAKE_MS = 200;
-// iOS can leave a resume() pending for good; after this long, the next tap rebuilds audio from scratch.
+// A resume() that hasn't answered after this long is treated as stuck: the next tap rebuilds audio from scratch.
 const RESUME_TIMEOUT_MS = 600;
 let resumeStartedAt = 0;
 let musicTimer: ReturnType<typeof setTimeout> | undefined;
+let musicResume: { scene: MusicScene; time: number } | undefined;
 let listening = false;
+const TEARDOWN_AFTER_HIDE_MS = 80;
+let teardownTimer: ReturnType<typeof setTimeout> | undefined;
+// Whether the fade-in has run for the current waking; reset when hidden or rebuilt.
+let awake = false;
 
 function fadeIn() {
-  if (!audio || !wake || document.hidden || audio.state !== 'running') return;
+  if (awake || !audio || !wake || document.hidden || audio.state !== 'running') return;
+  awake = true;
   const now = audio.currentTime;
   wake.gain.cancelScheduledValues(now);
   wake.gain.setValueAtTime(0, now);
@@ -402,33 +416,44 @@ function tryResume() {
   if (!audio || audio.state === 'running' || resuming) return;
   const context = audio;
   resumeStartedAt = performance.now();
-  resuming = context.resume().catch(() => undefined).finally(() => { if (audio === context) resuming = undefined; });
+  resuming = context.resume().catch(() => undefined).finally(() => {
+    if (audio !== context) return;
+    resuming = undefined;
+    fadeIn();
+  });
+}
+
+function onHide() {
+  awake = false;
+  if (audio && wake) {
+    const now = audio.currentTime;
+    wake.gain.cancelScheduledValues(now);
+    wake.gain.setValueAtTime(0, now);
+  }
+  clearTimeout(musicTimer);
+  syncMusic();
+  // Close a moment later, once the silence has actually been played out: closing at once can freeze the device
+  // on the last loud fragment. If the app is frozen first, the return below closes it instead.
+  if (rebuildAfterHide && audio && !teardownTimer) teardownTimer = setTimeout(teardown, TEARDOWN_AFTER_HIDE_MS);
 }
 
 function onVisibility() {
-  if (document.hidden) {
-    // Silence at once and stop the music, but leave the context to the system: iOS repeats the last fragment of
-    // sound (a beep) when it freezes audio that is still playing, and a context the page suspends itself may not
-    // come back without a tap.
-    if (audio && wake) {
-      const now = audio.currentTime;
-      wake.gain.cancelScheduledValues(now);
-      wake.gain.setValueAtTime(0, now);
-    }
-    clearTimeout(musicTimer);
-    syncMusic();
-    return;
-  }
+  if (document.hidden) { onHide(); return; }
+  if (teardownTimer) teardown();
+  // iOS waits for the next tap (unlockSound) to build audio again.
   if (!audio) return;
   if (audio.state === 'running') fadeIn();
-  // Safari may refuse this without a tap; the next tap's unlockSound tries again.
+  // Some browsers refuse this without a tap; the next tap's unlockSound tries again.
   else tryResume();
 }
 
-/** Drops a context that won't come back (closed, or a resume that never answered) along with its music element. */
+/** Closes the audio context and its music element; the next unlockSound builds them again. */
 function teardown() {
+  clearTimeout(teardownTimer);
+  teardownTimer = undefined;
   const old = audio;
   if (music) {
+    if (music.currentTime > 0) musicResume = { scene, time: music.currentTime };
     music.pause();
     music.removeAttribute('src');
     music.load();
@@ -440,6 +465,7 @@ function teardown() {
   audio = output = wake = sfxBus = musicBus = undefined;
   noise = undefined;
   resuming = undefined;
+  awake = false;
   if (old && old.state !== 'closed') void old.close().catch(() => undefined);
 }
 
@@ -448,19 +474,22 @@ function createAudio() {
   if (!Context) return;
   const context = new Context();
   audio = context;
+  awake = false;
   output = context.createGain();
   output.gain.value = soundEnabled ? masterVolume : 0;
   const limiter = context.createDynamicsCompressor();
   limiter.threshold.value = -6;
   limiter.ratio.value = 8;
+  // Silent until fadeIn: anything the music element pushed while audio was starting stays unheard.
   wake = context.createGain();
+  wake.gain.value = 0;
   output.connect(wake).connect(limiter).connect(context.destination);
   // Whenever the context comes back (resumed here, after a tap, or by the system after an interruption),
   // fade in and restart the music; when it stops, stop the music too.
   context.addEventListener('statechange', () => {
     if (context !== audio) return;
     if (context.state === 'running') fadeIn();
-    else syncMusic();
+    else { awake = false; syncMusic(); }
   });
   sfxBus = context.createGain();
   sfxBus.gain.value = volumes.sfx;
@@ -471,6 +500,8 @@ function createAudio() {
   if (!listening) {
     listening = true;
     document.addEventListener('visibilitychange', onVisibility);
+    // Fires on some iOS versions where visibilitychange comes late.
+    window.addEventListener('pagehide', onHide);
   }
 }
 
@@ -479,14 +510,24 @@ export function unlockSound() {
     // On supporting browsers, ambient audio follows the device's silent switch.
     const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
     if (session && session.type !== 'ambient') session.type = 'ambient';
-    const stuck = audio && (audio.state === 'closed' || (resuming && performance.now() - resumeStartedAt > RESUME_TIMEOUT_MS));
+    // A context that won't run (closed, interrupted for good, or a resume that never answered) is replaced,
+    // inside this tap so the new one is allowed to start.
+    const stuck = audio && audio.state !== 'running'
+      && (audio.state === 'closed' || !resuming || performance.now() - resumeStartedAt > RESUME_TIMEOUT_MS);
     if (stuck) teardown();
+    const fresh = !audio;
     if (!audio) createAudio();
     if (!audio) return;
     tryResume();
-    // Media playback must start inside the user gesture that called this.
+    fadeIn();
+    // Media playback must start inside the user gesture that called this. A new element starts here even before
+    // the context runs (it stays silent until fadeIn); otherwise iOS would block starting it later.
     startMusic(audio);
-    syncMusic();
+    if (fresh && music && musicRouted && music.paused && soundEnabled && volumes.music > 0 && !document.hidden) {
+      void music.play().catch(() => undefined);
+    } else {
+      syncMusic();
+    }
   } catch {
     // Audio may be unavailable in the current browser or device.
   }
