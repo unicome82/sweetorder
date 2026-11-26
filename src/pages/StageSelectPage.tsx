@@ -20,6 +20,9 @@ const LOCKED_PREVIEW = 12;
 const JUMP_SIZE = 500;
 const blockStart = (block: number) => block * JUMP_SIZE + 1;
 const optionId = (index: number) => index === 0 ? practiceStage.id : index;
+// Taps carried over from the screen before (say, repeated taps on a result popup's OK)
+// would land on whichever stage opens under the finger, so the list ignores them briefly.
+const ARRIVAL_GUARD_MS = 400;
 // Where the list was last scrolled, so coming back to it (from a game or the home screen) lands there again.
 let savedScrollTop: number | undefined;
 
@@ -36,6 +39,7 @@ export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFast
   const currentRow = Math.floor(currentStage / columns);
   const scrollArea = useRef<HTMLDivElement>(null);
   const [restoreTo] = useState(savedScrollTop);
+  const [shownAt] = useState(() => performance.now());
   const [viewport, setViewport] = useState({ top: restoreTo ?? currentRow * rowHeight, height: 0 });
   const firstRow = Math.min(rowCount - 1, Math.max(0, Math.floor(viewport.top / rowHeight) - overscan));
   const lastRow = Math.max(firstRow + 1, Math.min(rowCount, Math.ceil((viewport.top + viewport.height) / rowHeight) + overscan));
@@ -96,7 +100,7 @@ export function StageSelectPage({ onGame, stars, hearts, spareHearts, heartsFast
             const description = !unlocked ? t.locked : relaxed ? (cleared ? t.cleared : t.available) : score ? t.starsCount(score) : t.available;
             return <button type="button" key={stage.id} className={`stage-option${current ? ' stage-option--next' : ''}${plain ? ' stage-option--plain' : ''}`}
               aria-current={current ? 'step' : undefined} aria-label={practice ? (BONUS_AT_STAGE_00_FOR_TESTING ? t.bonusTestLabel : t.practiceLabel) : t.stageLabel(stage.id, stage.difficulty ?? '', description)}
-              onClick={() => onGame(stage.id)} disabled={!unlocked}>
+              onClick={event => { if (event.timeStamp - shownAt >= ARRIVAL_GUARD_MS) onGame(stage.id); }} disabled={!unlocked}>
               <span className="stage-index" lang="en">
                 <span className="stage-index-label">Stage</span>
                 <span className="stage-index-number">{String(stage.id).padStart(2, '0')}</span>
