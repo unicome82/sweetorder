@@ -5,7 +5,6 @@ import { playSound, readSoundPreference, saveSoundPreference, setMusicScene, unl
 import { addTimeFromPass, canAffordAttempt, canPlayBonusToday, chargeableSpareHearts, getCurrentStage, heartsFastUntil, itemsBeforeStart, peekFromPass, passTrayClears, spareHearts, type ItemChoice } from '../game/session';
 import { StartItemsDialog } from '../components/StartItemsDialog';
 import { ads } from '../monetization/ads';
-import { countFinishedAttempt, countsForInterstitial } from '../monetization/interstitial';
 import { getStage } from '../game/stages';
 import { MAX_HEARTS } from '../game/hearts';
 import { isBonusStage, isStageLoaded, loadStage, practiceStage, preloadStage } from '../game/stages';
@@ -133,19 +132,6 @@ export function App() {
     if (outOfHearts !== undefined) { setOutOfHearts(undefined); setChargeOpen(true); }
   }
   const showPass = () => setPassOfferOpen(true);
-  // The forced ad comes only after an attempt ends (see monetization/interstitial). Old 30-day pass holders were
-  // promised no ads; anyone who hasn't bought the pass is offered it once the ad closes.
-  const legacyAdFree = passActive && session.pass?.expiresAt !== undefined;
-  function onResultShown() {
-    const stageId = game.stageId;
-    const campaign = stageId !== practiceStage.id && !isBonusStage(stageId);
-    if (legacyAdFree || !countsForInterstitial(stageId, campaign)) return;
-    const { show, gamesSinceAd } = countFinishedAttempt(session.gamesSinceAd);
-    dispatch({ type: 'COUNT_AD_GAME', gamesSinceAd });
-    if (!show) return;
-    const offerPass = session.pass === undefined;
-    void ads.showInterstitial('stageEnd').then(() => { if (offerPass) setPassOfferOpen(true); });
-  }
   const testPass = FAKE_MONETIZATION_FOR_TESTING
     ? {
       pass: session.pass, onBuy: () => void buyPass(), onEnd: () => dispatch({ type: 'END_PASS' }),
@@ -162,7 +148,7 @@ export function App() {
       : screen === 'stages'
         ? <StageSelectPage stars={stars} hearts={displayedHearts} spareHearts={session.unlimitedHearts ? 0 : spareHearts(session, passNow)} heartsFastUntil={fastUntil} settings={settings} unlockAllStages={session.unlockAllStages} onGame={start} onShowPass={showPass} />
         : <GamePage key={`${game.stageId}:${attempt}`} settings={settings} state={game} dispatch={action => dispatch({ type: 'GAME', action, now: Date.now() })} onStages={() => dispatch({ type: 'STAGES' })} onNext={next}
-          trayClearsOwned={session.trayClears + passTrayClears(session.pass, passNow)} legacyAdFree={legacyAdFree} passActive={passActive} onRetry={() => start(game.stageId)} onShowPass={() => setPassOfferOpen(true)} onResultShown={onResultShown}
+          trayClearsOwned={session.trayClears + passTrayClears(session.pass, passNow)} legacyAdFree={passActive && session.pass?.expiresAt !== undefined} passActive={passActive} onRetry={() => start(game.stageId)} onShowPass={() => setPassOfferOpen(true)}
           canRestart={() => canAffordAttempt(session, game.stageId)} onOutOfHearts={() => handleOutOfHearts(game.stageId)} />
     }
     {screen === 'start' && !modeChosen && <ModeChoiceDialog onChoose={changeMode} />}

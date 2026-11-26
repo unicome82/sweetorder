@@ -13,10 +13,5 @@ describe('가짜 광고', () => {
     const skipped = fakeAds.showRewarded('hearts');
     fakeAdStore.current()!.finish(false);
     expect(await skipped).toBe(false);
-
-    const interstitial = fakeAds.showInterstitial('stageEnd');
-    expect(fakeAdStore.current()).toMatchObject({ kind: 'interstitial' });
-    fakeAdStore.current()!.finish(true);
-    await expect(interstitial).resolves.toBeUndefined();
   });
 });

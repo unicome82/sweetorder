@@ -54,12 +54,10 @@ interface Props {
   legacyAdFree: boolean;
   /** Offers the pass; the tray-full popup links to it while a tray clear costs an ad. */
   onShowPass: () => void;
-  /** The result panel (clear or loss) has just appeared. */
-  onResultShown?: () => void;
   /** A campaign retry starts the stage afresh through the app, so the pre-start item popup can come first. */
   onRetry: () => void;
 }
-export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, legacyAdFree, passActive, onRetry, onShowPass, onResultShown }: Props) {
+export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, legacyAdFree, passActive, onRetry, onShowPass }: Props) {
   const t = useMessages();
   const { soundEnabled } = settings;
   // Settings opened mid-play pause the game behind them and resume it when closed.
@@ -394,12 +392,10 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     if (status === 'blocked') playTrayFullSound();
   }, [status]);
   const resultWasShown = useRef(false);
-  const resultShown = useEffectEvent(() => onResultShown?.());
   useEffect(() => {
     const newlyShown = showResult && !resultWasShown.current;
     resultWasShown.current = showResult;
     if (!newlyShown) return;
-    resultShown();
     if (status === 'clear') haptic('clear');
     else if (status === 'gameover') haptic('failed');
     if (!soundEnabled) return;
