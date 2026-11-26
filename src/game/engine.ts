@@ -197,7 +197,8 @@ export function pickupTray(
     .filter(({ token, order }) => availablePickup(state, token.id, order.definitionId, readyOrders));
   if (!pickups.length) return { state, events: [] };
 
-  const next = structuredClone(state);
+  // Pickups never touch the queues: keep their arrays so the queue columns that didn't change skip rendering.
+  const next: GameState = { ...structuredClone({ ...state, queues: [] }), queues: state.queues };
   const pickedIds = new Set(pickups.map(({ token }) => token.id));
   next.tray = next.tray.filter(token => !pickedIds.has(token.id));
   next.transitionId += 1;

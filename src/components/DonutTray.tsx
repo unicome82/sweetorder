@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import type { DonutToken, StageDifficulty } from '../game/types';
 import { StageDifficultyRibbon } from './StageDifficultyRibbon';
 import { BASE_TRAY_CAPACITY } from '../game/constants';
@@ -17,7 +17,8 @@ function getTrayLevel(used: number, capacity: number): TrayLevel {
  * Each button shows only while it can be used this game: the tray clear until the game's clears run out,
  * quick order shows the inventory count or an ad badge.
  */
-export function DonutTray({ donuts, capacity, difficulty, inFlight, clearsLeft, owned, needsAd, canClear, onClear, quickOrders, quickNeedsAd, canQuickOrder, onQuickOrder }: {
+// Memoized: the game page re-renders for timers and deliveries that often leave the tray as it was.
+export const DonutTray = memo(function DonutTray({ donuts, capacity, difficulty, inFlight, clearsLeft, owned, needsAd, canClear, onClear, quickOrders, quickNeedsAd, canQuickOrder, onQuickOrder }: {
   donuts: DonutToken[]; capacity: number; difficulty?: StageDifficulty; inFlight?: ReadonlySet<string>; clearsLeft: number; owned: number; needsAd: boolean; canClear: boolean; onClear: () => void;
   quickOrders?: number; quickNeedsAd?: boolean; canQuickOrder?: boolean; onQuickOrder?: () => void;
 }) {
@@ -44,4 +45,4 @@ export function DonutTray({ donuts, capacity, difficulty, inFlight, clearsLeft, 
       <ItemButtonIcon item="quickOrder" />{quickNeedsAd ? <span className="ad-badge" lang="en" aria-hidden="true">AD</span> : <span className="tray-clear-shortcut-count" aria-hidden="true">{quickOrders}</span>}
     </button>}
   </div>;
-}
+});

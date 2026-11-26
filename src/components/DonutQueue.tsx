@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { DonutToken, RewardKind } from '../game/types';
 import { MysteryIcon, QuickOrderIcon, TrayClearIcon } from './ItemIcons';
 import { Donut } from './Donut/Donut';
@@ -12,7 +12,6 @@ export function DonutQueue({ queues, disabled, locked = false, revealed = false,
   onReject?: (queueIndex: number, element: HTMLElement) => void;
 }) {
   const t = useMessages();
-  const presses = useRef(new Map<number, number>());
   const section = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!hintColumns.length) return;
@@ -69,9 +68,12 @@ export function DonutQueue({ queues, disabled, locked = false, revealed = false,
     if (front && (!locked || front.reward)) onSelect(column, front.id);
     else onReject?.(column, element);
   }
+  // Columns are memoized, so they get one stable callback that always runs the latest selectColumn.
+  const latestSelect = useRef(selectColumn);
+  useLayoutEffect(() => { latestSelect.current = selectColumn; });
+  const select = useCallback((column: number, element: HTMLElement) => latestSelect.current(column, element), []);
 
-  const rewardName = (reward: RewardKind) => reward === 'heart' ? t.rewardSlotHeart : reward === 'quickOrder' ? t.rewardSlotQuickOrder : t.rewardSlotTrayClear;
-  const depth = Math.max(1, ...queues.map(queue => queue.length));
+  const depth = Math.min(QUEUE_VISIBLE_DEPTH, Math.max(1, ...queues.map(queue => queue.length)));
   return <section ref={section} className="queue-section" aria-label={t.queueSection}>
     {hintColumns.length > 0 && <svg className="sr-only" aria-hidden="true">
       <filter id="queue-dessert-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -85,44 +87,63 @@ export function DonutQueue({ queues, disabled, locked = false, revealed = false,
         <feMerge><feMergeNode in="SourceGraphic" /><feMergeNode in="glow" /></feMerge>
       </filter>
     </svg>}
-    <div className="queue-grid">{queues.map((queue, i) => <button type="button" data-sfx="none" className={`queue-column${queue.some(donut => returning.has(donut.id)) ? ' queue-column--returning' : ''}`} key={i} data-queue-index={i}
-      style={{ gridTemplateRows: depth === 1 ? 'var(--queue-head)' : `var(--queue-head) repeat(${depth - 1}, var(--queue-step))` }}
-      disabled={disabled}
-      aria-disabled={locked || !queue.length || undefined}
-      onPointerDown={event => {
-        if (event.button !== 0) return;
-        presses.current.set(event.pointerId, i);
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }}
-      onLostPointerCapture={event => presses.current.delete(event.pointerId)}
-      onPointerCancel={event => presses.current.delete(event.pointerId)}
-      onPointerUp={event => {
-        const column = presses.current.get(event.pointerId);
-        presses.current.delete(event.pointerId);
-        const { left, right, top, bottom } = event.currentTarget.getBoundingClientRect();
-        if (column === i && event.clientX >= left && event.clientX <= right && event.clientY >= top && event.clientY <= bottom) {
-          selectColumn(i, event.currentTarget);
-        }
-      }}
-      onClick={event => { if (event.detail === 0) selectColumn(i, event.currentTarget); }}
-      aria-label={t.queueLabel(i + 1, queue[0] && (queue[0].reward ? rewardName(queue[0].reward) : t.items[queue[0].type]), queue.length)}>
-      {queue.map((donut, position) => <span
-        className={position === 0 ? 'queue-front' : 'queue-back'}
-        key={donut.id}
-        data-token-id={donut.id}
-        style={{ zIndex: position, visibility: returning.has(donut.id) ? 'hidden' : undefined }}>
-        {donut.reward === 'heart' ? <span className="donut reward-tile reward-tile--heart"><HeartIcon /></span>
-          : donut.reward === 'quickOrder' ? <span className="donut reward-tile reward-tile--quickOrder"><QuickOrderIcon /></span>
-          : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><TrayClearIcon /></span>
-          : donut.hidden && position > 0 ? revealed
-            // Peek: the "?" blinks as the game opens, then turns into its dessert.
-            ? <span className="peek-reveal"><span className="donut queue-mystery peek-reveal-mystery"><MysteryIcon /></span><Donut type={donut.type} className="peek-reveal-dessert" /></span>
-            : <span className="donut queue-mystery"><MysteryIcon /></span>
-          : position === 0
-            // A glowing copy behind the front dessert; only its opacity pulses for the hint, so it stays cheap to draw.
-            ? <><Donut type={donut.type} /><Donut type={donut.type} className="queue-hint-glow" /></>
-            : <Donut type={donut.type} />}
-      </span>)}
-    </button>)}</div>
+    <div className="queue-grid">{queues.map((queue, i) => <QueueColumn key={i} index={i} queue={queue} depth={depth}
+      disabled={disabled} locked={locked} revealed={revealed} returning={returning} onSelect={select} />)}</div>
   </section>;
 }
+
+/** Desserts shown per column on every screen; the rest are laid out but hidden. Keep in step with --queue-visible. */
+const QUEUE_VISIBLE_DEPTH = 18;
+
+/**
+ * One queue column. Memoized: a tap changes one column, and the queues the engine leaves alone keep their arrays,
+ * so the other columns skip rendering.
+ */
+const QueueColumn = memo(function QueueColumn({ index, queue, depth, disabled, locked, revealed, returning, onSelect }: {
+  index: number; queue: DonutToken[]; depth: number; disabled: boolean; locked: boolean; revealed: boolean;
+  returning: ReadonlySet<string>; onSelect: (column: number, element: HTMLElement) => void;
+}) {
+  const t = useMessages();
+  // Pointers pressed on this column, with the column's box measured at press time: the column doesn't move before
+  // the release, and measuring then would force a layout right after the board changed.
+  const presses = useRef(new Map<number, DOMRect>());
+  const rewardName = (reward: RewardKind) => reward === 'heart' ? t.rewardSlotHeart : reward === 'quickOrder' ? t.rewardSlotQuickOrder : t.rewardSlotTrayClear;
+  return <button type="button" data-sfx="none" className={`queue-column${queue.some(donut => returning.has(donut.id)) ? ' queue-column--returning' : ''}`} data-queue-index={index}
+    style={{ gridTemplateRows: depth === 1 ? 'var(--queue-head)' : `var(--queue-head) repeat(${depth - 1}, var(--queue-step))` }}
+    disabled={disabled}
+    aria-disabled={locked || !queue.length || undefined}
+    onPointerDown={event => {
+      if (event.button !== 0) return;
+      presses.current.set(event.pointerId, event.currentTarget.getBoundingClientRect());
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }}
+    onLostPointerCapture={event => presses.current.delete(event.pointerId)}
+    onPointerCancel={event => presses.current.delete(event.pointerId)}
+    onPointerUp={event => {
+      const box = presses.current.get(event.pointerId);
+      presses.current.delete(event.pointerId);
+      if (box && event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom) {
+        onSelect(index, event.currentTarget);
+      }
+    }}
+    onClick={event => { if (event.detail === 0) onSelect(index, event.currentTarget); }}
+    aria-label={t.queueLabel(index + 1, queue[0] && (queue[0].reward ? rewardName(queue[0].reward) : t.items[queue[0].type]), queue.length)}>
+    {queue.map((donut, position) => <span
+      className={position === 0 ? 'queue-front' : 'queue-back'}
+      key={donut.id}
+      data-token-id={donut.id}
+      style={{ zIndex: position, visibility: returning.has(donut.id) ? 'hidden' : undefined }}>
+      {donut.reward === 'heart' ? <span className="donut reward-tile reward-tile--heart"><HeartIcon /></span>
+        : donut.reward === 'quickOrder' ? <span className="donut reward-tile reward-tile--quickOrder"><QuickOrderIcon /></span>
+        : donut.reward ? <span className="donut reward-tile reward-tile--trayClear"><TrayClearIcon /></span>
+        : donut.hidden && position > 0 ? revealed
+          // Peek: the "?" blinks as the game opens, then turns into its dessert.
+          ? <span className="peek-reveal"><span className="donut queue-mystery peek-reveal-mystery"><MysteryIcon /></span><Donut type={donut.type} className="peek-reveal-dessert" /></span>
+          : <span className="donut queue-mystery"><MysteryIcon /></span>
+        : position === 0
+          // A glowing copy behind the front dessert; only its opacity pulses for the hint, so it stays cheap to draw.
+          ? <><Donut type={donut.type} /><Donut type={donut.type} className="queue-hint-glow" /></>
+          : <Donut type={donut.type} />}
+    </span>)}
+  </button>;
+});

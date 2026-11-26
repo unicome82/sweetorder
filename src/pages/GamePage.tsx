@@ -353,10 +353,15 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   // Practice has no quick order.
   const quickOrders = practice ? undefined : (state.quickOrders ?? 0) - (passActive ? 0 : state.passQuickOrders ?? 0);
   const quickNeedsAd = !!state.quickOrderAds && quickOrders === 0;
+  // Stable handlers for the memoized tray, always running the latest request functions.
+  const trayActions = useRef({ clear: requestTrayClear, quick: () => {} });
+  const onTrayClear = useCallback(() => trayActions.current.clear(), []);
+  const onQuickOrder = useCallback(() => trayActions.current.quick(), []);
   const requestQuickOrder = () => {
     if (quickNeedsAd) void actAfterRewardedAd('quickOrder', { type: 'QUICK_ORDER', adWatched: true });
     else act({ type: 'QUICK_ORDER' });
   };
+  useLayoutEffect(() => { trayActions.current = { clear: requestTrayClear, quick: requestQuickOrder }; });
   // Orders as shown: desserts still flying to a customer count as not yet delivered. Memoized so the clock's
   // ticks don't hand OrderBoard a new array (it measures and snapshots its cards whenever the orders change).
   const shownOrders = useMemo(() => pendingDeliveries.length ? state.orders.map(order => {
@@ -556,8 +561,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     <OrderBoard key={round} orders={shownOrders} stageId={state.stageId} onOrderReady={onOrderReady} />
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
       canClear={playing && !timeUp && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
-      onClear={requestTrayClear}
-      quickOrders={quickOrders} quickNeedsAd={quickNeedsAd} onQuickOrder={requestQuickOrder}
+      onClear={onTrayClear}
+      quickOrders={quickOrders} quickNeedsAd={quickNeedsAd} onQuickOrder={onQuickOrder}
       canQuickOrder={playing && !timeUp && canQuickOrder(state, quickNeedsAd) && !waitingForGoodbye && !showIntro && inFlight.size === 0 && returning.size === 0} />
     <DonutQueue key={round} queues={state.queues} revealed={state.peeked} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}

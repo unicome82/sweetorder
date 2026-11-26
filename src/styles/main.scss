@@ -705,6 +705,8 @@ html, body { height: 100%; overflow: hidden; }
   isolation: isolate;
   --queue-head: clamp(30px, 9vw, 42px);
   --queue-visible: 18;
+  // Each column lays out on its own, so a change in one doesn't re-lay out the others.
+  contain: layout style;
   --queue-step: clamp(11px, (100cqh - var(--queue-head) - 4px) / (var(--queue-visible) - 1), 28px);
   display: grid;
   align-content: start;

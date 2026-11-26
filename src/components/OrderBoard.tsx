@@ -1,5 +1,5 @@
 import displayShelf from '../assets/game/display-shelf.webp';
-import { useLayoutEffect, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef } from 'react';
 import { MOVE_DURATION } from '../effects/turnEffects';
 import { CUSTOMER_GOODBYE_MS } from '../effects/customerTiming';
 import { playSound } from '../effects/sound';
@@ -80,7 +80,7 @@ function CustomerOrder({ order, slot, portraitOffset, onOrderReady }: {
     </div></div>
   </article>;
 }
-interface CardSnapshot { node: HTMLElement; left: number; top: number; width: number; height: number }
+interface CardSnapshot { node: HTMLElement; left: number; top: number; width: number; height: number; layoutVersion: number }
 
 function animateDeparture(grid: HTMLElement, snapshot: CardSnapshot) {
   const { node, left, top, width, height } = snapshot;
@@ -118,10 +118,18 @@ function animateDeparture(grid: HTMLElement, snapshot: CardSnapshot) {
   void animation.finished.then(() => node.remove(), () => node.remove());
 }
 
-export function OrderBoard({ orders, stageId, onOrderReady }: { orders: Array<ActiveOrder | null>; stageId: number; onOrderReady: (id: string) => void }) {
+// Memoized: it only needs to render when the orders (or the stage) change.
+export const OrderBoard = memo(function OrderBoard({ orders, stageId, onOrderReady }: { orders: Array<ActiveOrder | null>; stageId: number; onOrderReady: (id: string) => void }) {
   const t = useMessages();
   const grid = useRef<HTMLDivElement>(null);
   const snapshots = useRef(new Map<string, CardSnapshot>());
+  // Bumped on resize so the cards' cached boxes are measured again.
+  const layoutVersion = useRef(0);
+  useEffect(() => {
+    const bump = () => { layoutVersion.current += 1; };
+    window.addEventListener('resize', bump);
+    return () => window.removeEventListener('resize', bump);
+  }, []);
   // Each stage starts further along the portrait cycle, so consecutive stages open with new faces.
   const portraitOffset = (stageId - 1) * 13;
   const arranged = orders.flatMap((order, slot) => order ? [{ order, slot }] : []);
@@ -134,8 +142,13 @@ export function OrderBoard({ orders, stageId, onOrderReady }: { orders: Array<Ac
     const animate = canAnimate();
     for (const card of element.querySelectorAll<HTMLElement>('[data-order-id]')) {
       const id = card.dataset.orderId!;
-      const { offsetLeft: left, offsetTop: top, offsetWidth: width, offsetHeight: height } = card;
-      current.set(id, { node: card.cloneNode(true) as HTMLElement, left, top, width, height });
+      // A card keeps its slot, so its box is measured once (and again after a resize), not on every update:
+      // measuring right after the board changes forces a layout.
+      const known = previous.get(id);
+      const box = known && known.layoutVersion === layoutVersion.current ? known
+        : { left: card.offsetLeft, top: card.offsetTop, width: card.offsetWidth, height: card.offsetHeight };
+      const { left, top, width, height } = box;
+      current.set(id, { node: card.cloneNode(true) as HTMLElement, left, top, width, height, layoutVersion: layoutVersion.current });
     }
     if (animate) {
       for (const [id, snapshot] of previous) {
@@ -151,4 +164,4 @@ export function OrderBoard({ orders, stageId, onOrderReady }: { orders: Array<Ac
     </div>
     <img className="display-shelf" src={displayShelf} alt="" aria-hidden="true" draggable={false} />
   </section>;
-}
+});
