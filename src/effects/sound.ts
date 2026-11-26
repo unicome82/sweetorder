@@ -253,10 +253,15 @@ export const soundNames = Object.keys(cueBuilders) as SoundName[];
 
 // How long a pause between deliveries may be before the rising streak starts over.
 const STREAK_GAP = 1.4;
+// A sound held back while audio resumes is dropped if the resume took longer than this.
+const STALE_SOUND_MS = 250;
 const minimumGap: Partial<Record<SoundName, number>> = { select: 0.035, denied: 0.18, tap: 0.04 };
 
 let audio: AudioContext | undefined;
 let output: GainNode | undefined;
+// Fades everything out before the page is hidden and back in once audio runs again, so leaving and returning to the
+// app doesn't cut the sound off mid-wave or start it with a click.
+let wake: GainNode | undefined;
 let sfxBus: GainNode | undefined;
 let musicBus: GainNode | undefined;
 let moodGain: GainNode | undefined;
@@ -286,7 +291,9 @@ function musicLevel() {
 
 function syncMusic() {
   if (!music) return;
-  const wanted = soundEnabled && volumes.music > 0 && !document.hidden;
+  // Routed music only plays while Web Audio runs: an element playing into a suspended or interrupted context
+  // stutters and then catches up in a burst when the context comes back.
+  const wanted = soundEnabled && volumes.music > 0 && !document.hidden && (!musicRouted || audio?.state === 'running');
   // Without Web Audio routing, fall back to the element volume (ignored on iOS).
   if (!musicRouted) music.volume = Math.min(1, musicLevel() * masterVolume);
   music.playbackRate = mood === 'urgent' ? 1.06 : 1;
@@ -369,7 +376,37 @@ function startMusic(context: AudioContext) {
   } catch {
     musicRouted = false;
   }
-  document.addEventListener('visibilitychange', syncMusic);
+}
+
+const WAKE_FADE_IN = 0.12;
+const SUSPEND_AFTER_HIDE_MS = 150;
+
+/** Fades the sound back in once the audio clock runs again, then lets the music continue. */
+function fadeIn() {
+  if (!audio || !wake || document.hidden || audio.state !== 'running') return;
+  const now = audio.currentTime;
+  wake.gain.cancelScheduledValues(now);
+  wake.gain.setValueAtTime(0, now);
+  wake.gain.setTargetAtTime(1, now + 0.03, WAKE_FADE_IN / 3);
+  syncMusic();
+}
+
+function onVisibility() {
+  if (!audio || !wake) { syncMusic(); return; }
+  if (document.hidden) {
+    // Fade out, stop the music, then suspend the context so the device releases it cleanly.
+    const now = audio.currentTime;
+    wake.gain.cancelScheduledValues(now);
+    wake.gain.setTargetAtTime(0, now, 0.015);
+    syncMusic();
+    setTimeout(() => {
+      if (document.hidden && audio?.state === 'running') void audio.suspend().catch(() => undefined);
+    }, SUSPEND_AFTER_HIDE_MS);
+    return;
+  }
+  if (audio.state === 'running') fadeIn();
+  // Mobile browsers may refuse to resume without a tap; the next tap's unlockSound resumes it then.
+  else if (!resuming) resuming = audio.resume().catch(() => undefined).finally(() => { resuming = undefined; });
 }
 
 export function unlockSound() {
@@ -386,7 +423,12 @@ export function unlockSound() {
       const limiter = audio.createDynamicsCompressor();
       limiter.threshold.value = -6;
       limiter.ratio.value = 8;
-      output.connect(limiter).connect(audio.destination);
+      wake = audio.createGain();
+      output.connect(wake).connect(limiter).connect(audio.destination);
+      // Whenever the context comes back (resumed here, after a tap, or by the system after an interruption),
+      // fade in and restart the music; when it stops, stop the music too.
+      audio.addEventListener('statechange', () => { if (audio?.state === 'running') fadeIn(); else syncMusic(); });
+      document.addEventListener('visibilitychange', onVisibility);
       sfxBus = audio.createGain();
       sfxBus.gain.value = volumes.sfx;
       sfxBus.connect(output);
@@ -478,9 +520,12 @@ function nextStep(sound: SoundName, now: number) {
 export function playSound(sound: SoundName, delayMs = 0, step?: number) {
   if (!soundEnabled || !audio || !output || !sfxBus || document.hidden) return;
   if (audio.state !== 'running') {
+    // A sound asked for while audio wakes up plays only if it is still current: otherwise everything held back
+    // while returning to the app would sound at once.
     const pendingResume = resuming;
+    const askedAt = performance.now();
     if (pendingResume) void pendingResume.then(() => {
-      if (audio?.state === 'running') playSound(sound, delayMs, step);
+      if (audio?.state === 'running' && performance.now() - askedAt < STALE_SOUND_MS) playSound(sound, delayMs, step);
     });
     return;
   }

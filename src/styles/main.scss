@@ -1068,7 +1068,6 @@ html, body { height: 100%; overflow: hidden; }
   grid-template-columns: 40px 1fr 40px;
   align-items: center;
   padding: calc(14px + var(--safe-top)) 0 12px;
-  border-bottom: 1px solid #e9c9b3;
   background: #fff7ed;
   box-shadow: 0 0 0 100vmax #fff7ed;
   clip-path: inset(0 -100vmax);
