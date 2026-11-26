@@ -2,6 +2,7 @@ export function syncStandaloneViewport() {
   // iOS can report a viewport shorter than the display in a home-screen web app.
   const appleNavigator = navigator as Navigator & { standalone?: boolean };
   if (!appleNavigator.standalone) return;
+  document.documentElement.classList.add('standalone');
 
   // With an opaque status bar the page starts below it, so the display height would be too tall.
   const probe = document.createElement('div');

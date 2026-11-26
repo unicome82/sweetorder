@@ -21,10 +21,20 @@
 
 @media (display-mode: standalone) {
   :root { --page-height: max(100dvh, 100lvh, 100vh, var(--ios-full-height, 0px)); }
-  :root:has(.start-page) { background-color: #c5e9ff; }
-  :root:has(.stage-page) { background-color: #fff4f7; }
-  :root:has(.game-page) { background-color: #fae2d2; }
 }
+
+// iOS 26 blurs the edge under the status bar while the document itself scrolls.
+// Scrolling inside a fixed full-screen box instead, as the settings popup does, avoids it.
+html, body { height: 100%; overflow: hidden; }
+#root { position: fixed; inset: 0; overflow-y: auto; overscroll-behavior-y: none; }
+
+// A home-screen app paints its opaque status bar with the page background,
+// so each screen gives it the colour along its own top edge.
+:root.standalone { background-color: var(--status-bar-color, #f6ece2); }
+:root.standalone:has(.start-page) { --status-bar-color: var(--start-top-color, #c5e9ff); }
+:root.standalone:has(.stage-page) { --status-bar-color: #9bdbfa; }
+:root.standalone:has(.game-page) { --status-bar-color: #fae2d2; }
+:root.standalone:has(.settings-dialog[open]) { --status-bar-color: #fff7ed; }
 
 .app-shell {
   -webkit-user-select: none;
@@ -1031,33 +1041,6 @@
 .settings-test-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 6px; }
 .settings-test-actions .secondary-button { min-height: 40px; font-size: 14px; }
 .settings-test-actions .secondary-button:disabled { opacity: .5; }
-// Temporary: iOS status bar blur workarounds picked in the settings popup.
-.settings-select { width: 100%; min-height: 38px; padding: 0 12px; border: 1px solid #e9c9b3; border-radius: 12px; background: #fff; color: #703b27; font: inherit; font-size: 15px; }
-:root { --status-bar-test-color: #fff7eb; }
-:root:has(.start-page) { --status-bar-test-color: #c5e9ff; }
-:root:has(.stage-page) { --status-bar-test-color: #9bdbfa; }
-:root:has(.game-page) { --status-bar-test-color: #fae2d2; }
-:root[data-status-bar-test='strip'] body::before {
-  content: '';
-  position: fixed;
-  inset: 0 0 auto;
-  z-index: 1000;
-  height: var(--safe-top);
-  pointer-events: none;
-  background: var(--status-bar-test-color);
-}
-:root[data-status-bar-test='backdrop'] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: var(--status-bar-test-color);
-}
-:root[data-status-bar-test='scroller'] {
-  &, body { height: 100%; overflow: hidden; }
-  #root { position: fixed; inset: 0; overflow-y: auto; overscroll-behavior-y: none; }
-}
 .settings-hint { margin: 8px 2px 0; color: #9a6a52; font-size: 12px; line-height: 1.45; }
 
 // Shown while a stage chunk downloads before entering a stage.
