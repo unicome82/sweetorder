@@ -5,10 +5,12 @@ import type { Pass } from '../monetization/pass';
 import { ads } from '../monetization/ads';
 import { useMessages } from '../i18n/language';
 import { AddTimeIcon, PeekIcon } from './ItemIcons';
+import { StageDifficultyRibbon } from './StageDifficultyRibbon';
+import { isBonusStage, stageDifficulty } from '../game/stages';
 
 /** Choose pre-start items funded by pass inventory or a rewarded ad. */
-export function StartItemsDialog({ pass, available, peekNeedsAd, addTimeNeedsAd, dessert, initial, onStart, onClose }: {
-  pass?: Pass; available: Required<ItemChoice>; peekNeedsAd: boolean; addTimeNeedsAd: boolean; dessert?: DonutType; initial: ItemChoice;
+export function StartItemsDialog({ stageId, pass, available, peekNeedsAd, addTimeNeedsAd, dessert, initial, onStart, onClose }: {
+  stageId: number; pass?: Pass; available: Required<ItemChoice>; peekNeedsAd: boolean; addTimeNeedsAd: boolean; dessert?: DonutType; initial: ItemChoice;
   onStart: (choice: ItemChoice, watched: ItemChoice) => void; onClose: () => void;
 }) {
   const t = useMessages();
@@ -45,6 +47,11 @@ export function StartItemsDialog({ pass, available, peekNeedsAd, addTimeNeedsAd,
       : <span className="start-item-count" aria-hidden="true">{left}</span>;
   return <dialog className="glass-popup tray-full-dialog start-items-dialog" ref={dialog} aria-labelledby="start-items-heading"
     onCancel={event => { event.preventDefault(); if (!watching) onClose(); }}>
+    {/* Names the stage about to start, since the popup hides the screen it was picked on. */}
+    <p className="start-items-stage" lang="en">
+      <span>{isBonusStage(stageId) ? 'Bonus Stage' : `Stage ${String(stageId).padStart(2, '0')}`}</span>
+      {!isBonusStage(stageId) && <StageDifficultyRibbon difficulty={stageDifficulty(stageId)} />}
+    </p>
     <h2 id="start-items-heading">{t.startItemsTitle}</h2>
     <div className="start-items">
       {available.peek && <button type="button" className="start-item" aria-pressed={!!choice.peek} aria-disabled={watching || !!watched.peek} onClick={() => void toggle('peek', peekNeedsAd)}>

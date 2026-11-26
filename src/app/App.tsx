@@ -155,7 +155,7 @@ export function App() {
     {outOfHearts !== undefined && <NoHeartsDialog hearts={displayedHearts} fastUntil={fastUntil} onClose={closeOutOfHearts} onWatchAd={() => void watchHeartAd()} onShowPass={showPass} />}
     {chargeOpen && <ChargeHeartsDialog max={chargeableSpareHearts(session)} spare={spareHearts(session)} onClose={() => setChargeOpen(false)}
       onCharge={amount => { dispatch({ type: 'CHARGE_SPARE', amount, now: Date.now() }); setChargeOpen(false); }} />}
-    {preStart && <StartItemsDialog pass={passActive ? session.pass : undefined} available={itemsBeforeStart(preStart.stageId, relaxed)}
+    {preStart && <StartItemsDialog stageId={preStart.stageId} pass={passActive ? session.pass : undefined} available={itemsBeforeStart(preStart.stageId, relaxed)}
       peekNeedsAd={!peekFromPass(session.pass, passNow)} addTimeNeedsAd={!addTimeFromPass(session.pass, passNow)}
       dessert={getStage(preStart.stageId).queues.flat().find(token => token.hidden && !token.reward)?.type}
       initial={itemChoice} onStart={startWithItems} onClose={() => setPreStart(undefined)} />}
