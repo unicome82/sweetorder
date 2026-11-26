@@ -280,6 +280,16 @@ let musicBus: GainNode | undefined;
 let moodGain: GainNode | undefined;
 let music: HTMLAudioElement | undefined;
 let musicRouted = false;
+// iOS won't start a new audio context while native music plays: the music pauses for that moment (see unlockSound).
+let musicHeld = false;
+let musicHoldTimer: ReturnType<typeof setTimeout> | undefined;
+const MUSIC_HOLD_MAX_MS = 1000;
+function releaseMusic() {
+  clearTimeout(musicHoldTimer);
+  if (!musicHeld) return;
+  musicHeld = false;
+  syncMusic();
+}
 let noise: AudioBuffer | undefined;
 let resuming: Promise<void> | undefined;
 let soundEnabled = readSoundPreference();
@@ -306,7 +316,7 @@ function syncMusic() {
   if (!music) return;
   // Routed music only plays while Web Audio runs: an element playing into a suspended or interrupted context
   // stutters and then catches up in a burst when the context comes back.
-  const wanted = soundEnabled && volumes.music > 0 && !document.hidden
+  const wanted = soundEnabled && volumes.music > 0 && !document.hidden && !musicHeld
     && (musicRouted ? audio?.state === 'running' : mood !== 'muted');
   // Without Web Audio routing, fall back to the element volume (ignored on iOS).
   if (!musicRouted) music.volume = Math.min(1, musicLevel() * masterVolume);
@@ -424,6 +434,7 @@ function fadeIn() {
   // swallow the tap that brought audio back.
   if (!musicVolumeAdjustable) {
     wake.gain.setValueAtTime(1, now);
+    releaseMusic();
     syncMusic();
     return;
   }
@@ -474,6 +485,8 @@ function teardown() {
   clearTimeout(teardownTimer);
   teardownTimer = undefined;
   const old = audio;
+  clearTimeout(musicHoldTimer);
+  musicHeld = false;
   // Native music isn't tied to the context: keep the element (iOS lets an element a tap once started play again
   // later) and only pause it. Routed music must go with its context.
   if (music && !musicRouted) {
@@ -542,6 +555,14 @@ export function unlockSound() {
       && (audio.state === 'closed' || !resuming || performance.now() - resumeStartedAt > RESUME_TIMEOUT_MS);
     if (stuck) teardown();
     const fresh = !audio;
+    // Back from the background on iOS, the music already plays again: pause it while the new context starts, and
+    // carry on once it runs (or after a second at most).
+    if (fresh && music && !musicRouted && !music.paused) {
+      musicHeld = true;
+      music.pause();
+      clearTimeout(musicHoldTimer);
+      musicHoldTimer = setTimeout(releaseMusic, MUSIC_HOLD_MAX_MS);
+    }
     if (!audio) createAudio();
     if (!audio) return;
     tryResume();
