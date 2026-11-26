@@ -257,6 +257,13 @@ const STREAK_GAP = 1.4;
 const STALE_SOUND_MS = 250;
 const minimumGap: Partial<Record<SoundName, number>> = { select: 0.035, denied: 0.18, tap: 0.04 };
 
+const isIOS = typeof navigator !== 'undefined'
+  && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+// On iOS, music routed through Web Audio beeps when a home-screen app goes to the background (its last fragment
+// repeats as the app is frozen), so the music plays as a plain media element there. iOS ignores a media element's
+// volume, so the music can only be on or off: popups pause it instead of fading it.
+export const musicVolumeAdjustable = !isIOS;
+
 let audio: AudioContext | undefined;
 let output: GainNode | undefined;
 // Fades everything out before the page is hidden and back in once audio runs again, so leaving and returning to the
@@ -293,7 +300,8 @@ function syncMusic() {
   if (!music) return;
   // Routed music only plays while Web Audio runs: an element playing into a suspended or interrupted context
   // stutters and then catches up in a burst when the context comes back.
-  const wanted = soundEnabled && volumes.music > 0 && !document.hidden && (!musicRouted || audio?.state === 'running');
+  const wanted = soundEnabled && volumes.music > 0 && !document.hidden
+    && (musicRouted ? audio?.state === 'running' : mood !== 'muted');
   // Without Web Audio routing, fall back to the element volume (ignored on iOS).
   if (!musicRouted) music.volume = Math.min(1, musicLevel() * masterVolume);
   music.playbackRate = mood === 'urgent' ? 1.06 : 1;
@@ -371,6 +379,7 @@ function startMusic(context: AudioContext) {
   // Rebuilt after the app was in the background: carry on where the track was.
   if (musicResume?.scene === scene) music.currentTime = musicResume.time;
   musicResume = undefined;
+  if (!musicVolumeAdjustable) return;
   try {
     moodGain = context.createGain();
     moodGain.gain.value = mood === 'muted' ? 0 : 1;
@@ -381,11 +390,10 @@ function startMusic(context: AudioContext) {
   }
 }
 
-// iOS (Safari and home-screen apps) doesn't bring Web Audio back cleanly from the background: a context still
-// playing as the app is frozen beeps, one the system interrupted crackles or never resumes. There the whole audio
-// setup is closed when the app is hidden and built afresh on the first tap after returning.
-const rebuildAfterHide = typeof navigator !== 'undefined'
-  && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+// iOS (Safari and home-screen apps) doesn't bring Web Audio back cleanly from the background: a context the system
+// interrupted crackles or never resumes. There the whole audio setup is closed when the app is hidden and built
+// afresh on the first tap after returning.
+const rebuildAfterHide = isIOS;
 // Returning elsewhere: fade the sound in, and start the music a moment later (it crackles if it starts while the
 // audio device is still waking up).
 const WAKE_FADE_IN = 0.25;
@@ -523,7 +531,7 @@ export function unlockSound() {
     // Media playback must start inside the user gesture that called this. A new element starts here even before
     // the context runs (it stays silent until fadeIn); otherwise iOS would block starting it later.
     startMusic(audio);
-    if (fresh && music && musicRouted && music.paused && soundEnabled && volumes.music > 0 && !document.hidden) {
+    if (fresh && music && musicRouted && music.paused && soundEnabled && volumes.music > 0 && !document.hidden && mood !== 'muted') {
       void music.play().catch(() => undefined);
     } else {
       syncMusic();
