@@ -1300,8 +1300,19 @@ html, body { height: 100%; overflow: hidden; }
 .add-time-icon { display: block; width: 32px; height: 32px; }
 
 // The stage the item popup is for, in the same script as the start button.
-.start-items-stage { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 6px; color: var(--pink); font-family: var(--stage-script); font-size: var(--stage-script-size); line-height: 1.1; }
+// Same look as the game screen's stage title, with the difficulty badge on the line below.
+.start-items-stage { display: grid; justify-items: center; gap: 8px; margin: 0; }
+.start-items-stage-title {
+  color: white;
+  font-family: var(--stage-script);
+  font-size: var(--stage-script-size);
+  font-weight: 400;
+  line-height: 1;
+  text-shadow: 0 2px 2px #5a3221, 0 0 8px #5a3221a8;
+  white-space: nowrap;
+}
 .start-items-stage .stage-difficulty { position: static; }
+.start-items-stage + h2 { margin-top: 18px; }
 // Items for the next game, switched on before it starts. A chosen item lights up pink with a check.
 .start-items { display: grid; grid-auto-flow: column; grid-auto-columns: 104px; justify-content: center; gap: 14px; margin: 6px 0 20px; }
 .start-item {

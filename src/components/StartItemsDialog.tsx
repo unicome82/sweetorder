@@ -49,7 +49,7 @@ export function StartItemsDialog({ stageId, pass, available, peekNeedsAd, addTim
     onCancel={event => { event.preventDefault(); if (!watching) onClose(); }}>
     {/* Names the stage about to start, since the popup hides the screen it was picked on. */}
     <p className="start-items-stage" lang="en">
-      <span>{isBonusStage(stageId) ? 'Bonus Stage' : `Stage ${String(stageId).padStart(2, '0')}`}</span>
+      <span className="start-items-stage-title">{isBonusStage(stageId) ? 'Bonus Stage' : `Stage ${String(stageId).padStart(2, '0')}`}</span>
       {!isBonusStage(stageId) && <StageDifficultyRibbon difficulty={stageDifficulty(stageId)} />}
     </p>
     <h2 id="start-items-heading">{t.startItemsTitle}</h2>
