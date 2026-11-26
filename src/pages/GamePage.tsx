@@ -16,8 +16,8 @@ import { canQuickOrder, getQueueHintColumns, getReadyTrayPickupOrders, getStars,
 import { ItemButtonIcon, QuickOrderIcon, TrayClearIcon } from '../components/ItemIcons';
 import type { DonutType, GameState, RewardKind } from '../game/types';
 import type { GameAction } from '../game/reducer';
-import { getGameTimeLimit, getTimeStars, losesOnTimeUp } from '../game/stageTime';
-import { StageClock } from '../components/StageClock';
+import { clockPhase, getGameTimeLimit, losesOnTimeUp, type ClockPhase } from '../game/stageTime';
+import { LiveStageClock } from '../components/StageClock';
 import { playSound, setMusicMood } from '../effects/sound';
 import { haptic } from '../effects/haptics';
 import { useMessages } from '../i18n/language';
@@ -43,6 +43,8 @@ interface Delivery { orderId: string; type: DonutType }
 /** A reward icon floating up from the queue column it was picked from (viewport coordinates). */
 interface RewardPop { id: number; reward: RewardKind; x: number; y: number }
 const POP_MS = 1000;
+/** How long "Time's Up!" shows over the board before the result. */
+const TIME_UP_MS = 1100;
 
 interface Props {
   settings: SettingsProps; state: GameState; dispatch: (action: GameAction) => void; onStages: () => void; onNext: () => void;
@@ -92,23 +94,12 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   // The clock shows the stage's own limit until "+5s" pops, then the extra 5 seconds join it.
   const [timeBonusAt] = useState(() => performance.now() + INTRO_MS);
   const [pausedTimeMs, setPausedTimeMs] = useState<number>();
-  const [remainingTimeMs, setRemainingTimeMs] = useState(currentClockMax);
+  // The clock ticks inside LiveStageClock; the page only hears about stars, the last ten seconds and 0:00.
+  const [phase, setPhase] = useState<ClockPhase>(() => clockPhase(currentClockMax, timeLimit));
   const timerRunning = timeLimit > 0 && state.status === 'playing';
   const showClock = timerRunning || (timeLimit > 0 && (state.status === 'blocked' || state.status === 'paused'));
   // The clock stops at 0:00. Campaign stages then lose once the desserts already placed have been served;
   // practice and bonus stages play on, and a clear from then on earns one star.
-  useLayoutEffect(() => {
-    if (!timerRunning) return;
-    const updateClock = () => {
-      const now = performance.now();
-      const remaining = Math.min(currentClockMax, Math.max(0, deadline - now));
-      setRemainingTimeMs(now < timeBonusAt ? Math.min(remaining, timeLimit) : remaining);
-      if (remaining === 0) clearInterval(interval);
-    };
-    const interval = setInterval(updateClock, 100);
-    const deadlineTimer = setTimeout(updateClock, Math.max(0, Math.ceil(deadline - performance.now())));
-    return () => { clearInterval(interval); clearTimeout(deadlineTimer); };
-  }, [deadline, timerRunning, currentClockMax, timeBonusAt, timeLimit]);
   const nextPickupAt = useRef(new Map<string, number>());
   const onOrderReady = useCallback((id: string) => {
     setReadyOrders(previous => previous.includes(id) ? previous : [...previous, id]);
@@ -166,7 +157,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       setReadyOrders([]);
       setRound(previous => previous + 1);
       setDeadline(performance.now() + timeLimit + introMs);
-      setRemainingTimeMs(timeLimit);
+      setPhase(clockPhase(timeLimit, timeLimit));
       setIntroRound(hasIntro ? round + 1 : null);
       setPausedTimeMs(undefined);
       nextPickupAt.current.clear();
@@ -193,7 +184,6 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       if (soundEnabled) playSound('resume');
       if (remaining !== undefined) {
         setDeadline(now + remaining);
-        setRemainingTimeMs(remaining);
       }
       setPausedTimeMs(undefined);
       const deferred = deferredMatches.current;
@@ -271,7 +261,6 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     flushSync(() => {
       if ((action.type === 'CLEAR_TRAY' || action.type === 'QUICK_ORDER') && remaining !== undefined) {
         setDeadline(now + remaining);
-        setRemainingTimeMs(remaining);
         setPausedTimeMs(undefined);
       }
       if (animateDelivery && returned.length) setReturning(new Set(returned));
@@ -381,7 +370,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const boardVisible = playing || status === 'blocked' || status === 'paused';
   const [presentedResult, setPresentedResult] = useState<GameState | null>(null);
   const waitingForGoodbye = showGoodbye && presentedResult !== state;
-  const showResult = !boardVisible && !waitingForGoodbye;
+  // Lost on time: "Time's Up!" shows over the board for a moment before the result.
+  const waitingForTimeUp = status === 'gameover' && state.failReason === 'time' && presentedResult !== state;
+  const showResult = !boardVisible && !waitingForGoodbye && !waitingForTimeUp;
   // Leaving the app (home screen, another tab, screen lock) pauses a timed game so the clock can't run out unseen.
   const pauseWhenHidden = useEffectEvent(() => {
     if (document.visibilityState === 'hidden' && timeLimit > 0 && latest.current.status === 'playing') act({ type: 'PAUSE' });
@@ -428,7 +419,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const stage = getStage(state.stageId);
   const trayFull = state.tray.length >= state.trayCapacity;
   // Out of time: no more taps or items, but desserts already on their way are still served before the loss.
-  const timeUp = timeLimit > 0 && losesOnTimeUp(state.stageId) && remainingTimeMs <= 0 && (playing || status === 'paused');
+  const timeUp = timeLimit > 0 && losesOnTimeUp(state.stageId) && phase.out && (playing || status === 'paused');
   const queueDisabled = !playing || waitingForGoodbye || returning.size > 0 || showIntro || timeUp;
   const timeUpSettled = timeUp && playing && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0
     && pendingDeliveries.length === 0 && !getReadyTrayPickupOrders(state, state.orders.flatMap(order => order ? [order.definitionId] : [])).length;
@@ -470,14 +461,21 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     return () => clearTimeout(timer);
   }, [showGoodbye, state]);
   useEffect(() => {
+    if (!waitingForTimeUp) return;
+    haptic('blocked');
+    if (soundEnabled) playSound('tickUrgent');
+    const timer = setTimeout(() => setPresentedResult(state), TIME_UP_MS);
+    return () => clearTimeout(timer);
+  }, [waitingForTimeUp, state, soundEnabled]);
+  useEffect(() => {
     if (showResult) resultHeading.current?.focus();
   }, [showResult, status]);
   // Red edge from one star left; in the last 10 seconds it shows and pulses whatever the stars.
   const timed = playing && !waitingForGoodbye && timeLimit > 0;
-  const danger = timed && getTimeStars(remainingTimeMs, timeLimit) === 1;
-  const urgent = timed && remainingTimeMs > 0 && remainingTimeMs <= 10_000;
+  const danger = timed && phase.stars === 1;
+  const urgent = timed && phase.second > 0;
   // Tension cues: a falling chime when a star is lost, clock ticks through the last ten seconds.
-  const timeStars = timeLimit > 0 ? getTimeStars(remainingTimeMs, timeLimit) : 0;
+  const timeStars = timeLimit > 0 ? phase.stars : 0;
   const previousTimeStars = useRef(timeStars);
   const lastTickSecond = useRef<number>(undefined);
   useEffect(() => {
@@ -489,18 +487,18 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       return;
     }
     // The 10-second practice stage would tick throughout, so ticks start only on longer stages.
-    if (timeLimit < 30_000 || remainingTimeMs > 10_000 || remainingTimeMs <= 0) return;
-    const second = Math.ceil(remainingTimeMs / 1000);
+    const { second } = phase;
+    if (timeLimit < 30_000 || !second) return;
     if (lastTickSecond.current === undefined) { lastTickSecond.current = second; return; }
     if (second === lastTickSecond.current) return;
     lastTickSecond.current = second;
     if (soundEnabled) playSound(second <= 3 ? 'tickUrgent' : 'tick');
-  }, [remainingTimeMs, soundEnabled, timeLimit, timeStars, timed]);
+  }, [phase, soundEnabled, timeLimit, timeStars, timed]);
   useEffect(() => {
     setMusicMood(status === 'paused' || status === 'blocked' || showResult ? 'muted' : urgent ? 'urgent' : 'normal');
   }, [showResult, status, urgent]);
   useEffect(() => () => setMusicMood('normal'), []);
-  return <main className={`game-page game-status--${waitingForGoodbye || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root} style={{ '--peek-delay': `${peekDelayMs}ms` } as CSSProperties}>
+  return <main className={`game-page game-status--${waitingForGoodbye || waitingForTimeUp || status === 'paused' ? 'playing' : status}${danger ? ' game-page--danger' : ''}${urgent ? ' game-page--urgent' : ''}`} ref={root} style={{ '--peek-delay': `${peekDelayMs}ms` } as CSSProperties}>
     {!showResult && <GameHeader stage={state.stageId} title={bonus ? 'Bonus Stage' : undefined} onPause={() => act({ type: 'PAUSE' })} canPause={playing && !waitingForGoodbye && !showIntro && !timeUp}
       settings={<SettingsButton {...settings} mode={state.relaxed ? 'relaxed' : 'timed'} inGame className="header-settings-button"
         onOpen={() => {
@@ -513,8 +511,9 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
           if (pausedForSettings.current) act({ type: 'RESUME' });
           pausedForSettings.current = false;
         }} />} />}
-    {(showClock || (timeLimit > 0 && waitingForGoodbye)) && <div className="stage-clock-wrap">
-      <StageClock limitMs={timeLimit} remainingMs={pausedTimeMs ?? remainingTimeMs} />
+    {(showClock || (timeLimit > 0 && (waitingForGoodbye || waitingForTimeUp))) && <div className="stage-clock-wrap">
+      <LiveStageClock deadline={deadline} running={timerRunning} frozenMs={pausedTimeMs} clockMax={currentClockMax}
+        limitMs={timeLimit} bonusAt={timeBonusAt} onPhase={setPhase} />
     </div>}
     {/* An even 2px white outline around the reward images. */}
     <svg className="sr-only" aria-hidden="true"><filter id="white-outline" x="-20%" y="-20%" width="140%" height="140%">
@@ -553,7 +552,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       </div>}
       {failed && !practice && !bonus && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passFailed}</button>}
     </section>}
-    {(boardVisible || waitingForGoodbye) && <div className="game-board">
+    {(boardVisible || waitingForGoodbye || waitingForTimeUp) && <div className="game-board">
     <OrderBoard key={round} orders={shownOrders} stageId={state.stageId} onOrderReady={onOrderReady} />
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
       canClear={playing && !timeUp && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
@@ -588,6 +587,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       </div>
       {clearNeedsAd && state.trayClearsLeft > 0 && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passClearTray}</button>}
     </dialog>
+    {waitingForTimeUp && <div className="time-up-stamp" role="status"><span>{t.timeUp}</span></div>}
     {/* Dim the board for the title and +5s, then reveal the hidden desserts on the normal board. */}
     {showIntro && <div className={`stage-intro${bonus ? ' stage-intro--bonus' : ''}`} aria-hidden="true" style={{ '--intro-overlay-ms': `${INTRO_MS + timeBonusMs}ms` } as CSSProperties}>
       <span className="stage-intro-title">{bonus ? 'Bonus Stage!' : `Stage ${String(state.stageId).padStart(2, '0')}`}</span>

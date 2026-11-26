@@ -30,3 +30,13 @@ export function getTimeStars(remainingMs: number, limitMs: number): number {
   if (remainingMs * 2 >= limitMs) return 3;
   return remainingMs * 4 >= limitMs ? 2 : 1;
 }
+
+/** What the game page reacts to: the stars left, the second in the last ten (else 0), and the clock reaching 0:00. */
+export interface ClockPhase { stars: number; second: number; out: boolean }
+export function clockPhase(remainingMs: number, limitMs: number): ClockPhase {
+  return {
+    stars: getTimeStars(remainingMs, limitMs),
+    second: remainingMs > 0 && remainingMs <= 10_000 ? Math.ceil(remainingMs / 1000) : 0,
+    out: remainingMs <= 0,
+  };
+}

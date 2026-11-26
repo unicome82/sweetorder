@@ -10,6 +10,11 @@ import { readLanguagePreference } from './i18n/language';
 
 syncStandaloneViewport();
 preventDoubleTapZoom();
+// Low-end Android phones skip the blur behind popups (see .reduced-effects).
+const device = navigator as Navigator & { deviceMemory?: number };
+if (/Android/i.test(navigator.userAgent) && ((device.deviceMemory ?? 8) <= 4 || (navigator.hardwareConcurrency || 8) <= 4)) {
+  document.documentElement.classList.add('reduced-effects');
+}
 document.documentElement.lang = readLanguagePreference();
 const root = document.getElementById('root');
 if (!root) throw new Error('앱 루트 요소가 없습니다.');

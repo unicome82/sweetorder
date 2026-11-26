@@ -118,7 +118,10 @@ export function DonutQueue({ queues, disabled, locked = false, revealed = false,
             // Peek: the "?" blinks as the game opens, then turns into its dessert.
             ? <span className="peek-reveal"><span className="donut queue-mystery peek-reveal-mystery"><MysteryIcon /></span><Donut type={donut.type} className="peek-reveal-dessert" /></span>
             : <span className="donut queue-mystery"><MysteryIcon /></span>
-          : <Donut type={donut.type} />}
+          : position === 0
+            // A glowing copy behind the front dessert; only its opacity pulses for the hint, so it stays cheap to draw.
+            ? <><Donut type={donut.type} /><Donut type={donut.type} className="queue-hint-glow" /></>
+            : <Donut type={donut.type} />}
       </span>)}
     </button>)}</div>
   </section>;
