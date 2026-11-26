@@ -3,10 +3,11 @@ import { Icon } from './Icon';
 import { useMessages } from '../i18n/language';
 import { MUSIC_CREDIT, playSound, readVolumes, setVolume, toggleVolumeMute, type VolumeKind } from '../effects/sound';
 
-interface Props { soundEnabled: boolean; onToggleSound: () => void }
+/** title: shown on the sound switch's row (the settings section heading). */
+interface Props { soundEnabled: boolean; onToggleSound: () => void; title?: string }
 
 /** Mute switch plus separate sliders for sound effects and background music. */
-export function SoundControls({ soundEnabled, onToggleSound }: Props) {
+export function SoundControls({ soundEnabled, onToggleSound, title }: Props) {
   const t = useMessages();
   const [levels, setLevels] = useState(readVolumes);
   function change(kind: VolumeKind, percent: number) {
@@ -20,10 +21,11 @@ export function SoundControls({ soundEnabled, onToggleSound }: Props) {
     if (kind === 'sfx' && next.sfx > 0) playSound('select');
   }
   const sliders: Array<[VolumeKind, string]> = [['sfx', t.sfxVolume], ['music', t.musicVolume]];
+  const mute = <button type="button" data-sfx="none" className="secondary-button sound-mute-button" onClick={onToggleSound} aria-pressed={!soundEnabled}>
+    <Icon name={soundEnabled ? 'sound' : 'sound-off'} />{soundEnabled ? t.soundOff : t.soundOn}
+  </button>;
   return <div className="sound-controls">
-    <button type="button" data-sfx="none" className="secondary-button sound-mute-button" onClick={onToggleSound} aria-pressed={!soundEnabled}>
-      <Icon name={soundEnabled ? 'sound' : 'sound-off'} />{soundEnabled ? t.soundOff : t.soundOn}
-    </button>
+    {title ? <div className="settings-section-head"><h3>{title}</h3>{mute}</div> : mute}
     {sliders.map(([kind, label]) => <div key={kind} className="sound-slider">
       <label htmlFor={`volume-${kind}`}>{label}</label>
       <input id={`volume-${kind}`} type="range" min={0} max={100} step={5} value={Math.round(levels[kind] * 100)} disabled={!soundEnabled}

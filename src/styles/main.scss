@@ -103,6 +103,7 @@ html, body { height: 100%; overflow: hidden; }
 .material-symbol--grid { --symbol: url('../assets/icons/grid_view.svg'); }
 .material-symbol--lock { --symbol: url('../assets/icons/lock.svg'); }
 .material-symbol--settings { --symbol: url('../assets/icons/settings.svg'); }
+.material-symbol--close { --symbol: url('../assets/icons/close.svg'); }
 .pause-button {
   position: absolute;
   top: calc(12px + var(--safe-top));
@@ -1046,7 +1047,7 @@ html, body { height: 100%; overflow: hidden; }
   max-width: none;
   max-height: none;
   margin: 0;
-  padding-block: calc(28px + var(--safe-top)) max(24px, env(safe-area-inset-bottom));
+  padding-block: 0 max(24px, env(safe-area-inset-bottom));
   padding-inline: max(20px, env(safe-area-inset-left), env(safe-area-inset-right), calc((100% - 340px) / 2));
   overflow-y: auto;
   border: 0;
@@ -1058,6 +1059,26 @@ html, body { height: 100%; overflow: hidden; }
   &[open] { animation: none; }
   &[open]::backdrop { background: transparent; backdrop-filter: none; animation: none; }
 }
+// The title and close button stay on top while the settings scroll; the bar's colour reaches both screen edges.
+.settings-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  padding: calc(14px + var(--safe-top)) 0 12px;
+  border-bottom: 1px solid #e9c9b3;
+  background: #fff7ed;
+  box-shadow: 0 0 0 100vmax #fff7ed;
+  clip-path: inset(0 -100vmax);
+}
+.settings-header h2 { grid-column: 2; margin: 0; }
+.settings-close { grid-column: 3; }
+// Sound: the section title and the sound switch share one row.
+.settings-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.settings-section-head h3 { margin: 0; }
+.glass-popup .settings-section-head .sound-mute-button { width: auto; min-height: 36px; padding-inline: 14px; font-size: 14px; }
 .settings-section { width: min(100%, 260px); margin: 16px auto 0; text-align: left; }
 .settings-section + .settings-section { padding-top: 14px; border-top: 1px solid #e9c9b3; }
 .settings-section h3 { margin: 0 0 8px; color: var(--secondary-text); font-size: 15px; font-weight: 800; }

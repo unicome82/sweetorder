@@ -64,7 +64,10 @@ export function SettingsButton({ language, onLanguage, mode, onMode, testPass, i
     </button>
     <dialog ref={dialog} className="glass-popup tray-full-dialog sound-dialog settings-dialog" aria-labelledby="settings-heading"
       onClose={close}>
-      <h2 id="settings-heading">{t.settings}</h2>
+      <header className="settings-header">
+        <h2 id="settings-heading">{t.settings}</h2>
+        <button type="button" className="icon-button settings-close" onClick={close} aria-label={t.close}><Icon name="close" /></button>
+      </header>
       <section className="settings-section">
         <h3>{t.language}</h3>
         <Segmented label={t.language} value={language} onChange={onLanguage}
@@ -77,14 +80,12 @@ export function SettingsButton({ language, onLanguage, mode, onMode, testPass, i
         <p className="settings-hint">{inGame ? t.modeLocked : mode === 'timed' ? t.modeTimedHint : t.modeRelaxedHint}</p>
       </section>
       <section className="settings-section">
-        <h3>{t.soundSection}</h3>
-        <SoundControls {...sound} />
+        <SoundControls {...sound} title={t.soundSection} />
       </section>
       {testPass && <section className="settings-section">
         <h3>{t.testSection}</h3>
         <TestPass {...testPass} />
       </section>}
-      <div className="result-actions"><button type="button" className="primary-button popup-primary-button" onClick={close}>{t.close}</button></div>
     </dialog>
   </>;
 }
