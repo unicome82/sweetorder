@@ -1,5 +1,5 @@
 import { createGame, clearTray, selectDonut, matchTray, pickupTray, quickOrder } from './engine';
-import { getGameTimeLimit, getTimeStars } from './stageTime';
+import { getGameTimeLimit, getTimeStars, losesOnTimeUp } from './stageTime';
 import type { GameState, StageDefinition } from './types';
 
 export type GameAction = (
@@ -11,6 +11,8 @@ export type GameAction = (
   | { type: 'CLEAR_TRAY' }
   | { type: 'QUICK_ORDER'; adWatched?: boolean }
   | { type: 'GIVE_UP' }
+  /** The clock reached 0:00 and the last moves have settled: a timed campaign attempt is lost. */
+  | { type: 'TIME_UP' }
   | { type: 'PAUSE' }
   | { type: 'RESUME' }
   | { type: 'RESTART' }
@@ -39,6 +41,9 @@ function applyGameAction(state: GameState, action: GameAction, stage: StageDefin
     case 'PICKUP_TRAY': return pickupTray(state, stage, action.readyOrders, action.parallel).state;
     case 'CLEAR_TRAY': return clearTray(state, stage).state;
     case 'QUICK_ORDER': return quickOrder(state, stage, action.adWatched).state;
+    case 'TIME_UP': return state.status === 'playing' && !state.relaxed && losesOnTimeUp(state.stageId)
+      ? { ...state, status: 'gameover', failReason: 'time', transitionId: state.transitionId + 1 }
+      : state;
     case 'GIVE_UP': return state.status === 'blocked' ? { ...state, status: 'gameover', transitionId: state.transitionId + 1 } : state;
     case 'PAUSE': return state.status === 'playing' ? { ...state, status: 'paused' } : state;
     case 'RESUME': return state.status === 'paused' ? { ...state, status: 'playing' } : state;

@@ -3,19 +3,14 @@
 
 /** Ads the player chooses to watch for a reward. */
 export type RewardedPlacement = 'trayClear' | 'quickOrder' | 'peek' | 'addTime' | 'hearts';
-/** Forced ads between stages. */
-export type InterstitialPlacement = 'stageEnd';
 
 export interface AdService {
   /** Resolves true only when the ad was watched to the end, so the reward may be given. */
   showRewarded(placement: RewardedPlacement): Promise<boolean>;
-  /** Resolves once the ad has been closed. */
-  showInterstitial(placement: InterstitialPlacement): Promise<void>;
 }
 
-export type FakeAd =
-  | { id: number; kind: 'rewarded'; placement: RewardedPlacement; finish: (watched: boolean) => void }
-  | { id: number; kind: 'interstitial'; placement: InterstitialPlacement; finish: (watched: boolean) => void };
+// There are no forced (interstitial) ads: ads only ever run when the player picks one for a reward.
+export type FakeAd = { id: number; kind: 'rewarded'; placement: RewardedPlacement; finish: (watched: boolean) => void };
 
 /** How long the stand-in ad runs before it can be closed with the reward. */
 export const FAKE_AD_MS = 3_000;
@@ -47,7 +42,6 @@ function show(ad: Omit<FakeAd, 'id' | 'finish'>): Promise<boolean> {
 
 export const fakeAds: AdService = {
   showRewarded: placement => show({ kind: 'rewarded', placement }),
-  showInterstitial: placement => show({ kind: 'interstitial', placement }).then(() => undefined),
 };
 
 export const ads: AdService = fakeAds;

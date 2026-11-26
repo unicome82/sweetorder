@@ -27,16 +27,15 @@ function FakeAdDialog({ ad }: { ad: FakeAd }) {
     return () => clearInterval(timer);
   }, []);
   const done = left === 0;
-  const rewarded = ad.kind === 'rewarded';
   return <dialog ref={dialog} className="fake-ad" aria-labelledby="fake-ad-heading" data-placement={ad.placement}
-    onCancel={event => { event.preventDefault(); if (rewarded || done) ad.finish(false); }}>
+    onCancel={event => { event.preventDefault(); ad.finish(false); }}>
     <p className="fake-ad-tag" lang="en">TEST AD</p>
-    <h2 id="fake-ad-heading">{rewarded ? t.fakeAdRewarded : t.fakeAdInterstitial}</h2>
-    <p className="fake-ad-timer" aria-live="polite">{done ? (rewarded ? t.fakeAdRewardReady : t.fakeAdDone) : t.fakeAdSeconds(Math.ceil(left / 1000))}</p>
+    <h2 id="fake-ad-heading">{t.fakeAdRewarded}</h2>
+    <p className="fake-ad-timer" aria-live="polite">{done ? t.fakeAdRewardReady : t.fakeAdSeconds(Math.ceil(left / 1000))}</p>
     <div className="result-actions">
       {done
-        ? <button type="button" className="primary-button popup-primary-button" onClick={() => ad.finish(true)}>{rewarded ? t.fakeAdClaim : t.close}</button>
-        : rewarded && <button type="button" className="secondary-button" onClick={() => ad.finish(false)}>{t.fakeAdSkip}</button>}
+        ? <button type="button" className="primary-button popup-primary-button" onClick={() => ad.finish(true)}>{t.fakeAdClaim}</button>
+        : <button type="button" className="secondary-button" onClick={() => ad.finish(false)}>{t.fakeAdSkip}</button>}
     </div>
   </dialog>;
 }

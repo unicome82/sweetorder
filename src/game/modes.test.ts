@@ -98,3 +98,20 @@ describe('타이머 모드', () => {
     expect(first.trayClears).toBe(STARTING_TRAY_CLEARS);
   });
 });
+
+describe('time running out', () => {
+  it('loses a timed campaign attempt without recording stars', async () => {
+    await loadStage(5);
+    const session = start(5, false);
+    const lost = reduceSession(session, { type: 'GAME', action: { type: 'TIME_UP' } });
+    expect(lost.game.status).toBe('gameover');
+    expect(lost.game.failReason).toBe('time');
+    expect(lost.stars[5]).toBeUndefined();
+  });
+
+  it('leaves relaxed attempts alone', async () => {
+    await loadStage(5);
+    const session = start(5, true);
+    expect(reduceSession(session, { type: 'GAME', action: { type: 'TIME_UP' } }).game.status).toBe(session.game.status);
+  });
+});

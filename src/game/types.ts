@@ -24,6 +24,8 @@ export interface GameState {
   clearStars?: number;
   // Why play stopped while blocked or lost: the tray filled, or no reachable dessert can be picked up.
   blockedReason?: 'full' | 'stuck';
+  /** Set when a timed attempt was lost because the clock ran out. */
+  failReason?: 'time';
   completedOrders: number; trayClearsLeft: number; transitionId: number;
   /** Rewards picked up from the queues during this attempt, in order. */
   collectedRewards?: RewardKind[];
