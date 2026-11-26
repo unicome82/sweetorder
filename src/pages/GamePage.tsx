@@ -368,6 +368,16 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     if (quickNeedsAd) void actAfterRewardedAd('quickOrder', { type: 'QUICK_ORDER', adWatched: true });
     else act({ type: 'QUICK_ORDER' });
   };
+  // Orders as shown: desserts still flying to a customer count as not yet delivered. Memoized so the clock's
+  // ticks don't hand OrderBoard a new array (it measures and snapshots its cards whenever the orders change).
+  const shownOrders = useMemo(() => pendingDeliveries.length ? state.orders.map(order => {
+    if (!order) return null;
+    const remaining = { ...order.remaining };
+    for (const delivery of pendingDeliveries) {
+      if (delivery.orderId === order.definitionId) remaining[delivery.type] = (remaining[delivery.type] ?? 0) + 1;
+    }
+    return { ...order, remaining };
+  }) : state.orders, [state.orders, pendingDeliveries]);
   const boardVisible = playing || status === 'blocked' || status === 'paused';
   const [presentedResult, setPresentedResult] = useState<GameState | null>(null);
   const waitingForGoodbye = showGoodbye && presentedResult !== state;
@@ -544,14 +554,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       {failed && !practice && !bonus && <button type="button" className="pass-link-button" onClick={onShowPass}>{t.passFailed}</button>}
     </section>}
     {(boardVisible || waitingForGoodbye) && <div className="game-board">
-    <OrderBoard key={round} orders={pendingDeliveries.length ? state.orders.map(order => {
-      if (!order) return null;
-      const remaining = { ...order.remaining };
-      for (const delivery of pendingDeliveries) {
-        if (delivery.orderId === order.definitionId) remaining[delivery.type] = (remaining[delivery.type] ?? 0) + 1;
-      }
-      return { ...order, remaining };
-    }) : state.orders} stageId={state.stageId} onOrderReady={onOrderReady} />
+    <OrderBoard key={round} orders={shownOrders} stageId={state.stageId} onOrderReady={onOrderReady} />
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
       canClear={playing && !timeUp && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
       onClear={requestTrayClear}

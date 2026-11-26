@@ -429,7 +429,9 @@ html, body { height: 100%; overflow: hidden; }
     linear-gradient(to bottom, rgb(255 255 255 / .75) 0%, rgb(255 255 255 / .35) 46%, rgb(255 255 255 / 0) 50%, rgb(50 20 66 / .08) 80%, rgb(50 20 66 / .16) 100%),
     linear-gradient(to right, var(--stage-clock-start-color), var(--stage-clock-end-color));
   box-shadow: inset 0 1px #ffffffb3, inset 0 -1px #52344b30, 0 0 2px #653c744a;
-  transition: width 100ms linear, --stage-clock-start-color 600ms ease-in-out, --stage-clock-end-color 600ms ease-in-out;
+  // No width transition: the clock updates every 100ms, and easing each step made the page lay out on every frame
+  // (about half the game's idle CPU) for steps of well under a pixel on a normal stage.
+  transition: --stage-clock-start-color 600ms ease-in-out, --stage-clock-end-color 600ms ease-in-out;
 }
 .game-board {
   display: grid;
