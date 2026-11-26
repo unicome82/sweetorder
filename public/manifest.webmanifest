@@ -5,7 +5,7 @@
   "scope": "./",
   "display": "fullscreen",
   "background_color": "#c5e9ff",
-  "theme_color": "#fff9f2",
+  "theme_color": "#c5e9ff",
   "icons": [
     { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
   ]
