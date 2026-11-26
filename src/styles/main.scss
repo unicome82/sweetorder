@@ -26,7 +26,9 @@
 // iOS 26 blurs the edge under the status bar while the document itself scrolls.
 // Scrolling inside a fixed full-screen box instead, as the settings popup does, avoids it.
 html, body { height: 100%; overflow: hidden; }
-#root { position: fixed; inset: 0; overflow-y: auto; overscroll-behavior-y: none; }
+// Safari tints the status bar and toolbars from this fixed box's colour, so keep it neutral
+// instead of letting a screen's own colour (the start page's sky blue) show through.
+#root { position: fixed; inset: 0; overflow-y: auto; overscroll-behavior-y: none; background-color: #f6ece2; }
 
 .app-shell {
   -webkit-user-select: none;
