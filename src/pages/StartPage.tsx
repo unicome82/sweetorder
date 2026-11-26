@@ -1,6 +1,6 @@
 import { stageDifficulty } from '../game/stages';
 import { StageDifficultyRibbon } from '../components/StageDifficultyRibbon';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMessages } from '../i18n/language';
 import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
 
@@ -27,14 +27,6 @@ export function StartPage({ stage, onGame, onStages, settings }: {
 }) {
   const t = useMessages();
   const [poster] = useState(() => posters[Math.floor(Math.random() * posters.length)]);
-  // The status bar takes the poster's top colour, the gradient's first stop.
-  const topColor = poster?.background?.match(/#[0-9a-f]{6}/i)?.[0];
-  useEffect(() => {
-    if (!topColor) return;
-    const style = document.documentElement.style;
-    style.setProperty('--start-top-color', topColor);
-    return () => { style.removeProperty('--start-top-color'); };
-  }, [topColor]);
   return <main className="start-page" style={{ backgroundImage: poster?.background }}>
     <h1 className="sr-only">Sweet Order</h1>
     <img className="start-poster" src={poster?.src} width={800} height={1800} alt="" draggable={false} fetchPriority="high" />

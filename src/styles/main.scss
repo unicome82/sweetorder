@@ -28,14 +28,6 @@
 html, body { height: 100%; overflow: hidden; }
 #root { position: fixed; inset: 0; overflow-y: auto; overscroll-behavior-y: none; }
 
-// A home-screen app paints its opaque status bar with the page background,
-// so each screen gives it the colour along its own top edge.
-:root.standalone { background-color: var(--status-bar-color, #f6ece2); }
-:root.standalone:has(.start-page) { --status-bar-color: var(--start-top-color, #c5e9ff); }
-:root.standalone:has(.stage-page) { --status-bar-color: #9bdbfa; }
-:root.standalone:has(.game-page) { --status-bar-color: #fae2d2; }
-:root.standalone:has(.settings-dialog[open]) { --status-bar-color: #fff7ed; }
-
 .app-shell {
   -webkit-user-select: none;
   user-select: none;
