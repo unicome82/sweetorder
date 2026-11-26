@@ -1031,6 +1031,33 @@
 .settings-test-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 6px; }
 .settings-test-actions .secondary-button { min-height: 40px; font-size: 14px; }
 .settings-test-actions .secondary-button:disabled { opacity: .5; }
+// Temporary: iOS status bar blur workarounds picked in the settings popup.
+.settings-select { width: 100%; min-height: 38px; padding: 0 12px; border: 1px solid #e9c9b3; border-radius: 12px; background: #fff; color: #703b27; font: inherit; font-size: 15px; }
+:root { --status-bar-test-color: #fff7eb; }
+:root:has(.start-page) { --status-bar-test-color: #c5e9ff; }
+:root:has(.stage-page) { --status-bar-test-color: #9bdbfa; }
+:root:has(.game-page) { --status-bar-test-color: #fae2d2; }
+:root[data-status-bar-test='strip'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 1000;
+  height: var(--safe-top);
+  pointer-events: none;
+  background: var(--status-bar-test-color);
+}
+:root[data-status-bar-test='backdrop'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--status-bar-test-color);
+}
+:root[data-status-bar-test='scroller'] {
+  &, body { height: 100%; overflow: hidden; }
+  #root { position: fixed; inset: 0; overflow-y: auto; overscroll-behavior-y: none; }
+}
 .settings-hint { margin: 8px 2px 0; color: #9a6a52; font-size: 12px; line-height: 1.45; }
 
 // Shown while a stage chunk downloads before entering a stage.

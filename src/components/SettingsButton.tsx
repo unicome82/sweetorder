@@ -6,6 +6,7 @@ import type { Language } from '../i18n/messages';
 import type { PlayMode } from '../app/modePreference';
 import { useNow } from '../hooks/useNow';
 import { isPassActive, type Pass } from '../monetization/pass';
+import { applyStatusBarTest, readStatusBarTest, type StatusBarTest } from '../app/statusBarTest';
 
 export interface SettingsProps {
   soundEnabled: boolean; onToggleSound: () => void;
@@ -39,6 +40,19 @@ function TestPass({ pass, onBuy, onEnd, onFillHearts, onEmptyHearts }: NonNullab
       <button type="button" className="secondary-button" onClick={onEmptyHearts}>{t.testHeartsEmpty}</button>
     </div>
   </>;
+}
+
+const statusBarTestLabels: Record<StatusBarTest, string> = {
+  off: '끄기 (기본)', strip: 'A. 상단 고정 단색 띠', backdrop: 'B. 고정 단색 배경층', scroller: 'C. 고정 전체화면 스크롤',
+};
+
+/** Temporary: picks an iOS status bar blur workaround to compare live. */
+function StatusBarTestPicker() {
+  const [test, setTest] = useState(readStatusBarTest);
+  return <select className="settings-select" aria-label="상태바 블러 테스트" value={test}
+    onChange={event => { const next = event.target.value as StatusBarTest; applyStatusBarTest(next); setTest(next); }}>
+    {Object.entries(statusBarTestLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+  </select>;
 }
 
 /**
@@ -79,6 +93,11 @@ export function SettingsButton({ language, onLanguage, mode, onMode, testPass, i
       <section className="settings-section">
         <h3>{t.soundSection}</h3>
         <SoundControls {...sound} />
+      </section>
+      <section className="settings-section">
+        <h3>상태바 블러 테스트</h3>
+        <StatusBarTestPicker />
+        <p className="settings-hint">설정을 닫은 뒤 메인·스테이지 화면 상단을 확인하세요.</p>
       </section>
       {testPass && <section className="settings-section">
         <h3>{t.testSection}</h3>
