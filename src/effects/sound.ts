@@ -253,8 +253,9 @@ export const soundNames = Object.keys(cueBuilders) as SoundName[];
 
 // How long a pause between deliveries may be before the rising streak starts over.
 const STREAK_GAP = 1.4;
-// A sound held back while audio resumes is dropped if the resume took longer than this.
-const STALE_SOUND_MS = 250;
+// A sound held back while audio resumes is dropped if the resume took longer than this (long enough for the tap
+// that brings iOS audio back to still be heard).
+const STALE_SOUND_MS = 800;
 const minimumGap: Partial<Record<SoundName, number>> = { select: 0.035, denied: 0.18, tap: 0.04 };
 
 const isIOS = typeof navigator !== 'undefined'
@@ -419,6 +420,13 @@ function fadeIn() {
   awake = true;
   const now = audio.currentTime;
   wake.gain.cancelScheduledValues(now);
+  // Only routed music needs the fade; native music (iOS) leaves effects alone on Web Audio, and fading them would
+  // swallow the tap that brought audio back.
+  if (!musicVolumeAdjustable) {
+    wake.gain.setValueAtTime(1, now);
+    syncMusic();
+    return;
+  }
   wake.gain.setValueAtTime(0, now);
   wake.gain.setTargetAtTime(1, now + 0.05, WAKE_FADE_IN / 3);
   clearTimeout(musicTimer);
@@ -453,8 +461,9 @@ function onHide() {
 function onVisibility() {
   if (document.hidden) { onHide(); return; }
   if (teardownTimer) teardown();
-  // iOS waits for the next tap (unlockSound) to build audio again.
-  if (!audio) return;
+  // iOS: native music carries on at once (its element was started by a tap before); Web Audio is built again on
+  // the next tap (unlockSound).
+  if (!audio) { syncMusic(); return; }
   if (audio.state === 'running') fadeIn();
   // Some browsers refuse this without a tap; the next tap's unlockSound tries again.
   else tryResume();
@@ -465,14 +474,18 @@ function teardown() {
   clearTimeout(teardownTimer);
   teardownTimer = undefined;
   const old = audio;
-  if (music) {
+  // Native music isn't tied to the context: keep the element (iOS lets an element a tap once started play again
+  // later) and only pause it. Routed music must go with its context.
+  if (music && !musicRouted) {
+    music.pause();
+  } else if (music) {
     if (music.currentTime > 0) musicResume = { scene, time: music.currentTime };
     music.pause();
     music.removeAttribute('src');
     music.load();
   }
   clearTimeout(musicTimer);
-  music = undefined;
+  if (musicRouted) music = undefined;
   musicRouted = false;
   moodGain = undefined;
   audio = output = wake = sfxBus = musicBus = undefined;
