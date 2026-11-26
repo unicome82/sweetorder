@@ -13,6 +13,7 @@ import { BONUS_AT_STAGE_00_FOR_TESTING, FAKE_MONETIZATION_FOR_TESTING } from '..
 import { isPassActive } from '../monetization/pass';
 import { billing } from '../monetization/billing';
 import { FakeAdHost } from '../components/FakeAdHost';
+import { RotateNotice } from '../components/RotateNotice';
 import { NoHeartsDialog } from '../components/NoHeartsDialog';
 import { PassOfferDialog } from '../components/PassOfferDialog';
 import { ChargeHeartsDialog } from '../components/ChargeHeartsDialog';
@@ -161,6 +162,7 @@ export function App() {
       initial={itemChoice} onStart={startWithItems} onClose={() => setPreStart(undefined)} />}
     {passOfferOpen && <PassOfferDialog onBuy={() => void buyFromOffer()} onClose={() => setPassOfferOpen(false)} />}
     <FakeAdHost />
+    <RotateNotice />
     {loadingStage !== undefined && <p className="stage-loading" role="status">Loading…</p>}
   </div></LanguageContext>;
 }

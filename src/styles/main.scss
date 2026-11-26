@@ -175,6 +175,8 @@ html, body { height: 100%; overflow: hidden; }
 .stage-page {
   position: relative;
   display: grid;
+  // One column no wider than the screen: the hero's minimum height with its aspect ratio would otherwise widen it.
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   height: var(--page-height);
   padding-bottom: env(safe-area-inset-bottom);
@@ -199,6 +201,7 @@ html, body { height: 100%; overflow: hidden; }
 }
 .stage-list-frame {
   position: relative;
+  min-width: 0;
   min-height: 0;
 }
 .stage-list-frame[data-scrolled='true']::after {
@@ -242,6 +245,7 @@ html, body { height: 100%; overflow: hidden; }
 .stage-navigation button { pointer-events: auto; }
 .stage-option {
   position: relative;
+  min-width: 0;
   display: grid;
   place-items: center;
   align-content: center;
@@ -329,7 +333,9 @@ html, body { height: 100%; overflow: hidden; }
 @keyframes danger-pulse { 50% { opacity: .45; } }
 .game-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  // The right side keeps clear of the settings and pause buttons (fixed to the screen's right edge), so on a
+  // narrow screen the title moves left instead of running under them.
+  grid-template-columns: minmax(0, 1fr) auto minmax(calc(106px - var(--gutter)), 1fr);
   align-items: center;
   gap: 6px;
   flex: none;
@@ -678,12 +684,16 @@ html, body { height: 100%; overflow: hidden; }
   filter: drop-shadow(1px 1px 0 #a9653e60);
 }
 
-.queue-section { overflow: clip; min-width: 0; min-height: 0; }
+.queue-section { overflow: clip; min-width: 0; min-height: 0; container-type: size; }
+// Every screen shows the same number of desserts per column (what a typical phone showed before), so taller or
+// shorter screens neither reveal more of the queue nor hide it: the spacing fits that many into the space there is.
+.queue-column > :nth-child(n + 19) { visibility: hidden; }
 .queue-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; min-height: 100%; }
 .queue-column {
   isolation: isolate;
   --queue-head: clamp(30px, 9vw, 42px);
-  --queue-step: clamp(20px, 5vw, 28px);
+  --queue-visible: 18;
+  --queue-step: clamp(11px, (100cqh - var(--queue-head) - 4px) / (var(--queue-visible) - 1), 28px);
   display: grid;
   align-content: start;
   justify-items: center;
@@ -907,6 +917,10 @@ html, body { height: 100%; overflow: hidden; }
 }
 @keyframes confetti-fall { 85% { opacity: 1; } 100% { transform: translate(35px, 100dvh) rotate(540deg); opacity: 0; } }
 
+// Narrow screens (folding phones' cover screens): keep the start button's text clear of its difficulty badge.
+@media (max-width: 340px) {
+  .start-actions .stage-button:has(.stage-difficulty) { padding-inline: 12px 74px; }
+}
 @media (max-width: 360px) {
   .order-items { column-gap: 2px; }
   .order-items li { gap: 1px; }
@@ -1392,3 +1406,27 @@ html, body { height: 100%; overflow: hidden; }
 }
 
 .pass-benefit-text { white-space: pre-line; }
+
+// Phones held sideways: the game is laid out for portrait only, so ask for portrait (the game pauses meanwhile).
+.rotate-notice { display: none; }
+@media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+  .rotate-notice {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 16px;
+    padding: 24px;
+    background: #f6ece2;
+    color: var(--secondary-text);
+    font-size: 20px;
+    text-align: center;
+  }
+  .rotate-notice svg { width: 64px; height: 64px; animation: rotate-hint 2.4s ease-in-out infinite; }
+  // Open popups sit in the top layer above any z-index, so hide them until the phone is upright again.
+  dialog[open], dialog::backdrop { display: none !important; }
+}
+@keyframes rotate-hint { 0%, 30% { transform: rotate(-90deg); } 60%, 100% { transform: rotate(0deg); } }
+@media (prefers-reduced-motion: reduce) { .rotate-notice svg { animation: none; } }

@@ -25,6 +25,7 @@ import { createEffects } from '../effects/turnEffects';
 import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
 import { ads, type RewardedPlacement } from '../monetization/ads';
 import { PASS_TIME_BONUS_MS } from '../monetization/pass';
+import { SIDEWAYS_PHONE } from '../components/RotateNotice';
 
 // Keep the standard pickup cadence independent of visual effect duration.
 const TRAY_READY_DELAY = 235;
@@ -375,6 +376,17 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
   const pauseWhenHidden = useEffectEvent(() => {
     if (document.visibilityState === 'hidden' && timeLimit > 0 && latest.current.status === 'playing') act({ type: 'PAUSE' });
   });
+  // Turning a phone sideways covers the game with the rotate notice, so a timed game pauses too.
+  const pauseWhenSideways = useEffectEvent(() => {
+    if (timeLimit > 0 && latest.current.status === 'playing') act({ type: 'PAUSE' });
+  });
+  useEffect(() => {
+    const query = window.matchMedia(SIDEWAYS_PHONE);
+    if (query.matches) pauseWhenSideways();
+    const onChange = () => { if (query.matches) pauseWhenSideways(); };
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
   useEffect(() => {
     const onHide = () => pauseWhenHidden();
     document.addEventListener('visibilitychange', onHide);
