@@ -3,6 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+    <script>
+      // Tablets show the phone layout scaled up: the page is laid out at least 460px wide (the game's widest layout)
+      // and at least 740px tall in portrait, and the browser zooms it to fill the screen. On a squat 4:3 screen the
+      // extra width becomes margin beside the game. Phones and desktops keep their own width.
+      (function () {
+        var shortSide = Math.min(screen.width, screen.height);
+        var longSide = Math.max(screen.width, screen.height);
+        if (shortSide >= 600 && matchMedia('(pointer: coarse)').matches) {
+          var width = Math.max(460, Math.ceil(740 * shortSide / longSide));
+          document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=' + width + ', user-scalable=no, viewport-fit=cover');
+        }
+      })();
+    </script>
     <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="A dessert puzzle game about filling customer orders." />
     <title>Sweet Order</title>
