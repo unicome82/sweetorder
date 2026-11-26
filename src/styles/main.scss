@@ -314,7 +314,7 @@ html, body { height: 100%; overflow: hidden; }
   gap: var(--gap);
   padding-top: calc(12px + var(--safe-top));
 }
-.game-status--playing, .game-status--clear {
+.game-status--playing, .game-status--clear, .game-status--gameover {
   background-image: url('../assets/game/cafe-playing.webp');
 }
 .game-status--playing {
@@ -656,11 +656,13 @@ html, body { height: 100%; overflow: hidden; }
 .tray-section--warn {
   --tray-blink: #f5c66b;
   --tray-blink-duration: 1.2s;
-  background: linear-gradient(#fff8e6, #ffe8bf);
+  border-color: #f3c46a;
+  background: linear-gradient(#fff3cc, #ffde93);
 }
 .tray-section--danger {
   --tray-blink: #f58fa3;
   --tray-blink-duration: .7s;
+  border-color: #ef9aab;
   background: linear-gradient(#fff1ef, #ffdcdc);
 }
 // The warning glow is drawn once on its own layer and only fades, so blinking doesn't repaint the tray.
@@ -683,20 +685,23 @@ html, body { height: 100%; overflow: hidden; }
   row-gap: 2px;
   padding-inline: var(--tray-slot-padding);
 }
-.tray-slots li { display: grid; place-items: center; min-width: 0; height: clamp(24px, 4.2dvh, 36px); }
+.tray-slots li { display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; min-width: 0; height: clamp(24px, 4.2dvh, 36px); }
 .tray-slots li:empty::after { content: ''; width: 4px; height: 4px; border-radius: 50%; background: #dfbd99; }
 .tray-donut {
   translate: 0 -4px;
   // Size against a 12-slot row so desserts look the same at every capacity.
   // --tray-lent evens out the width the buttons beside the tray take, so desserts keep their size.
   width: min(calc((100cqw + var(--tray-lent, 0px)) / 12 * 1.4), 44px);
-  justify-self: center;
+  // Wider than its slot: overhang both sides evenly (the slot's track is held to the slot's width, so an auto track can't grow and push the dessert over the next empty slot's dot).
+  justify-self: unsafe center;
   position: relative;
   z-index: 1;
   filter: drop-shadow(1px 1px 0 #a9653e60);
 }
 
 .queue-section { overflow: clip; min-width: 0; min-height: 0; container-type: size; }
+// Room above the columns (taken back from the gap) so the hint glow around a front dessert isn't clipped flat.
+.queue-section { padding-top: 6px; margin-top: -6px; }
 // Every screen shows the same number of desserts per column (what a typical phone showed before), so taller or
 // shorter screens neither reveal more of the queue nor hide it: the spacing fits that many into the space there is.
 .queue-column > :nth-child(n + 19) { visibility: hidden; }
@@ -864,7 +869,7 @@ html, body { height: 100%; overflow: hidden; }
   padding-top: calc(clamp(48px, 10dvh, 100px) + var(--safe-top));
   padding-bottom: max(clamp(12px, 6dvh, 46px), env(safe-area-inset-bottom));
 }
-.game-status--clear::before {
+.game-status--clear::before, .game-status--gameover::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1218,8 +1223,9 @@ html, body { height: 100%; overflow: hidden; }
 }
 @media (prefers-reduced-motion: reduce) {
   .peek-reveal-mystery { display: none; }
+  // +5s stays on the dimmed intro without moving, below the title it would otherwise cover, so the extra time is still announced.
   .peek-reveal-dessert, .time-bonus-pop { animation: none; }
-  .time-bonus-pop { display: none; }
+  .time-bonus-pop { translate: 0 1.3em; }
 }
 
 // A reward takes a dessert-sized slot in its queue.
@@ -1474,7 +1480,7 @@ html, body { height: 100%; overflow: hidden; }
 
 // Low-end Android phones (see main.tsx): no blur behind popups, which can stutter as they open.
 .reduced-effects {
-  .glass-popup, .glass-popup::backdrop, .game-status--clear::before { backdrop-filter: none; }
+  .glass-popup, .glass-popup::backdrop, .game-status--clear::before, .game-status--gameover::before { backdrop-filter: none; }
   .glass-popup { background: linear-gradient(155deg, rgb(255 247 237 / .98), rgb(255 232 220 / .95)); }
   .glass-popup::backdrop { background: rgb(76 42 28 / .45); }
 }

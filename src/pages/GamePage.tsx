@@ -3,7 +3,7 @@ import popupRibbon from '../assets/game/popup-ribbon.webp';
 import popupCat from '../assets/game/popup-cat.webp';
 import clearDesserts from '../assets/game/clear-desserts.webp';
 import rewardStar from '../assets/game/reward-star.webp';
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useContext, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { flushSync } from 'react-dom';
 import { CUSTOMER_GOODBYE_MS } from '../effects/customerTiming';
 import { GameHeader } from '../components/GameHeader';
@@ -20,7 +20,7 @@ import { clockPhase, getGameTimeLimit, losesOnTimeUp, type ClockPhase } from '..
 import { LiveStageClock } from '../components/StageClock';
 import { playSound, setMusicMood } from '../effects/sound';
 import { haptic } from '../effects/haptics';
-import { useMessages } from '../i18n/language';
+import { LanguageContext, useMessages } from '../i18n/language';
 import { createEffects } from '../effects/turnEffects';
 import { SettingsButton, type SettingsProps } from '../components/SettingsButton';
 import { ads, type RewardedPlacement } from '../monetization/ads';
@@ -62,6 +62,8 @@ interface Props {
 }
 export function GamePage({ state, dispatch, onStages, onNext, settings, canRestart, onOutOfHearts, trayClearsOwned, legacyAdFree, passActive, onRetry, onShowPass }: Props) {
   const t = useMessages();
+  // The script face has Latin letters only, so the Time's Up title matches its stamp in English.
+  const scriptTimeUp = useContext(LanguageContext) === 'en';
   const { soundEnabled } = settings;
   // Settings opened mid-play pause the game behind them and resume it when closed.
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -319,6 +321,8 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     gameover: state.failReason === 'time' ? t.timeUp : state.trayClearsLeft > 0 ? t.tryAgain : state.blockedReason === 'stuck' ? t.noMoves : t.trayFull,
   };
   const failed = status === 'gameover';
+  // Desserts still moving: the tray buttons ignore taps but keep their look, so fast play doesn't make them flicker.
+  const trayBusy = !!state.pendingMatchIds?.length || inFlight.size > 0 || returning.size > 0;
   // Practice keeps its own single tray clear; elsewhere the badges show the owned pool.
   const practice = state.stageId === practiceStage.id;
   const clearsOwned = practice ? state.trayClearsLeft : trayClearsOwned;
@@ -488,7 +492,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     previousTimeStars.current = timeStars;
     if (!timed) { lastTickSecond.current = undefined; return; }
     if (lostStar && timeStars > 0) {
-      if (soundEnabled) playSound('starLost');
+      if (soundEnabled && !bonus) playSound('starLost');
       return;
     }
     // The 10-second practice stage would tick throughout, so ticks start only on longer stages.
@@ -518,7 +522,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
         }} />} />}
     {(showClock || (timeLimit > 0 && (waitingForGoodbye || waitingForTimeUp))) && <div className="stage-clock-wrap">
       <LiveStageClock deadline={deadline} running={timerRunning} frozenMs={pausedTimeMs} clockMax={currentClockMax}
-        limitMs={timeLimit} bonusAt={timeBonusAt} onPhase={setPhase} />
+        limitMs={timeLimit} bonusAt={timeBonusAt} showStars={!bonus} onPhase={setPhase} />
     </div>}
     {/* An even 2px white outline around the reward images. */}
     <svg className="sr-only" aria-hidden="true"><filter id="white-outline" x="-20%" y="-20%" width="140%" height="140%">
@@ -539,7 +543,7 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
       {status === 'clear' && !bonus && !state.relaxed && <div className="result-stars" role="img" aria-label={t.starsCount(stars)}>
         {[0, 1, 2].map(index => <span key={index} className={index < stars ? 'result-star--earned' : 'star--unearned'}><img src={rewardStar} alt="" draggable={false} /></span>)}
       </div>}
-      <h2 id="result-heading" ref={resultHeading} tabIndex={-1} className={status === 'clear' ? 'result-display-title' : undefined}>
+      <h2 id="result-heading" ref={resultHeading} tabIndex={-1} className={status === 'clear' || (scriptTimeUp && failed && state.failReason === 'time') ? 'result-display-title' : undefined}>
         {status === 'clear' && bonus ? 'Bonus Clear!' : status === 'clear' && lastStage ? 'All Stages Clear!' : resultTitles[status]}
       </h2>
       {status === 'clear' && <img className="result-desserts" src={clearDesserts} alt="" draggable={false} />}
@@ -560,10 +564,11 @@ export function GamePage({ state, dispatch, onStages, onNext, settings, canResta
     {(boardVisible || waitingForGoodbye || waitingForTimeUp) && <div className="game-board">
     <OrderBoard key={round} orders={shownOrders} stageId={state.stageId} onOrderReady={onOrderReady} />
     <DonutTray inFlight={inFlight} donuts={state.tray} capacity={state.trayCapacity} difficulty={stage.difficulty} clearsLeft={state.trayClearsLeft} owned={clearsOwned} needsAd={clearNeedsAd}
-      canClear={playing && !timeUp && !waitingForGoodbye && state.tray.length > 0 && !state.pendingMatchIds?.length && inFlight.size === 0 && returning.size === 0}
+      busy={trayBusy}
+      canClear={playing && !timeUp && !waitingForGoodbye && state.tray.length > 0}
       onClear={onTrayClear}
       quickOrders={quickOrders} quickNeedsAd={quickNeedsAd} onQuickOrder={onQuickOrder}
-      canQuickOrder={playing && !timeUp && canQuickOrder(state, quickNeedsAd) && !waitingForGoodbye && !showIntro && inFlight.size === 0 && returning.size === 0} />
+      canQuickOrder={playing && !timeUp && canQuickOrder(trayBusy ? { ...state, pendingMatchIds: undefined } : state, quickNeedsAd) && !waitingForGoodbye && !showIntro} />
     <DonutQueue key={round} queues={state.queues} revealed={state.peeked} returning={returning} disabled={queueDisabled} hintColumns={hintColumns} locked={trayFull} onReject={(_, element) => rejectSelection(element)} onSelect={(queueIndex, expectedDonutId) => { void act({ type: 'SELECT_DONUT', queueIndex, expectedDonutId }); }} />
     </div>}
     <dialog className="glass-popup tray-full-dialog pause-dialog" ref={pauseDialog} aria-labelledby="pause-heading" onCancel={event => { event.preventDefault(); act({ type: 'RESUME' }); }}>
