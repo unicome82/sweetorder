@@ -406,11 +406,7 @@ function startMusic(context: AudioContext) {
   }
 }
 
-// iOS (Safari and home-screen apps) doesn't bring Web Audio back cleanly from the background: a context the system
-// interrupted crackles or never resumes. There the whole audio setup is closed when the app is hidden and built
-// afresh on the first tap after returning.
-const rebuildAfterHide = isIOS;
-// Returning elsewhere: fade the sound in, and start the music a moment later (it crackles if it starts while the
+// Returning to the app: fade the sound in, and start the music a moment later (it crackles if it starts while the
 // audio device is still waking up).
 const WAKE_FADE_IN = 0.25;
 const MUSIC_AFTER_WAKE_MS = 200;
@@ -420,8 +416,6 @@ let resumeStartedAt = 0;
 let musicTimer: ReturnType<typeof setTimeout> | undefined;
 let musicResume: { scene: MusicScene; time: number } | undefined;
 let listening = false;
-const TEARDOWN_AFTER_HIDE_MS = 80;
-let teardownTimer: ReturnType<typeof setTimeout> | undefined;
 // Whether the fade-in has run for the current waking; reset when hidden or rebuilt.
 let awake = false;
 
@@ -463,27 +457,23 @@ function onHide() {
     wake.gain.setValueAtTime(0, now);
   }
   clearTimeout(musicTimer);
+  // The context stays open (only silenced), so effects can come back the moment the app does. Closing it was for the
+  // iOS beep, which came from music routed through Web Audio; music plays natively there now.
   syncMusic();
-  // Close a moment later, once the silence has actually been played out: closing at once can freeze the device
-  // on the last loud fragment. If the app is frozen first, the return below closes it instead.
-  if (rebuildAfterHide && audio && !teardownTimer) teardownTimer = setTimeout(teardown, TEARDOWN_AFTER_HIDE_MS);
 }
 
 function onVisibility() {
   if (document.hidden) { onHide(); return; }
-  if (teardownTimer) teardown();
-  // iOS: native music carries on at once (its element was started by a tap before); Web Audio is built again on
-  // the next tap (unlockSound).
   if (!audio) { syncMusic(); return; }
   if (audio.state === 'running') fadeIn();
-  // Some browsers refuse this without a tap; the next tap's unlockSound tries again.
+  // Bring the same context back without a tap. Safari may refuse or never answer: then the next tap's unlockSound
+  // retries, or builds a new context once this one has been stuck for RESUME_TIMEOUT_MS.
   else tryResume();
+  syncMusic();
 }
 
 /** Closes the audio context and its music element; the next unlockSound builds them again. */
 function teardown() {
-  clearTimeout(teardownTimer);
-  teardownTimer = undefined;
   const old = audio;
   clearTimeout(musicHoldTimer);
   musicHeld = false;
