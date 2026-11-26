@@ -48,10 +48,10 @@ export function StartItemsDialog({ stageId, pass, available, peekNeedsAd, addTim
   return <dialog className="glass-popup tray-full-dialog start-items-dialog" ref={dialog} aria-labelledby="start-items-heading"
     onCancel={event => { event.preventDefault(); if (!watching) onClose(); }}>
     {/* Names the stage about to start, since the popup hides the screen it was picked on. */}
-    <p className="start-items-stage" lang="en">
+    <p className="start-items-stage" lang="en"><span className="start-items-stage-wrap">
       <span className="start-items-stage-title">{isBonusStage(stageId) ? 'Bonus Stage' : `Stage ${String(stageId).padStart(2, '0')}`}</span>
       {!isBonusStage(stageId) && <StageDifficultyRibbon difficulty={stageDifficulty(stageId)} />}
-    </p>
+    </span></p>
     <h2 id="start-items-heading">{t.startItemsTitle}</h2>
     <div className="start-items">
       {available.peek && <button type="button" className="start-item" aria-pressed={!!choice.peek} aria-disabled={watching || !!watched.peek} onClick={() => void toggle('peek', peekNeedsAd)}>
