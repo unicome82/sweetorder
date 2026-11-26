@@ -3,7 +3,7 @@
   "short_name": "Sweet Order",
   "start_url": "./",
   "scope": "./",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#c5e9ff",
   "theme_color": "#fff9f2",
   "icons": [
