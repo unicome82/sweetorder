@@ -263,6 +263,11 @@ const isIOS = typeof navigator !== 'undefined'
 // repeats as the app is frozen), so the music plays as a plain media element there. iOS ignores a media element's
 // volume, so the music can only be on or off: popups pause it instead of fading it.
 export const musicVolumeAdjustable = !isIOS;
+// That native music plays at full level, about 3.7 times louder against the effects than the routed mix
+// elsewhere (0.45 of the master level against 0.8 for effects). On iOS the effects, alone on Web Audio,
+// get louder instead to keep the balance; the limiter catches peaks where several overlap.
+const IOS_EFFECTS_BOOST = 3;
+const outputLevel = isIOS ? masterVolume * IOS_EFFECTS_BOOST : masterVolume;
 
 let audio: AudioContext | undefined;
 let output: GainNode | undefined;
@@ -316,7 +321,7 @@ export function saveSoundPreference(enabled: boolean) {
   } catch {
     // The preference can still be changed for the current session.
   }
-  if (output) ramp(output.gain, enabled ? masterVolume : 0, 0.008);
+  if (output) ramp(output.gain, enabled ? outputLevel : 0, 0.008);
   syncMusic();
 }
 
@@ -484,7 +489,7 @@ function createAudio() {
   audio = context;
   awake = false;
   output = context.createGain();
-  output.gain.value = soundEnabled ? masterVolume : 0;
+  output.gain.value = soundEnabled ? outputLevel : 0;
   const limiter = context.createDynamicsCompressor();
   limiter.threshold.value = -6;
   limiter.ratio.value = 8;
